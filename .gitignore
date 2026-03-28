@@ -1,0 +1,50 @@
+# Data (large files)
+data/*.db
+data/interim/
+data/processed/
+data/raw/
+*.xlsx
+*.csv
+
+# Models & MLflow
+mlflow/
+*.pkl
+*.joblib
+*.pt
+*.onnx
+*.h5
+
+# Environment
+.env
+*.json
+!pyproject.toml
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
