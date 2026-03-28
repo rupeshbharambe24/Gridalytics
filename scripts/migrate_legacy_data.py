@@ -105,15 +105,28 @@ def migrate_weather():
 
     print(f"  Loaded {len(df)} rows, columns: {list(df.columns)}")
 
-    # Parse timestamp
-    if "Date" in df.columns and "Time" in df.columns:
+    # Find date and time columns (handle various naming)
+    date_col = next((c for c in df.columns if c.lower().strip() == "date"), None)
+    time_col = next((c for c in df.columns if "time" in c.lower() and "time" != c.lower()), None)
+    if time_col is None:
+        time_col = next((c for c in df.columns if "slot" in c.lower()), None)
+    if time_col is None:
+        time_col = next((c for c in df.columns if c.lower().strip() == "time"), None)
+
+    if date_col and time_col:
         df["timestamp"] = pd.to_datetime(
-            df["Date"].astype(str) + " " + df["Time"].astype(str),
+            df[date_col].astype(str) + " " + df[time_col].astype(str),
             dayfirst=True,
             errors="coerce",
         )
-    elif "time" in df.columns:
-        df["timestamp"] = pd.to_datetime(df["time"], errors="coerce")
+    elif date_col:
+        df["timestamp"] = pd.to_datetime(df[date_col], dayfirst=True, errors="coerce")
+    elif "time" in [c.lower() for c in df.columns]:
+        tc = next(c for c in df.columns if c.lower() == "time")
+        df["timestamp"] = pd.to_datetime(df[tc], errors="coerce")
+    else:
+        print(f"  [ERROR] Could not find date/time columns in: {list(df.columns)}")
+        return
 
     df = df.dropna(subset=["timestamp"])
 
@@ -141,9 +154,16 @@ def migrate_weather():
 
     with get_session() as session:
         count = 0
+        skipped = 0
         for i in range(0, len(df), 5000):
             batch = df.iloc[i:i + 5000]
             for _, row in batch.iterrows():
+                exists = session.query(WeatherRecord).filter(
+                    WeatherRecord.timestamp == row["timestamp"]
+                ).first()
+                if exists:
+                    skipped += 1
+                    continue
                 record = WeatherRecord(
                     timestamp=row["timestamp"],
                     temperature_2m=row.get("temperature_2m"),
@@ -158,9 +178,9 @@ def migrate_weather():
                 session.add(record)
                 count += 1
             session.flush()
-            print(f"  Inserted {min(i + 5000, len(df))}/{len(df)} rows...")
+            print(f"  Processed {min(i + 5000, len(df))}/{len(df)} rows...")
 
-        print(f"  [DONE] Inserted {count} weather records")
+        print(f"  [DONE] Inserted {count} weather records (skipped {skipped} duplicates)")
 
 
 def migrate_daily_demand():
