@@ -1,4 +1,4 @@
-"""FastAPI application for EDFS v2."""
+"""FastAPI application for Gridalytics."""
 
 import logging
 from contextlib import asynccontextmanager
@@ -15,16 +15,16 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown logic."""
-    logger.info("Starting EDFS API...")
+    logger.info("Starting Gridalytics API...")
     create_tables()
     load_models()
     yield
-    logger.info("Shutting down EDFS API")
+    logger.info("Shutting down Gridalytics API")
 
 
 app = FastAPI(
-    title="EDFS API",
-    description="Electricity Demand Forecasting System for Delhi Power Grid",
+    title="Gridalytics API",
+    description="AI-Powered Grid Intelligence for Delhi Power Grid",
     version="2.0.0",
     lifespan=lifespan,
 )

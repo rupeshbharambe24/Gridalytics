@@ -1,4 +1,4 @@
-"""Train a 5-minute resolution LightGBM model for EDFS v2.
+"""Train a 5-minute resolution LightGBM model for Gridalytics.
 
 Handles ~200K rows of 5-min demand data (2021-2026).
 Uses walk-forward CV (10 folds) then trains a final model on all
@@ -58,7 +58,7 @@ def train_5min():
     """Train a 5-minute resolution LightGBM model."""
 
     print(f"\n{'#'*60}")
-    print(f"  EDFS v2 - 5-Minute LightGBM Training")
+    print(f"  Gridalytics - 5-Minute LightGBM Training")
     print(f"{'#'*60}")
 
     # ── 1. Build features ────────────────────────────────────────

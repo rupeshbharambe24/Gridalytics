@@ -1,4 +1,4 @@
-"""One-time migration: Import existing EDFS data into the new database.
+"""One-time migration: Import existing data from the old EDFS project into the new database.
 
 Reads Excel/CSV files from the old F:/Projects/EDFS project and inserts
 them into the new SQLite database.
@@ -220,7 +220,7 @@ def migrate_daily_demand():
 
 def main():
     print("=" * 60)
-    print("EDFS v2 - Legacy Data Migration")
+    print("Gridalytics - Legacy Data Migration")
     print("=" * 60)
 
     print("\n[INIT] Creating database tables...")

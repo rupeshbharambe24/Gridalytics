@@ -56,7 +56,7 @@ class SLDCScraper(BaseScraper):
     def _fetch_day(self, date_str: str) -> list | None:
         """Fetch a single day of data from SLDC."""
         url = f"{self.base_url}?mode={date_str}"
-        headers = {"User-Agent": "Mozilla/5.0 (EDFS Research Project)"}
+        headers = {"User-Agent": "Mozilla/5.0 (Gridalytics Research Project)"}
 
         response = self._retry_request(requests.get, url, headers=headers, timeout=30)
 

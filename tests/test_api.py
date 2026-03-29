@@ -24,7 +24,7 @@ class TestHealthEndpoints:
 class TestAuthEndpoints:
     def test_register(self, client):
         resp = client.post("/api/v1/auth/register", json={
-            "email": "test_api@edfs.com",
+            "email": "test_api@gridalytics.com",
             "password": "testpass123",
             "full_name": "Test API User",
         })
@@ -38,12 +38,12 @@ class TestAuthEndpoints:
     def test_login(self, client):
         # Register first
         client.post("/api/v1/auth/register", json={
-            "email": "test_login@edfs.com",
+            "email": "test_login@gridalytics.com",
             "password": "testpass123",
         })
 
         resp = client.post("/api/v1/auth/login", json={
-            "email": "test_login@edfs.com",
+            "email": "test_login@gridalytics.com",
             "password": "testpass123",
         })
         assert resp.status_code == 200
@@ -52,7 +52,7 @@ class TestAuthEndpoints:
 
     def test_login_wrong_password(self, client):
         resp = client.post("/api/v1/auth/login", json={
-            "email": "test_login@edfs.com",
+            "email": "test_login@gridalytics.com",
             "password": "wrongpassword",
         })
         assert resp.status_code == 401

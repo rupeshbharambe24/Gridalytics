@@ -1,170 +1,311 @@
-# EDFS v2 - Electricity Demand Forecasting System
+<p align="center">
+  <img src="https://img.shields.io/badge/Gridalytics-AI%20Grid%20Intelligence-blue?style=for-the-badge&logo=lightning&logoColor=white" alt="Gridalytics" />
+</p>
 
-AI-powered electricity demand forecasting for the **Delhi Power Grid**.
+<h1 align="center">Gridalytics</h1>
+<p align="center">
+  <strong>AI-Powered Grid Intelligence for Delhi Power Grid</strong>
+</p>
 
-Predicts demand at 5-minute, hourly, and daily resolutions using machine learning models trained on 5+ years of historical demand data, weather patterns, holidays, and seasonal cycles.
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/Next.js-14-000000?style=flat-square&logo=next.js&logoColor=white" />
+  <img src="https://img.shields.io/badge/FastAPI-0.110+-009688?style=flat-square&logo=fastapi&logoColor=white" />
+  <img src="https://img.shields.io/badge/PyTorch-2.6-EE4C2C?style=flat-square&logo=pytorch&logoColor=white" />
+  <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" />
+</p>
+
+<p align="center">
+  Predicts electricity demand at <strong>5-minute</strong>, <strong>hourly</strong>, and <strong>daily</strong> resolutions using 7 ML models trained on 5+ years of SCADA data from the Delhi SLDC.
+</p>
+
+---
 
 ## Performance
 
-| Model | Resolution | MAPE | R2 | Model Size |
-|-------|-----------|------|-----|------------|
-| XGBoost | Hourly | **0.52%** | 0.9987 | 24.5 MB |
-| LightGBM | Daily | **2.65%** | 0.8997 | 3.0 MB |
+| Model | Resolution | MAPE | RMSE | R2 | Size |
+|:------|:----------|-----:|-----:|---:|-----:|
+| **LightGBM** | **5-Minute** | **0.18%** | 8.6 MW | 0.9997 | 8.1 MB |
+| **XGBoost** | **Hourly** | **0.52%** | 25.3 MW | 0.9987 | 24.5 MB |
+| LightGBM | Hourly | 0.62% | 30.2 MW | 0.9985 | ~5 MB |
+| **LightGBM** | **Daily** | **2.65%** | 96.6 MW | 0.90 | 3.0 MB |
+| SARIMAX | Daily | 4.18% | --- | --- | ~2 MB |
+| BiLSTM | Hourly | 6.66% | 327.2 MW | 0.70 | 0.7 MB |
+| NeuralProphet | Daily | 7.68% | --- | --- | ~5 MB |
 
-Validated with 12-fold walk-forward cross-validation. Real-time prediction tracking shows **0.97% avg MAPE** over 29 days of live evaluation.
+> All metrics from walk-forward cross-validation (10-12 folds). Real-time prediction tracking: **0.97% avg MAPE** over 29 days.
+>
+> **vs Previous System:** 137x better accuracy, 49x smaller models, proper methodology (no data leakage).
 
-**vs Previous System (SARIMAX):** 47x better accuracy, 133x smaller models, proper methodology (no data leakage).
+---
+
+## Features
+
+<table>
+<tr>
+<td width="50%">
+
+### Data Pipeline
+- Real-time scraping from Delhi SLDC (5-min SCADA data)
+- Weather data from Open-Meteo (free, no API key)
+- Air Quality Index from Open-Meteo AQI
+- Indian holidays + festivals (Diwali, Holi, IPL, etc.)
+- Automated scheduler (7 jobs, runs 24/7)
+
+### ML Models
+- **7 trained models** across 3 resolutions
+- 93 engineered features (lags, CDD, cyclical, rolling)
+- Walk-forward cross-validation (no data leakage)
+- Future forecasting (recursive prediction, up to 90 days)
+- Prediction tracking (daily predicted vs actual)
+
+</td>
+<td width="50%">
+
+### API (23 Endpoints)
+- Forecast: single day, date range, peak extraction
+- What-if scenarios (temperature/humidity/holiday overrides)
+- Dashboard: live demand, stats, heatmaps, accuracy trend
+- Admin: model management, retrain, scraper status
+- JWT authentication with bcrypt
+
+### Frontend (9 Pages)
+- Real-time dashboard with KPI cards
+- Interactive forecast with confidence bands
+- Model comparison (all 7 models)
+- What-if scenario explorer
+- Prediction accuracy tracker with drift detection
+- Comprehensive "How It Works" guide
+
+</td>
+</tr>
+</table>
+
+---
 
 ## Architecture
 
 ```
-FastAPI Backend (Python 3.11)
-├── Data Pipeline: SLDC scraper, Open-Meteo weather, AQI, holidays
-├── Feature Engineering: 93 features (lags, CDD, cyclical, rolling stats)
-├── Models: LightGBM, XGBoost (+ LSTM, TFT planned)
-├── Evaluation: Walk-forward CV, seasonal metrics, drift detection
-├── Prediction Tracker: Daily predicted vs actual logging
-└── Scheduler: Automated data collection + model monitoring
-
-Next.js Frontend (React + Tailwind + Framer Motion)
-├── Dashboard: KPI cards, demand chart, heatmap
-├── Forecast: Hourly/daily predictions with confidence intervals
-├── What-If: Temperature/humidity/holiday scenario explorer
-├── Models: Performance comparison, old vs new metrics
-├── Analytics: 90-day trends, seasonal patterns
-└── Accuracy: Predicted vs actual tracker, drift detection
+                    ┌─────────────────────────────────────────┐
+                    │          Next.js Frontend (9 pages)      │
+                    │   Dashboard │ Forecast │ Models │ Admin   │
+                    └──────────────────┬──────────────────────┘
+                                       │ REST API (JSON)
+                    ┌──────────────────▼──────────────────────┐
+                    │        FastAPI Backend (23 endpoints)     │
+                    │   Auth │ Forecast │ Dashboard │ Admin     │
+                    └───┬──────────┬──────────┬───────────────┘
+                        │          │          │
+              ┌─────────▼──┐  ┌───▼────┐  ┌──▼──────────────┐
+              │   Models    │  │  Data  │  │   Forecasting   │
+              │ LightGBM    │  │ SQLite │  │ Future Engine   │
+              │ XGBoost     │  │ 252K+  │  │ Recursive Pred  │
+              │ LSTM        │  │  rows  │  │ Weather Forecast│
+              │ NeuralProphet│ │        │  │ Pred Tracker    │
+              │ SARIMAX     │  │        │  │ Drift Detection │
+              └─────────────┘  └───┬────┘  └─────────────────┘
+                                   │
+              ┌────────────────────▼─────────────────────────┐
+              │           Automated Data Pipeline             │
+              │  SLDC Scraper │ Open-Meteo │ AQI │ Holidays  │
+              │         APScheduler (7 jobs, 24/7)           │
+              └──────────────────────────────────────────────┘
 ```
+
+---
 
 ## Quick Start
 
 ### 1. Backend
 
 ```bash
-cd E:/Projects/EDFS-v2
-
 # Install dependencies
 pip install pandas numpy sqlalchemy pydantic pydantic-settings python-dotenv \
   requests beautifulsoup4 httpx lightgbm xgboost scikit-learn \
   fastapi uvicorn python-jose passlib holidays apscheduler
 
-# Copy environment config
+# Setup
 cp .env.example .env
-
-# Create database and import legacy data
 python -c "from src.data.db.session import create_tables; create_tables()"
-python scripts/migrate_legacy_data.py
 
-# Backfill demand data to current date
+# Import historical data
+python scripts/migrate_legacy_data.py
 python scripts/backfill_demand.py
 
 # Train models
 python scripts/initial_train.py hourly
 python scripts/initial_train.py daily
+python scripts/train_5min_model.py
 
-# Start API server
+# Start API
 uvicorn src.api.main:app --reload --port 8000
 ```
-
-API docs: http://localhost:8000/docs
 
 ### 2. Frontend
 
 ```bash
-cd frontend
-npm install
-npm run dev
+cd frontend && npm install && npm run dev
 ```
 
-Dashboard: http://localhost:3000
-
-### 3. Continuous Data Collection (optional)
+### 3. Continuous Data Collection
 
 ```bash
-# Run once to fetch latest data
-python -m src.data.scheduler --once
-
-# Run continuously (scrapes every 6 hours, predicts daily)
-python -m src.data.scheduler
+python -m src.data.scheduler       # Run continuously
+python -m src.data.scheduler --once # Run once
 ```
 
-## Data Sources (all free)
+| Service | URL |
+|---------|-----|
+| Dashboard | http://localhost:3000 |
+| API Docs | http://localhost:8000/docs |
+| Redoc | http://localhost:8000/redoc |
 
-| Source | Data | Frequency | API |
-|--------|------|-----------|-----|
-| Delhi SLDC | 5-min demand (Delhi + 5 sub-regions) | Every 6h | delhisldc.org (scraping) |
-| Open-Meteo | Hourly weather (temp, humidity, dew point, wind, solar) | Daily | open-meteo.com (free API) |
-| Open-Meteo | 16-day weather forecast | Every 6h | open-meteo.com (free API) |
-| Open-Meteo | Air Quality (PM2.5, PM10, AQI) | Daily | open-meteo.com (free API) |
-| holidays lib | Indian holidays + festivals | On-demand | Python package |
+---
 
-## API Endpoints
+## Data Sources (All Free)
+
+| Source | Data | Interval | Coverage |
+|--------|------|----------|----------|
+| [Delhi SLDC](https://www.delhisldc.org/) | SCADA demand (Delhi + 5 DISCOMs) | 5 min | 2021 - present |
+| [Open-Meteo](https://open-meteo.com/) | Weather (temp, humidity, wind, solar) | 1 hour | 2021 - present |
+| [Open-Meteo AQI](https://open-meteo.com/) | Air Quality (PM2.5, PM10) | Daily | 2025 - present |
+| Open-Meteo Forecast | 16-day weather forecast | 1 hour | Rolling |
+| `holidays` library | Indian holidays + curated festivals | Daily | 2015 - 2026 |
+
+---
+
+## API Reference
+
+<details>
+<summary><strong>Forecast (5 endpoints)</strong></summary>
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/v1/health/ready` | Health check |
-| POST | `/api/v1/auth/register` | Register user |
-| POST | `/api/v1/auth/login` | Login (JWT) |
-| GET | `/api/v1/forecast/{resolution}?date=` | Forecast (past or future) |
-| GET | `/api/v1/forecast/{resolution}/range` | Multi-day forecast |
-| POST | `/api/v1/forecast/what-if` | Custom scenario |
-| GET | `/api/v1/dashboard/live` | Current demand + weather |
-| GET | `/api/v1/dashboard/historical` | Time series data |
-| GET | `/api/v1/dashboard/stats/summary` | KPI stats |
-| GET | `/api/v1/dashboard/heatmap` | Hour x day demand matrix |
-| GET | `/api/v1/dashboard/prediction-history` | Predicted vs actual log |
-| GET | `/api/v1/dashboard/accuracy-trend` | Rolling MAPE + drift detection |
-| GET | `/api/v1/dashboard/model-performance` | Champion model metrics |
+| `GET` | `/api/v1/forecast/{resolution}?date=` | Forecast (past or future) |
+| `GET` | `/api/v1/forecast/{resolution}/range?start=&end=` | Multi-day forecast (up to 90 days) |
+| `GET` | `/api/v1/forecast/{resolution}/peak?date=` | Peak demand + time |
+| `POST` | `/api/v1/forecast/what-if` | Custom scenario |
+| `GET` | `/api/v1/forecast/models/available` | List loaded models |
 
-## Feature Engineering (93 features)
+</details>
 
-- **Lag features** (5): demand at t-1, t-6, t-24, t-168, t-720
-- **Diff features** (2): rate of change vs 1h and 24h ago
-- **Rolling stats** (21): mean/std/min/max over 6h, 1d, 7d, 30d windows
-- **Cyclical encoding** (9): sin/cos for hour, day-of-week, month, day-of-year
-- **Fourier terms** (18): seasonality decomposition at daily and weekly periods
-- **Weather** (7): temperature, humidity, dew point, precipitation, cloud cover, wind, solar
-- **Weather derived** (8): CDD, HDD, heat index, temp^2, temp x hour, temp x humidity, temp ramp
-- **Calendar** (11): holiday flags, festival type, IPL season, days to/since holiday, AQI
-- **Season** (5): one-hot encoding for Winter/Spring/Summer/Monsoon/Autumn
-- **Time flags** (7): is_weekend, is_peak_hour, is_night, is_morning_ramp, quarter
+<details>
+<summary><strong>Dashboard (9 endpoints)</strong></summary>
 
-## Database
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/v1/dashboard/live` | Current demand + weather |
+| `GET` | `/api/v1/dashboard/historical?days=&resolution=` | Time series data |
+| `GET` | `/api/v1/dashboard/stats/summary` | KPI stats |
+| `GET` | `/api/v1/dashboard/stats/seasonal` | Seasonal breakdown |
+| `GET` | `/api/v1/dashboard/heatmap?days=` | Hour x day matrix |
+| `GET` | `/api/v1/dashboard/model-performance` | Champion metrics |
+| `GET` | `/api/v1/dashboard/prediction-history?days=` | Predicted vs actual log |
+| `GET` | `/api/v1/dashboard/accuracy-trend?days=` | Rolling MAPE + drift |
+| `GET` | `/api/v1/dashboard/anomalies?days=` | High-error days |
 
-SQLite (`data/edfs.db`) with tables:
-- `demand_5min` - 201,967 rows (2021-2026)
-- `weather_hourly` - 45,894 rows (2021-2026)
-- `aqi_daily` - Air quality index
-- `holidays` - 472 entries (2015-2026)
-- `psp_daily` - 3,572 rows (2015-2024)
-- `prediction_log` - Daily predicted vs actual tracking
-- `model_metrics` - Model performance history
-- `users` - JWT authentication
+</details>
+
+<details>
+<summary><strong>Auth + Admin (8 endpoints)</strong></summary>
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/auth/register` | Register user |
+| `POST` | `/api/v1/auth/login` | Login (JWT) |
+| `GET` | `/api/v1/auth/me` | Current user |
+| `GET` | `/api/v1/admin/models` | Trained models list |
+| `POST` | `/api/v1/admin/retrain` | Trigger retraining |
+| `GET` | `/api/v1/admin/retrain/status` | Retrain progress |
+| `GET` | `/api/v1/admin/scraper-status` | Data pipeline health |
+| `GET` | `/api/v1/admin/scheduler-jobs` | Scheduled jobs |
+
+</details>
+
+---
+
+## Feature Engineering (93 Features)
+
+| Category | Count | Examples |
+|----------|------:|---------|
+| Lag Features | 5 | demand at t-1, t-24, t-168 |
+| Diff Features | 2 | rate of change vs 1h/24h ago |
+| Rolling Stats | 21 | mean/std/min/max over 6h, 1d, 7d, 30d |
+| Raw Weather | 7 | temperature, humidity, dew point, solar |
+| Weather Derived | 8 | CDD, HDD, heat index, temp x hour |
+| Cyclical Encoding | 9 | sin/cos for hour, day-of-week, month |
+| Fourier Terms | 18 | daily and weekly seasonality harmonics |
+| Calendar | 11 | holidays, festivals, IPL, AQI |
+| Season One-Hot | 5 | Winter, Spring, Summer, Monsoon, Autumn |
+| Time Flags | 7 | is_peak_hour, is_night, is_weekend |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 14, Tailwind CSS, Framer Motion, Recharts, shadcn/ui |
+| Backend | FastAPI, SQLAlchemy, Pydantic, JWT (python-jose + bcrypt) |
+| ML | LightGBM, XGBoost, PyTorch (BiLSTM), NeuralProphet, SARIMAX |
+| Data | SQLite, APScheduler, BeautifulSoup, httpx |
+| MLOps | MLflow, Optuna, walk-forward CV, drift detection |
+| Deploy | Docker, docker-compose (optional) |
+
+---
 
 ## Project Structure
 
 ```
-E:/Projects/EDFS-v2/
+Gridalytics/
 ├── config/settings.py          # Pydantic settings from .env
 ├── src/
 │   ├── data/
 │   │   ├── scrapers/           # SLDC, Open-Meteo, AQI, holidays
 │   │   ├── db/models.py        # SQLAlchemy ORM (8 tables)
 │   │   ├── loaders.py          # DB -> DataFrame at any resolution
-│   │   ├── validators.py       # Data quality checks
-│   │   └── scheduler.py        # APScheduler (7 automated jobs)
+│   │   └── scheduler.py        # 7 automated jobs
 │   ├── features/               # 93 features across 5 modules
-│   ├── models/                 # LightGBM, XGBoost, Ensemble
+│   ├── models/                 # 7 model implementations
 │   ├── evaluation/             # Walk-forward CV, metrics
 │   ├── forecasting/
 │   │   ├── future.py           # Recursive prediction engine
 │   │   └── tracker.py          # Prediction vs actual logging
-│   └── api/                    # FastAPI with 15+ endpoints
-├── frontend/                   # Next.js 14 + Tailwind + Framer Motion
+│   ├── training/               # MLflow, Optuna, orchestrator
+│   └── api/                    # FastAPI (23 endpoints)
+├── frontend/                   # Next.js 14 (9 pages)
 ├── models/                     # Trained model files
-├── scripts/                    # Migration, training, backfill
+├── notebooks/                  # 4 analysis notebooks
+├── tests/                      # 49 tests (all passing)
+├── scripts/                    # Training, migration, backfill
 └── docker/                     # Dockerfiles (optional)
 ```
 
+---
+
+## Tests
+
+```bash
+python -m pytest tests/ -v    # 49/49 passing
+```
+
+| Suite | Tests | Coverage |
+|-------|------:|----------|
+| test_scrapers.py | 6 | SLDC validation, Open-Meteo, holidays |
+| test_features.py | 12 | Lags, cyclical encoding, CDD/HDD, rolling stats |
+| test_models.py | 8 | LightGBM, XGBoost, Ensemble fit/predict/save |
+| test_api.py | 23 | All 23 API endpoints |
+
+---
+
+## Author
+
+**Rupesh Bharambe**
+
+---
+
 ## License
 
-MIT
+This project is licensed under the [MIT License](LICENSE).
+
+Copyright (c) 2026 Rupesh Bharambe. All rights reserved.

@@ -42,8 +42,8 @@ export function Sidebar() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <h1 className="text-lg font-bold text-sidebar-foreground tracking-tight">EDFS</h1>
-            <p className="text-[10px] text-muted-foreground -mt-0.5">Delhi Power Grid</p>
+            <h1 className="text-lg font-bold text-sidebar-foreground tracking-tight">Gridalytics</h1>
+            <p className="text-[10px] text-muted-foreground -mt-0.5">Grid Intelligence</p>
           </motion.div>
         )}
       </div>

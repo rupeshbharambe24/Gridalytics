@@ -64,10 +64,10 @@ export default function AccuracyPage() {
       {/* KPI Row */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
-          { label: "Avg MAPE", value: summary.avg_mape ? `${summary.avg_mape}%` : "---", color: "text-blue-400" },
-          { label: "Avg MAE", value: summary.avg_mae ? `${summary.avg_mae} MW` : "---", color: "text-emerald-400" },
+          { label: "Avg MAPE", value: summary.avg_mape ? `${Number(summary.avg_mape).toFixed(2)}%` : "---", color: "text-blue-400" },
+          { label: "Avg MAE", value: summary.avg_mae ? `${Number(summary.avg_mae).toFixed(1)} MW` : "---", color: "text-emerald-400" },
           { label: "Days Tracked", value: summary.days_with_actuals || 0, color: "text-foreground" },
-          { label: "Best Day", value: summary.best_day ? `${summary.best_day[1]}%` : "---", color: "text-emerald-400" },
+          { label: "Best Day", value: summary.best_day ? `${Number(summary.best_day[1]).toFixed(2)}%` : "---", color: "text-emerald-400" },
           { label: "Drift Status", value: driftStatus, color: driftStatus === "stable" ? "text-emerald-400" : "text-amber-400", icon: driftStatus === "stable" ? CheckCircle2 : AlertTriangle },
         ].map((item, i) => (
           <motion.div

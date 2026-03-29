@@ -1,4 +1,4 @@
-"""Pydantic request/response schemas for the EDFS API."""
+"""Pydantic request/response schemas for the Gridalytics API."""
 
 from datetime import datetime, date
 from pydantic import BaseModel, Field

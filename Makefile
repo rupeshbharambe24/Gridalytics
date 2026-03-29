@@ -11,7 +11,7 @@ install:
 db:
 	python -c "from src.data.db.session import create_tables; create_tables(); print('Database tables created')"
 
-# Import legacy data from old EDFS project
+# Import legacy data from old project
 migrate-legacy:
 	python scripts/migrate_legacy_data.py
 
@@ -41,4 +41,4 @@ test:
 
 # Clean generated files
 clean:
-	rm -rf data/edfs.db mlflow/ __pycache__ .pytest_cache
+	rm -rf data/gridalytics.db mlflow/ __pycache__ .pytest_cache

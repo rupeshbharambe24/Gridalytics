@@ -30,7 +30,7 @@ def train_and_evaluate(resolution: str = "hourly"):
     """Train models and run walk-forward CV."""
 
     print(f"\n{'#'*60}")
-    print(f"  EDFS v2 - Model Training ({resolution} resolution)")
+    print(f"  Gridalytics - Model Training ({resolution} resolution)")
     print(f"{'#'*60}")
 
     # Build features

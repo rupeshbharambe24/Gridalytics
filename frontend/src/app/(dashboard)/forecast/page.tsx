@@ -40,7 +40,7 @@ function exportCSV(result: any) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `edfs_forecast_${result.resolution}_${result.metadata?.date || "range"}.csv`;
+  a.download = `gridalytics_forecast_${result.resolution}_${result.metadata?.date || "range"}.csv`;
   a.click();
 }
 

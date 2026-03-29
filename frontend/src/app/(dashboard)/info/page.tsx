@@ -44,7 +44,7 @@ export default function InfoPage() {
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
       <motion.div {...fadeIn(0)}>
-        <h1 className="text-2xl font-bold tracking-tight">How EDFS Works</h1>
+        <h1 className="text-2xl font-bold tracking-tight">How Gridalytics Works</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Understanding electricity demand forecasting, units, and how to read the predictions
         </p>
@@ -53,7 +53,7 @@ export default function InfoPage() {
       {/* Units Explanation */}
       <Section title="Understanding the Units" icon={Zap} delay={0.05}>
         <p>
-          All demand values in EDFS are shown in <strong className="text-foreground">MW (Megawatts)</strong> — this is
+          All demand values in Gridalytics are shown in <strong className="text-foreground">MW (Megawatts)</strong> — this is
           the standard unit used by the Delhi SLDC (State Load Despatch Centre) and the Indian power grid.
         </p>
 
@@ -219,7 +219,7 @@ export default function InfoPage() {
       {/* Models */}
       <Section title="How the AI Models Work" icon={Brain} delay={0.2}>
         <p>
-          EDFS uses multiple machine learning models trained on <strong className="text-foreground">93 engineered features</strong> derived
+          Gridalytics uses multiple machine learning models trained on <strong className="text-foreground">93 engineered features</strong> derived
           from demand history, weather, holidays, time patterns, and seasonal cycles.
         </p>
 
@@ -321,7 +321,7 @@ export default function InfoPage() {
       {/* Accuracy Tracking */}
       <Section title="Prediction Accuracy Tracking" icon={AlertTriangle} delay={0.3}>
         <p>
-          Every day, EDFS automatically:
+          Every day, Gridalytics automatically:
         </p>
         <ol className="list-decimal list-inside space-y-1 text-xs">
           <li>Predicts tomorrow's demand and records the prediction</li>

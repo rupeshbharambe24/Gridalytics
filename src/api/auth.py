@@ -1,4 +1,4 @@
-"""JWT authentication for the EDFS API."""
+"""JWT authentication for the Gridalytics API."""
 
 from datetime import datetime, timedelta
 
