@@ -331,3 +331,93 @@ def get_accuracy_trend(
         "drift_status": drift_status,
         "threshold": 5.0,  # MAPE threshold for alerting
     }
+
+
+@router.get("/stats/seasonal")
+def get_seasonal_stats(db: Session = Depends(get_db)):
+    """Get demand statistics grouped by Delhi season.
+
+    Queries demand_5min, resamples to daily, then groups by season:
+      Winter (Nov-Feb), Spring (Mar-Apr), Summer (May-Jun),
+      Monsoon (Jul-Sep), Autumn (Oct).
+    """
+    # Pull all demand data from DB
+    rows = (
+        db.query(DemandRecord.timestamp, DemandRecord.delhi_mw)
+        .order_by(DemandRecord.timestamp)
+        .all()
+    )
+
+    if not rows:
+        return {"seasons": []}
+
+    df = pd.DataFrame(rows, columns=["timestamp", "delhi_mw"])
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    df = df.set_index("timestamp")
+
+    # Resample to daily (mean demand per day)
+    daily = df["delhi_mw"].resample("D").mean().dropna()
+
+    if daily.empty:
+        return {"seasons": []}
+
+    # Classify each day into a Delhi season
+    seasons = classify_delhi_season(daily.index)
+
+    results = []
+    for season_name in ["Winter", "Spring", "Summer", "Monsoon", "Autumn"]:
+        mask = seasons == season_name
+        if mask.sum() == 0:
+            continue
+        vals = daily[mask]
+        results.append({
+            "season": season_name,
+            "min_mw": round(float(vals.min()), 1),
+            "max_mw": round(float(vals.max()), 1),
+            "avg_mw": round(float(vals.mean()), 1),
+            "std_mw": round(float(vals.std()), 1),
+            "days": int(mask.sum()),
+        })
+
+    return {"seasons": results}
+
+
+@router.get("/anomalies")
+def get_anomalies(
+    days: int = Query(7, ge=1, le=365),
+    db: Session = Depends(get_db),
+):
+    """Return prediction log entries where MAPE > 3.0% (anomalies).
+
+    Queries the prediction_log table for recent entries that exceed the
+    3.0% MAPE threshold, indicating unexpected forecast deviations.
+    """
+    cutoff = date.today() - timedelta(days=days)
+    logs = (
+        db.query(PredictionLog)
+        .filter(
+            PredictionLog.mape_pct.isnot(None),
+            PredictionLog.mape_pct > 3.0,
+            PredictionLog.target_date >= cutoff,
+        )
+        .order_by(PredictionLog.target_date.desc())
+        .all()
+    )
+
+    anomalies = [
+        {
+            "date": str(l.target_date),
+            "predicted_peak": l.predicted_peak_mw,
+            "actual_peak": l.actual_peak_mw,
+            "mape": l.mape_pct,
+            "notes": l.notes,
+        }
+        for l in logs
+    ]
+
+    return {
+        "anomalies": anomalies,
+        "total": len(anomalies),
+        "threshold_pct": 3.0,
+        "days_queried": days,
+    }

@@ -18,10 +18,11 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from config import settings
 from src.data.db.session import get_session, create_tables
-from src.data.db.models import DemandRecord, WeatherRecord
+from src.data.db.models import DemandRecord, WeatherRecord, AQIRecord
 from src.data.scrapers.sldc import SLDCScraper
 from src.data.scrapers.open_meteo import OpenMeteoScraper
 from src.data.scrapers.holidays import HolidayScraper
+from src.data.scrapers.aqi import AQIScraper
 from sqlalchemy import func
 
 logging.basicConfig(
@@ -95,6 +96,26 @@ def scrape_weather_forecast():
         logger.error(f"Weather forecast failed: {e}")
 
 
+def scrape_aqi_latest():
+    """Scrape the last 7 days of AQI data from Open-Meteo Air Quality API.
+
+    AQI data may have a 1-2 day delay, so we fetch 7 days to ensure
+    we backfill any gaps. The upsert logic handles duplicates by
+    updating existing records with newer data.
+    """
+    logger.info("Starting AQI scrape job")
+    scraper = AQIScraper()
+    end = date.today() - timedelta(days=1)
+    start = end - timedelta(days=6)  # 7 days total
+
+    try:
+        with get_session() as session:
+            count = scraper.run(start, end, session)
+            logger.info(f"AQI scrape complete: {count} new rows")
+    except Exception as e:
+        logger.error(f"AQI scrape failed: {e}")
+
+
 def update_holidays():
     """Update holidays for current and next year."""
     logger.info("Updating holiday calendar")
@@ -130,11 +151,14 @@ def print_status():
     with get_session() as session:
         d_max = session.query(func.max(DemandRecord.timestamp)).scalar()
         w_max = session.query(func.max(WeatherRecord.timestamp)).scalar()
+        a_max = session.query(func.max(AQIRecord.date)).scalar()
         d_count = session.query(func.count(DemandRecord.id)).scalar()
         w_count = session.query(func.count(WeatherRecord.id)).scalar()
+        a_count = session.query(func.count(AQIRecord.id)).scalar()
 
     logger.info(f"Status - Demand: {d_count:,} rows (latest: {d_max})")
     logger.info(f"Status - Weather: {w_count:,} rows (latest: {w_max})")
+    logger.info(f"Status - AQI: {a_count:,} rows (latest: {a_max})")
 
 
 def run_all_once():
@@ -144,6 +168,7 @@ def run_all_once():
     scrape_demand_latest()
     scrape_weather_latest()
     scrape_weather_forecast()
+    scrape_aqi_latest()
     update_holidays()
     run_prediction_tracker()
     print_status()
@@ -182,10 +207,19 @@ def start_scheduler():
         misfire_grace_time=3600,
     )
 
+    # AQI: daily at 3 AM
+    scheduler.add_job(
+        scrape_aqi_latest,
+        CronTrigger(hour=3, minute=0),
+        id="aqi_scrape",
+        name="AQI Daily Scrape",
+        misfire_grace_time=3600,
+    )
+
     # Holidays: weekly on Sunday
     scheduler.add_job(
         update_holidays,
-        CronTrigger(day_of_week="sun", hour=3),
+        CronTrigger(day_of_week="sun", hour=3, minute=30),
         id="holidays",
         name="Holiday Calendar Update",
         misfire_grace_time=86400,
@@ -216,6 +250,7 @@ def start_scheduler():
     scrape_demand_latest()
     scrape_weather_latest()
     scrape_weather_forecast()
+    scrape_aqi_latest()
     print_status()
 
     try:

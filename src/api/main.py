@@ -39,9 +39,10 @@ app.add_middleware(
 )
 
 # Import routers after app is created to avoid circular imports
-from src.api.routers import forecast, dashboard, auth, health  # noqa: E402
+from src.api.routers import forecast, dashboard, auth, health, admin  # noqa: E402
 
 app.include_router(health.router, prefix="/api/v1/health", tags=["Health"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(forecast.router, prefix="/api/v1/forecast", tags=["Forecast"])
 app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboard"])
+app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])

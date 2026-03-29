@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, TrendingUp, BarChart3, FlaskConical,
-  LineChart, Zap, ChevronLeft, ChevronRight,
+  LineChart, Target, Zap, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -16,6 +16,7 @@ const navItems = [
   { href: "/models", label: "Models", icon: BarChart3 },
   { href: "/what-if", label: "What-If", icon: FlaskConical },
   { href: "/analytics", label: "Analytics", icon: LineChart },
+  { href: "/accuracy", label: "Accuracy", icon: Target },
 ];
 
 export function Sidebar() {
