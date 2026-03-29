@@ -153,16 +153,51 @@ class TestForecastEndpoints:
 
 
 class TestAdminEndpoints:
+    """Admin endpoints require JWT with admin role."""
+
+    @pytest.fixture(autouse=True)
+    def admin_token(self, client):
+        """Ensure an admin user exists and get a token."""
+        from src.data.db.session import get_db
+        from src.data.db.models import User
+        from src.api.auth import hash_password, create_token
+
+        # Directly ensure admin user exists in DB
+        db = next(get_db())
+        admin = db.query(User).filter(User.email == "admin_test_user@gridalytics.com").first()
+        if not admin:
+            admin = User(
+                email="admin_test_user@gridalytics.com",
+                hashed_password=hash_password("adminpass123"),
+                role="admin",
+                is_active=True,
+            )
+            db.add(admin)
+            db.commit()
+        elif admin.role != "admin":
+            admin.role = "admin"
+            db.commit()
+
+        self._token = create_token({"sub": admin.email})
+
+    def _auth_headers(self):
+        return {"Authorization": f"Bearer {self._token}"}
+
     def test_admin_models(self, client):
-        resp = client.get("/api/v1/admin/models")
+        resp = client.get("/api/v1/admin/models", headers=self._auth_headers())
         assert resp.status_code == 200
         data = resp.json()
-        assert isinstance(data, (list, dict))  # may be wrapped in {"models": [...]}
+        assert isinstance(data, (list, dict))
 
     def test_scraper_status(self, client):
-        resp = client.get("/api/v1/admin/scraper-status")
+        resp = client.get("/api/v1/admin/scraper-status", headers=self._auth_headers())
         assert resp.status_code == 200
 
     def test_scheduler_jobs(self, client):
-        resp = client.get("/api/v1/admin/scheduler-jobs")
+        resp = client.get("/api/v1/admin/scheduler-jobs", headers=self._auth_headers())
         assert resp.status_code == 200
+
+    def test_admin_unauthorized(self, client):
+        """Admin endpoints should reject requests without token."""
+        resp = client.get("/api/v1/admin/models")
+        assert resp.status_code == 401

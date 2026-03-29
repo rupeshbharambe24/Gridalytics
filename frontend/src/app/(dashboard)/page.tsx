@@ -65,7 +65,13 @@ export default function DashboardPage() {
           title="Current Demand"
           value={live?.current_demand_mw?.toFixed(0) ?? null}
           unit="MW"
-          subtitle={live?.timestamp ? `Updated ${new Date(live.timestamp).toLocaleTimeString("en-IN")}` : undefined}
+          subtitle={
+            live?.forecast_1h_mw
+              ? `1h forecast: ${live.forecast_1h_mw.toFixed(0)} MW [${live.forecast_1h_lower?.toFixed(0)}-${live.forecast_1h_upper?.toFixed(0)}]`
+              : live?.timestamp
+                ? `Updated ${new Date(live.timestamp).toLocaleTimeString("en-IN")}`
+                : undefined
+          }
           trend={live?.vs_yesterday_pct}
           icon={Zap}
           color="blue"
