@@ -197,7 +197,7 @@ export default function AdminPage() {
           <div className="flex items-center gap-2">
             <label className="text-sm text-muted-foreground">Resolution:</label>
             <div className="flex rounded-lg bg-accent/50 p-0.5">
-              {["hourly", "daily"].map((r) => (
+              {["5min", "hourly", "daily"].map((r) => (
                 <button
                   key={r}
                   onClick={() => setResolution(r)}
@@ -207,7 +207,7 @@ export default function AdminPage() {
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {r.charAt(0).toUpperCase() + r.slice(1)}
+                  {r === "5min" ? "5-Minute" : r.charAt(0).toUpperCase() + r.slice(1)}
                 </button>
               ))}
             </div>
