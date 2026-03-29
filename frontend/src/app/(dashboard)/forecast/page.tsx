@@ -12,7 +12,7 @@ import { DemandChart } from "@/components/charts/demand-chart";
 import { getForecast, getForecastRange, getForecastPeak } from "@/lib/api";
 
 type Mode = "single" | "range";
-type Resolution = "daily" | "hourly";
+type Resolution = "daily" | "hourly" | "5min";
 type RangePreset = "7d" | "14d" | "30d" | "90d" | "custom";
 
 const RANGE_PRESETS: { label: string; value: RangePreset; days: number }[] = [
@@ -90,11 +90,11 @@ export default function ForecastPage() {
   const chartData = result
     ? result.timestamps.map((t: string, i: number) => ({
         time:
-          resolution === "hourly"
-            ? result.timestamps.length > 48
+          resolution === "daily"
+            ? new Date(t).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
+            : result.timestamps.length > 48
               ? new Date(t).toLocaleDateString("en-IN", { month: "short", day: "numeric", hour: "2-digit" })
-              : new Date(t).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
-            : new Date(t).toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
+              : new Date(t).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
         demand: null as number | null,
       }))
     : [];
@@ -156,7 +156,7 @@ export default function ForecastPage() {
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Resolution</label>
             <div className="flex rounded-lg border border-border overflow-hidden">
-              {(["hourly", "daily"] as const).map((r) => (
+              {(["5min", "hourly", "daily"] as const).map((r) => (
                 <button
                   key={r}
                   onClick={() => setResolution(r)}
@@ -164,7 +164,7 @@ export default function ForecastPage() {
                     resolution === r ? "bg-blue-600 text-white" : "bg-card text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {r.charAt(0).toUpperCase() + r.slice(1)}
+                  {r === "5min" ? "5-Minute" : r.charAt(0).toUpperCase() + r.slice(1)}
                 </button>
               ))}
             </div>
@@ -321,8 +321,8 @@ export default function ForecastPage() {
               forecast={forecastData}
               title={
                 mode === "single"
-                  ? `${resolution === "hourly" ? "Hourly" : "Daily"} Forecast - ${date}`
-                  : `${resolution === "hourly" ? "Hourly" : "Daily"} Forecast - ${result.metadata?.start || startDate} to ${result.metadata?.end || endDate}`
+                  ? `${resolution === "5min" ? "5-Minute" : resolution === "hourly" ? "Hourly" : "Daily"} Forecast - ${date}`
+                  : `${resolution === "5min" ? "5-Minute" : resolution === "hourly" ? "Hourly" : "Daily"} Forecast - ${result.metadata?.start || startDate} to ${result.metadata?.end || endDate}`
               }
               height={420}
             />

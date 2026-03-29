@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, TrendingUp, BarChart3, FlaskConical,
-  LineChart, Target, Zap, ChevronLeft, ChevronRight, Settings,
+  LineChart, Target, Info, Zap, ChevronLeft, ChevronRight, Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -17,6 +17,7 @@ const navItems = [
   { href: "/what-if", label: "What-If", icon: FlaskConical },
   { href: "/analytics", label: "Analytics", icon: LineChart },
   { href: "/accuracy", label: "Accuracy", icon: Target },
+  { href: "/info", label: "How It Works", icon: Info },
   { href: "/admin", label: "Admin", icon: Settings },
 ];
 
