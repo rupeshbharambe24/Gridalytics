@@ -59,3 +59,40 @@ export const getWhatIf = (body: { date: string; resolution: string; overrides: R
 
 export const getAvailableModels = () =>
   fetcher<Record<string, string>>("/api/v1/forecast/models/available");
+
+// --- Auth ---
+export const login = (email: string, password: string) =>
+  fetcher<{ access_token: string; token_type: string }>("/api/v1/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+
+export const register = (email: string, password: string, full_name: string) =>
+  fetcher<{ access_token: string; token_type: string }>("/api/v1/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ email, password, full_name }),
+  });
+
+export const getMe = () => {
+  const token = typeof window !== "undefined" ? localStorage.getItem("edfs_token") : null;
+  if (!token) return Promise.reject(new Error("Not authenticated"));
+  return fetcher<{ id: number; email: string; full_name: string; role: string }>("/api/v1/auth/me", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+// --- Admin ---
+export const getAdminModels = () => fetcher<any[]>("/api/v1/admin/models");
+
+export const triggerRetrain = (resolution: string) =>
+  fetcher<{ status: string }>("/api/v1/admin/retrain", {
+    method: "POST",
+    body: JSON.stringify({ resolution }),
+  });
+
+export const getRetrainStatus = () =>
+  fetcher<{ status: string; resolution: string | null }>("/api/v1/admin/retrain/status");
+
+export const getScraperStatus = () => fetcher<any>("/api/v1/admin/scraper-status");
+
+export const getSchedulerJobs = () => fetcher<any[]>("/api/v1/admin/scheduler-jobs");
