@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from src.data.db.session import get_db
-from src.data.db.models import DemandRecord, WeatherRecord, AQIRecord
+from src.data.db.models import DemandRecord, WeatherRecord, AQIRecord, User
+from src.api.auth import require_admin
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -32,7 +33,7 @@ class RetrainRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 @router.get("/models")
-def list_trained_models():
+def list_trained_models(admin: User = Depends(require_admin)):
     """List all trained models found in the models/ directory."""
     models_root = Path("models")
     if not models_root.exists():
@@ -96,9 +97,9 @@ def _retrain_worker(resolution: str):
 
 
 @router.post("/retrain")
-def trigger_retrain(body: RetrainRequest):
+def trigger_retrain(body: RetrainRequest, admin: User = Depends(require_admin)):
     """Trigger manual model retraining (runs in background)."""
-    if body.resolution not in ("hourly", "daily"):
+    if body.resolution not in ("5min", "hourly", "daily"):
         raise HTTPException(status_code=400, detail="Resolution must be 'hourly' or 'daily'")
 
     if _retrain_status["running"]:
@@ -115,7 +116,7 @@ def trigger_retrain(body: RetrainRequest):
 
 
 @router.get("/retrain/status")
-def retrain_status():
+def retrain_status(admin: User = Depends(require_admin)):
     """Check the status of the last retraining job."""
     return _retrain_status
 
@@ -125,7 +126,7 @@ def retrain_status():
 # ---------------------------------------------------------------------------
 
 @router.get("/scraper-status")
-def get_scraper_status(db: Session = Depends(get_db)):
+def get_scraper_status(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     """Return data freshness: latest timestamps, hours old, and row counts."""
     now = datetime.utcnow()
 
@@ -175,7 +176,7 @@ def get_scraper_status(db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @router.get("/scheduler-jobs")
-def get_scheduler_jobs():
+def get_scheduler_jobs(admin: User = Depends(require_admin)):
     """Return list of configured scheduler jobs with intervals and schedules.
 
     Since APScheduler runs in a separate process, we return the
