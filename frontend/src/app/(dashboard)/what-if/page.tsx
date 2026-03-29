@@ -130,7 +130,7 @@ export default function WhatIfPage() {
                 onClick={() => setIsHoliday(!isHoliday)}
                 className={`relative w-10 h-5 rounded-full transition-colors ${isHoliday ? "bg-emerald-500" : "bg-accent"}`}
               >
-                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${isHoliday ? "left-5.5" : "left-0.5"}`} />
+                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all duration-200 ${isHoliday ? "left-[22px]" : "left-0.5"}`} />
               </button>
             </div>
           </div>
