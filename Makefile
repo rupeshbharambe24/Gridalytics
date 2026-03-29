@@ -15,9 +15,17 @@ db:
 migrate-legacy:
 	python scripts/migrate_legacy_data.py
 
-# Run all scrapers once
+# Run all scrapers once (fetch latest data)
 scrape:
-	python -c "from scripts.run_scrapers import run_all; run_all()"
+	python -m src.data.scheduler --once
+
+# Start continuous data collection scheduler
+scheduler:
+	python -m src.data.scheduler
+
+# Backfill demand data to current date
+backfill-demand:
+	python scripts/backfill_demand.py
 
 # Train all models
 train:
