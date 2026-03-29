@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from src.data.db.session import get_db
-from src.data.db.models import DemandRecord, WeatherRecord
+from src.data.db.models import DemandRecord, WeatherRecord, PredictionLog
 from src.data.loaders import load_demand, load_weather
 from src.api.schemas import (
     LiveDashboardResponse, SummaryStatsResponse,
@@ -203,15 +203,131 @@ def get_heatmap(
 
 
 @router.get("/model-performance", response_model=ModelPerformanceResponse)
-def get_model_performance():
-    """Get current model performance info."""
+def get_model_performance(db: Session = Depends(get_db)):
+    """Get model performance from prediction tracking log."""
     models = get_available_models()
+
+    # Get rolling MAPE from prediction log (last 30 days)
+    cutoff = date.today() - timedelta(days=30)
+    logs = (
+        db.query(PredictionLog)
+        .filter(PredictionLog.mape_pct.isnot(None), PredictionLog.target_date >= cutoff)
+        .order_by(PredictionLog.target_date)
+        .all()
+    )
+
+    rolling_mape = None
+    if logs:
+        mapes = [l.mape_pct for l in logs if l.mape_pct is not None]
+        rolling_mape = round(sum(mapes) / len(mapes), 2) if mapes else None
+
     return ModelPerformanceResponse(
         champion={
             "name": "xgboost" if "hourly_xgboost" in models else "lightgbm",
-            "hourly_mape": 0.52,
+            "hourly_mape": rolling_mape or 0.52,
             "daily_mape": 2.65,
             "last_trained": "2026-03-29",
+            "tracked_days": len(logs),
         },
         models_available=list(models.keys()),
     )
+
+
+@router.get("/prediction-history")
+def get_prediction_history(
+    days: int = Query(30, ge=7, le=365),
+    db: Session = Depends(get_db),
+):
+    """Get prediction vs actual history for the accuracy dashboard."""
+    cutoff = date.today() - timedelta(days=days)
+    logs = (
+        db.query(PredictionLog)
+        .filter(PredictionLog.target_date >= cutoff)
+        .order_by(PredictionLog.target_date)
+        .all()
+    )
+
+    return {
+        "entries": [
+            {
+                "date": str(l.target_date),
+                "model": l.model_name,
+                "predicted_peak": l.predicted_peak_mw,
+                "predicted_avg": l.predicted_avg_mw,
+                "actual_peak": l.actual_peak_mw,
+                "actual_avg": l.actual_avg_mw,
+                "peak_error": l.peak_error_mw,
+                "mape": l.mape_pct,
+                "mae": l.mae_mw,
+                "peak_hour_predicted": l.peak_hour_predicted,
+                "peak_hour_actual": l.peak_hour_actual,
+                "temperature": l.weather_temp_avg,
+                "is_holiday": l.is_holiday,
+                "notes": l.notes,
+            }
+            for l in logs
+        ],
+        "summary": {
+            "total_days": len(logs),
+            "days_with_actuals": sum(1 for l in logs if l.actual_peak_mw is not None),
+            "avg_mape": round(np.mean([l.mape_pct for l in logs if l.mape_pct]), 2) if any(l.mape_pct for l in logs) else None,
+            "avg_mae": round(np.mean([l.mae_mw for l in logs if l.mae_mw]), 1) if any(l.mae_mw for l in logs) else None,
+            "worst_day": max(
+                [(str(l.target_date), l.mape_pct) for l in logs if l.mape_pct],
+                key=lambda x: x[1], default=None
+            ),
+            "best_day": min(
+                [(str(l.target_date), l.mape_pct) for l in logs if l.mape_pct],
+                key=lambda x: x[1], default=None
+            ),
+        },
+    }
+
+
+@router.get("/accuracy-trend")
+def get_accuracy_trend(
+    days: int = Query(90, ge=7, le=365),
+    db: Session = Depends(get_db),
+):
+    """Get rolling MAPE trend over time for drift detection chart."""
+    cutoff = date.today() - timedelta(days=days)
+    logs = (
+        db.query(PredictionLog)
+        .filter(PredictionLog.mape_pct.isnot(None), PredictionLog.target_date >= cutoff)
+        .order_by(PredictionLog.target_date)
+        .all()
+    )
+
+    if not logs:
+        return {"dates": [], "daily_mape": [], "rolling_7d_mape": [], "rolling_30d_mape": []}
+
+    dates = [str(l.target_date) for l in logs]
+    mapes = [l.mape_pct for l in logs]
+
+    # Compute rolling averages
+    rolling_7 = []
+    rolling_30 = []
+    for i in range(len(mapes)):
+        w7 = mapes[max(0, i - 6):i + 1]
+        w30 = mapes[max(0, i - 29):i + 1]
+        rolling_7.append(round(sum(w7) / len(w7), 2))
+        rolling_30.append(round(sum(w30) / len(w30), 2))
+
+    # Drift detection: is rolling MAPE increasing?
+    drift_status = "stable"
+    if len(rolling_7) >= 14:
+        recent = np.mean(rolling_7[-7:])
+        earlier = np.mean(rolling_7[-14:-7])
+        if recent > earlier * 1.3:
+            drift_status = "warning"
+        if recent > earlier * 1.5:
+            drift_status = "drift_detected"
+
+    return {
+        "dates": dates,
+        "daily_mape": [round(m, 2) for m in mapes],
+        "rolling_7d_mape": rolling_7,
+        "rolling_30d_mape": rolling_30,
+        "drift_status": drift_status,
+        "threshold": 5.0,  # MAPE threshold for alerting
+    }

@@ -111,6 +111,20 @@ def update_holidays():
         logger.error(f"Holiday update failed: {e}")
 
 
+def run_prediction_tracker():
+    """Daily job: predict tomorrow, fill yesterday's actuals."""
+    logger.info("Running prediction tracker")
+    try:
+        from src.api.model_registry import load_models
+        from src.forecasting.tracker import daily_prediction_job
+        load_models()
+        with get_session() as session:
+            daily_prediction_job(session)
+            logger.info("Prediction tracker complete")
+    except Exception as e:
+        logger.error(f"Prediction tracker failed: {e}")
+
+
 def print_status():
     """Print current data status."""
     with get_session() as session:
@@ -131,6 +145,7 @@ def run_all_once():
     scrape_weather_latest()
     scrape_weather_forecast()
     update_holidays()
+    run_prediction_tracker()
     print_status()
     logger.info("All scrapers complete")
 
@@ -174,6 +189,15 @@ def start_scheduler():
         id="holidays",
         name="Holiday Calendar Update",
         misfire_grace_time=86400,
+    )
+
+    # Prediction tracker: daily at 23:00 (predict tomorrow, fill yesterday's actuals)
+    scheduler.add_job(
+        run_prediction_tracker,
+        CronTrigger(hour=23, minute=0),
+        id="prediction_tracker",
+        name="Prediction Tracker (predict + evaluate)",
+        misfire_grace_time=3600,
     )
 
     # Status log: every hour
