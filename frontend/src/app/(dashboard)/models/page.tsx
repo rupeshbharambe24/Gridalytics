@@ -8,6 +8,18 @@ import { getModelPerformance, getAvailableModels } from "@/lib/api";
 
 const modelDetails = [
   {
+    name: "LightGBM",
+    resolution: "5-Minute",
+    mape: "0.18%",
+    rmse: "8.6 MW",
+    r2: "0.9997",
+    size: "8.1 MB",
+    status: "champion",
+    features: 90,
+    folds: 10,
+    type: "Gradient Boosting",
+  },
+  {
     name: "XGBoost",
     resolution: "Hourly",
     mape: "0.52%",
@@ -167,22 +179,25 @@ export default function ModelsPage() {
               <tr className="text-xs text-muted-foreground border-b border-border">
                 <th className="text-left p-4 font-medium">Metric</th>
                 <th className="text-center p-4 font-medium">Old SARIMAX</th>
-                <th className="text-center p-4 font-medium">New XGBoost (Hourly)</th>
-                <th className="text-center p-4 font-medium">New LightGBM (Daily)</th>
+                <th className="text-center p-4 font-medium">New 5-Min</th>
+                <th className="text-center p-4 font-medium">New Hourly</th>
+                <th className="text-center p-4 font-medium">New Daily</th>
                 <th className="text-center p-4 font-medium">Improvement</th>
               </tr>
             </thead>
             <tbody>
               {[
-                { metric: "MAPE", old: "24.77%", newH: "0.52%", newD: "2.65%", imp: "~47x better" },
-                { metric: "R²", old: "-0.04", newH: "0.9987", newD: "0.8997", imp: "Negative → 99.9%" },
-                { metric: "Model Size", old: "~400 MB", newH: "24.5 MB", newD: "3.0 MB", imp: "133x smaller" },
-                { metric: "Features", old: "4", newH: "93", newD: "99", imp: "+89 features" },
-                { metric: "Validation", old: "None", newH: "12-fold CV", newD: "12-fold CV", imp: "Proper methodology" },
+                { metric: "MAPE", old: "24.77%", new5: "0.18%", newH: "0.52%", newD: "2.65%", imp: "~137x better" },
+                { metric: "R2", old: "-0.04", new5: "0.9997", newH: "0.9987", newD: "0.8997", imp: "Negative to 99.97%" },
+                { metric: "RMSE", old: "1,373 MW", new5: "8.6 MW", newH: "25.3 MW", newD: "96.6 MW", imp: "159x smaller error" },
+                { metric: "Model Size", old: "~400 MB", new5: "8.1 MB", newH: "24.5 MB", newD: "3.0 MB", imp: "49x smaller" },
+                { metric: "Features", old: "4", new5: "90", newH: "93", newD: "99", imp: "+86-95 features" },
+                { metric: "Validation", old: "None", new5: "10-fold CV", newH: "12-fold CV", newD: "12-fold CV", imp: "Proper methodology" },
               ].map((row, i) => (
                 <tr key={row.metric} className="border-b border-border/50 hover:bg-accent/20 transition-colors">
                   <td className="p-4 font-medium">{row.metric}</td>
                   <td className="p-4 text-center font-mono text-rose-400">{row.old}</td>
+                  <td className="p-4 text-center font-mono text-blue-400 font-bold">{row.new5}</td>
                   <td className="p-4 text-center font-mono text-emerald-400">{row.newH}</td>
                   <td className="p-4 text-center font-mono text-emerald-400">{row.newD}</td>
                   <td className="p-4 text-center">

@@ -9,6 +9,7 @@ import { getForecast, getWhatIf } from "@/lib/api";
 
 export default function WhatIfPage() {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [resolution, setResolution] = useState<"5min" | "hourly" | "daily">("hourly");
   const [temp, setTemp] = useState(35);
   const [humidity, setHumidity] = useState(50);
   const [isHoliday, setIsHoliday] = useState(false);
@@ -20,8 +21,8 @@ export default function WhatIfPage() {
     setLoading(true);
     try {
       const [base, whatif] = await Promise.all([
-        getForecast("hourly", date),
-        getWhatIf({ date, resolution: "hourly", overrides: { temperature: temp, humidity, is_holiday: isHoliday } }),
+        getForecast(resolution, date),
+        getWhatIf({ date, resolution, overrides: { temperature: temp, humidity, is_holiday: isHoliday } }),
       ]);
       setBaseline(base);
       setScenario(whatif);
@@ -72,6 +73,23 @@ export default function WhatIfPage() {
           </h2>
 
           <div className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground">Resolution</label>
+              <div className="flex rounded-lg border border-border overflow-hidden">
+                {(["5min", "hourly", "daily"] as const).map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setResolution(r)}
+                    className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${
+                      resolution === r ? "bg-violet-600 text-white" : "bg-card text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {r === "5min" ? "5-Min" : r.charAt(0).toUpperCase() + r.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5" /> Date
