@@ -57,8 +57,24 @@ export const getWhatIf = (body: { date: string; resolution: string; overrides: R
     model_name: string; metadata: Record<string, any>;
   }>("/api/v1/forecast/what-if", { method: "POST", body: JSON.stringify(body) });
 
+export const getForecastRange = (resolution: string, start: string, end: string, model?: string) =>
+  fetcher<{
+    timestamps: string[]; predicted_mw: number[]; lower_bound_mw: number[]; upper_bound_mw: number[];
+    model_name: string; resolution: string; metadata: Record<string, any>;
+  }>(`/api/v1/forecast/${resolution}/range?start=${start}&end=${end}${model ? `&model_name=${model}` : ""}`);
+
+export const getForecastPeak = (resolution: string, date: string) =>
+  fetcher<{ date: string; peak_mw: number; peak_time: string; avg_mw: number; min_mw: number }>(
+    `/api/v1/forecast/${resolution}/peak?date=${date}`
+  );
+
 export const getAvailableModels = () =>
   fetcher<Record<string, string>>("/api/v1/forecast/models/available");
+
+export const getSeasonalStats = () =>
+  fetcher<{ seasons: { season: string; min_mw: number; max_mw: number; avg_mw: number; std_mw: number; days: number }[] }>(
+    "/api/v1/dashboard/stats/seasonal"
+  );
 
 // --- Auth ---
 export const login = (email: string, password: string) =>
