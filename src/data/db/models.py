@@ -112,6 +112,54 @@ class ModelMetric(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class PredictionLog(Base):
+    """Daily log: what the model predicted vs what actually happened.
+
+    Every day, the scheduler:
+    1. Looks at yesterday's prediction (stored here the day before)
+    2. Fetches yesterday's actual demand from SLDC
+    3. Computes error metrics and updates this row
+    """
+    __tablename__ = "prediction_log"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    target_date = Column(Date, nullable=False, index=True)
+    model_name = Column(String(50), nullable=False)
+    resolution = Column(String(10), default="hourly")
+
+    # What the model predicted (stored when prediction is made)
+    predicted_peak_mw = Column(Float)
+    predicted_avg_mw = Column(Float)
+    predicted_min_mw = Column(Float)
+    predicted_total_mwh = Column(Float)     # sum of hourly predictions
+
+    # What actually happened (filled in the next day)
+    actual_peak_mw = Column(Float)
+    actual_avg_mw = Column(Float)
+    actual_min_mw = Column(Float)
+    actual_total_mwh = Column(Float)
+
+    # Error metrics (computed once actuals are available)
+    peak_error_mw = Column(Float)           # predicted_peak - actual_peak
+    avg_error_mw = Column(Float)
+    mape_pct = Column(Float)                # mean absolute percentage error
+    mae_mw = Column(Float)                  # mean absolute error
+
+    # Context
+    peak_hour_predicted = Column(Integer)    # hour of predicted peak (0-23)
+    peak_hour_actual = Column(Integer)       # hour of actual peak
+    weather_temp_avg = Column(Float)         # average temperature that day
+    is_holiday = Column(Boolean, default=False)
+    notes = Column(String(200))             # auto-generated: "heatwave", "holiday miss", etc.
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("target_date", "model_name", name="uq_predlog_date_model"),
+    )
+
+
 class User(Base):
     """Application users with JWT authentication."""
     __tablename__ = "users"
