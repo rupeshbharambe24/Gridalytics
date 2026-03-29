@@ -69,12 +69,43 @@ def get_live_dashboard(db: Session = Depends(get_db)):
             "wind_speed": latest_weather.wind_speed_10m,
         }
 
+    # 1-hour forecast using the loaded hourly model
+    forecast_1h = None
+    forecast_1h_lo = None
+    forecast_1h_hi = None
+    try:
+        from src.api.model_registry import get_model
+        from src.forecasting.future import forecast_future
+
+        model = get_model("hourly")
+        if model and latest:
+            # Predict the next hour
+            from datetime import datetime as dt_cls
+            next_hour = (latest.timestamp + timedelta(hours=1)).replace(minute=0, second=0)
+            result = forecast_future("hourly", next_hour.date(), model, db)
+            if result and result["predicted_mw"]:
+                # Find the prediction closest to next_hour
+                target_hour = next_hour.hour
+                for i, ts_str in enumerate(result["timestamps"]):
+                    ts = datetime.fromisoformat(ts_str)
+                    if ts.hour == target_hour:
+                        forecast_1h = round(result["predicted_mw"][i], 1)
+                        forecast_1h_lo = round(result["lower_bound_mw"][i], 1)
+                        forecast_1h_hi = round(result["upper_bound_mw"][i], 1)
+                        break
+                if forecast_1h is None and result["predicted_mw"]:
+                    forecast_1h = round(result["predicted_mw"][0], 1)
+                    forecast_1h_lo = round(result["lower_bound_mw"][0], 1)
+                    forecast_1h_hi = round(result["upper_bound_mw"][0], 1)
+    except Exception as e:
+        logger.warning(f"1h forecast failed: {e}")
+
     return LiveDashboardResponse(
         current_demand_mw=round(latest.delhi_mw, 1) if latest else None,
         timestamp=str(latest.timestamp) if latest else None,
-        forecast_1h_mw=None,  # Would need model prediction
-        forecast_1h_lower=None,
-        forecast_1h_upper=None,
+        forecast_1h_mw=forecast_1h,
+        forecast_1h_lower=forecast_1h_lo,
+        forecast_1h_upper=forecast_1h_hi,
         weather=weather_dict,
         today_peak_mw=round(today_peak, 1) if today_peak else None,
         today_peak_time=today_peak_time,
