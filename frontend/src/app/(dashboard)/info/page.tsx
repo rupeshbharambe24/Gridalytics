@@ -235,7 +235,8 @@ export default function InfoPage() {
             </thead>
             <tbody className="text-xs">
               {[
-                { name: "XGBoost", type: "Gradient Boosting", best: "Hourly", mape: "0.52%", champion: true },
+                { name: "LightGBM", type: "Gradient Boosting", best: "5-Minute (286/day)", mape: "0.18%", champion: true },
+                { name: "XGBoost", type: "Gradient Boosting", best: "Hourly (24/day)", mape: "0.52%", champion: true },
                 { name: "LightGBM", type: "Gradient Boosting", best: "Daily / 5-Min", mape: "0.62-2.65%", champion: true },
                 { name: "BiLSTM", type: "Deep Learning (GPU)", best: "Sequence patterns", mape: "6.66%", champion: false },
                 { name: "SARIMAX", type: "Statistical", best: "Daily baseline", mape: "4.18%", champion: false },

@@ -89,10 +89,10 @@ export default function DashboardPage() {
           delay={0.2}
         />
         <KPICard
-          title="Model Accuracy"
-          value="99.5"
-          unit="% R²"
-          subtitle="XGBoost (hourly)"
+          title="Best Model"
+          value="0.18"
+          unit="% MAPE"
+          subtitle="LightGBM (5-min) | R² 0.9997"
           icon={Award}
           color="violet"
           delay={0.3}
