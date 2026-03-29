@@ -192,6 +192,38 @@ def what_if_forecast(
     return _build_forecast(body.resolution, body.date, None, db, overrides=body.overrides)
 
 
+@router.get("/{resolution}/peak")
+def get_forecast_peak(
+    resolution: str,
+    date: str = Query(..., description="Target date (YYYY-MM-DD)"),
+    model: str | None = Query(None, description="Model name (lightgbm, xgboost)"),
+    db: Session = Depends(get_db),
+):
+    """Get peak demand forecast for a specific date.
+
+    Runs the full forecast, then extracts the peak value and its timestamp,
+    along with average and minimum demand for that day.
+    """
+    if resolution not in ("daily", "hourly", "5min"):
+        raise HTTPException(status_code=400, detail="Resolution must be daily, hourly, or 5min")
+
+    result = _build_forecast(resolution, date, model, db)
+
+    if not result.predicted_mw:
+        raise HTTPException(status_code=404, detail="No forecast data for the requested date")
+
+    predicted = np.array(result.predicted_mw)
+    peak_idx = int(np.argmax(predicted))
+
+    return {
+        "date": date,
+        "peak_mw": round(float(predicted[peak_idx]), 1),
+        "peak_time": result.timestamps[peak_idx],
+        "avg_mw": round(float(np.mean(predicted)), 1),
+        "min_mw": round(float(np.min(predicted)), 1),
+    }
+
+
 @router.get("/models/available")
 def list_models():
     """List all available models."""
