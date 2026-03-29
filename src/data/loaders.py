@@ -6,7 +6,7 @@ import pandas as pd
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from src.data.db.models import DemandRecord, WeatherRecord, AQIRecord, HolidayRecord
+from src.data.db.models import DemandRecord, WeatherRecord, AQIRecord, HolidayRecord, PSPDailyReport
 
 
 def load_demand(
@@ -48,9 +48,44 @@ def load_demand(
     if resolution == "hourly":
         df = df[demand_cols].resample("1h").mean().dropna(subset=["delhi_mw"])
     elif resolution == "daily":
-        df = df[demand_cols].resample("1D").mean().dropna(subset=["delhi_mw"])
+        # For daily: combine 5-min resampled data with PSP daily reports
+        df_5min_daily = df[demand_cols].resample("1D").mean().dropna(subset=["delhi_mw"])
+
+        # Also load PSP daily data (goes back to 2015)
+        psp_df = _load_psp_daily(session, start_date, end_date)
+        if not psp_df.empty:
+            # Merge: prefer 5-min resampled (more accurate), fill gaps with PSP
+            combined = psp_df.combine_first(df_5min_daily)
+            combined = combined.dropna(subset=["delhi_mw"])
+            return combined
+
+        df = df_5min_daily
     # else '5min' - keep as-is
 
+    return df
+
+
+def _load_psp_daily(
+    session: Session,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> pd.DataFrame:
+    """Load PSP daily demand reports (2015-2024)."""
+    query = session.query(PSPDailyReport)
+    if start_date:
+        query = query.filter(PSPDailyReport.date >= start_date)
+    if end_date:
+        query = query.filter(PSPDailyReport.date <= end_date)
+    query = query.order_by(PSPDailyReport.date)
+
+    df = pd.read_sql(query.statement, session.bind)
+    if df.empty:
+        return df
+
+    df["timestamp"] = pd.to_datetime(df["date"])
+    df = df.set_index("timestamp")
+    df = df.rename(columns={"delhi_demand_met_mw": "delhi_mw"})
+    df = df[["delhi_mw"]].dropna()
     return df
 
 
