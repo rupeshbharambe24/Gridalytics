@@ -1,13 +1,19 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 async function fetcher<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
-  });
+  const token = typeof window !== "undefined" ? localStorage.getItem("gridalytics_token") : null;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(init?.headers as Record<string, string>),
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE}${path}`, { ...init, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || res.statusText);
+    const error = new Error(err.detail || res.statusText);
+    (error as any).status = res.status;
+    throw error;
   }
   return res.json();
 }
@@ -41,7 +47,7 @@ export const getHeatmap = (days = 30) => fetcher<{
 }>(`/api/v1/dashboard/heatmap?days=${days}`);
 
 export const getModelPerformance = () => fetcher<{
-  champion: Record<string, any>; models_available: string[];
+  champion: Record<string, any>; models_available: string[]; all_models: any[];
 }>("/api/v1/dashboard/model-performance");
 
 // --- Forecast ---
@@ -76,6 +82,14 @@ export const getSeasonalStats = () =>
     "/api/v1/dashboard/stats/seasonal"
   );
 
+export const getPredictionHistory = (days: number) =>
+  fetcher<{ entries: any[]; summary: any }>(`/api/v1/dashboard/prediction-history?days=${days}`);
+
+export const getAccuracyTrend = (days: number) =>
+  fetcher<{ dates: string[]; daily_mape: number[]; rolling_7d_mape: number[]; rolling_30d_mape: number[]; drift_status: string; threshold: number }>(
+    `/api/v1/dashboard/accuracy-trend?days=${days}`
+  );
+
 // --- Auth ---
 export const login = (email: string, password: string) =>
   fetcher<{ access_token: string; token_type: string }>("/api/v1/auth/login", {
@@ -92,9 +106,7 @@ export const register = (email: string, password: string, full_name: string) =>
 export const getMe = () => {
   const token = typeof window !== "undefined" ? localStorage.getItem("gridalytics_token") : null;
   if (!token) return Promise.reject(new Error("Not authenticated"));
-  return fetcher<{ id: number; email: string; full_name: string; role: string }>("/api/v1/auth/me", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  return fetcher<{ id: number; email: string; full_name: string; role: string }>("/api/v1/auth/me");
 };
 
 // --- Admin ---

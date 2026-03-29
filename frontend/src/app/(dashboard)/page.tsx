@@ -7,12 +7,13 @@ import { KPICard } from "@/components/dashboard/kpi-card";
 import { DemandChart } from "@/components/charts/demand-chart";
 import { HeatmapChart } from "@/components/charts/heatmap-chart";
 import { Badge } from "@/components/ui/badge";
-import { getLive, getHistorical, getHeatmap, getStats } from "@/lib/api";
+import { getLive, getHistorical, getHeatmap, getStats, getModelPerformance } from "@/lib/api";
 import { useFetch } from "@/lib/hooks";
 
 export default function DashboardPage() {
   const { data: live, loading: liveLoading, refetch: refetchLive } = useFetch(getLive);
   const { data: stats } = useFetch(getStats);
+  const { data: modelPerf } = useFetch(getModelPerformance);
   const { data: historical } = useFetch(() => getHistorical(7, "hourly"));
   const { data: heatmap } = useFetch(() => getHeatmap(30));
 
@@ -89,10 +90,10 @@ export default function DashboardPage() {
           delay={0.2}
         />
         <KPICard
-          title="Best Model"
-          value="0.18"
+          title="Model Accuracy"
+          value={modelPerf?.champion?.hourly_mape?.toFixed(2) ?? null}
           unit="% MAPE"
-          subtitle="LightGBM (5-min) | R² 0.9997"
+          subtitle={modelPerf?.champion?.name ? `${modelPerf.champion.name} | ${modelPerf.champion.tracked_days || 0} days tracked` : undefined}
           icon={Award}
           color="violet"
           delay={0.3}
