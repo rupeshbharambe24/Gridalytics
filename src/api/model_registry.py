@@ -14,6 +14,7 @@ def load_models():
     from src.models.xgboost_model import XGBoostForecaster
 
     model_dirs = {
+        "5min": Path("models/5min"),
         "hourly": Path("models/hourly"),
         "daily": Path("models/daily"),
     }
