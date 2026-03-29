@@ -4,23 +4,15 @@ import { motion } from "framer-motion";
 import { Target, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useFetch } from "@/lib/hooks";
+import { getPredictionHistory, getAccuracyTrend } from "@/lib/api";
 import {
   ResponsiveContainer, LineChart, Line, AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, Cell,
 } from "recharts";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-function fetchHistory(days: number) {
-  return fetch(`${API}/api/v1/dashboard/prediction-history?days=${days}`).then(r => r.json());
-}
-function fetchTrend(days: number) {
-  return fetch(`${API}/api/v1/dashboard/accuracy-trend?days=${days}`).then(r => r.json());
-}
-
 export default function AccuracyPage() {
-  const { data: history } = useFetch(() => fetchHistory(60), []);
-  const { data: trend } = useFetch(() => fetchTrend(60), []);
+  const { data: history } = useFetch(() => getPredictionHistory(60), []);
+  const { data: trend } = useFetch(() => getAccuracyTrend(60), []);
 
   const entries = history?.entries || [];
   const withActuals = entries.filter((e: any) => e.actual_peak !== null);
@@ -38,9 +30,9 @@ export default function AccuracyPage() {
   // MAPE trend chart data
   const trendData = (trend?.dates || []).map((d: string, i: number) => ({
     date: d.slice(5),
-    daily: trend.daily_mape?.[i],
-    rolling7d: trend.rolling_7d_mape?.[i],
-    rolling30d: trend.rolling_30d_mape?.[i],
+    daily: trend?.daily_mape?.[i],
+    rolling7d: trend?.rolling_7d_mape?.[i],
+    rolling30d: trend?.rolling_30d_mape?.[i],
   }));
 
   // Error distribution

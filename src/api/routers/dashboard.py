@@ -202,10 +202,37 @@ def get_heatmap(
     )
 
 
-@router.get("/model-performance", response_model=ModelPerformanceResponse)
+@router.get("/model-performance")
 def get_model_performance(db: Session = Depends(get_db)):
-    """Get model performance from prediction tracking log."""
-    models = get_available_models()
+    """Get all model performance data - from model files + prediction log."""
+    import json
+    from pathlib import Path
+
+    available = get_available_models()
+
+    # Read actual model metadata from disk
+    all_models = []
+    models_root = Path("models")
+    if models_root.exists():
+        for res_dir in models_root.iterdir():
+            if not res_dir.is_dir():
+                continue
+            for model_dir in res_dir.iterdir():
+                meta_file = model_dir / "meta.json"
+                if meta_file.exists():
+                    with open(meta_file) as f:
+                        meta = json.load(f)
+                    # Calculate size
+                    size_mb = sum(ff.stat().st_size for ff in model_dir.rglob("*")) / (1024 * 1024)
+                    all_models.append({
+                        "name": meta.get("name", model_dir.name),
+                        "resolution": meta.get("resolution", res_dir.name),
+                        "features": len(meta.get("feature_names", [])),
+                        "params": {k: v for k, v in meta.get("params", {}).items() if k in ["num_leaves", "learning_rate", "n_estimators", "max_depth"]},
+                        "size_mb": round(size_mb, 1),
+                        "path": str(model_dir),
+                        "is_loaded": f"{res_dir.name}_{model_dir.name}" in available,
+                    })
 
     # Get rolling MAPE from prediction log (last 30 days)
     cutoff = date.today() - timedelta(days=30)
@@ -217,20 +244,21 @@ def get_model_performance(db: Session = Depends(get_db)):
     )
 
     rolling_mape = None
+    tracked_days = 0
     if logs:
         mapes = [l.mape_pct for l in logs if l.mape_pct is not None]
         rolling_mape = round(sum(mapes) / len(mapes), 2) if mapes else None
+        tracked_days = len(logs)
 
-    return ModelPerformanceResponse(
-        champion={
-            "name": "xgboost" if "hourly_xgboost" in models else "lightgbm",
-            "hourly_mape": rolling_mape or 0.52,
-            "daily_mape": 2.65,
-            "last_trained": "2026-03-29",
-            "tracked_days": len(logs),
+    return {
+        "champion": {
+            "name": "xgboost" if "hourly_xgboost" in available else "lightgbm",
+            "hourly_mape": rolling_mape,
+            "tracked_days": tracked_days,
         },
-        models_available=list(models.keys()),
-    )
+        "models_available": list(available.keys()),
+        "all_models": all_models,
+    }
 
 
 @router.get("/prediction-history")

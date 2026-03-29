@@ -8,9 +8,10 @@ import {
   LineChart, Target, Info, Zap, ChevronLeft, ChevronRight, Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getMe } from "@/lib/api";
 
-const navItems = [
+const allNavItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/forecast", label: "Forecast", icon: TrendingUp },
   { href: "/models", label: "Models", icon: BarChart3 },
@@ -24,6 +25,17 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    getMe()
+      .then((user) => setIsAdmin(user.role === "admin"))
+      .catch(() => setIsAdmin(false));
+  }, []);
+
+  const navItems = isAdmin
+    ? allNavItems
+    : allNavItems.filter((item) => item.href !== "/admin");
 
   return (
     <motion.aside

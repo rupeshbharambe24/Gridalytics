@@ -15,6 +15,7 @@ import {
   getRetrainStatus,
   getScraperStatus,
   getSchedulerJobs,
+  getMe,
 } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
@@ -51,6 +52,10 @@ function statusIcon(status: string) {
 // ---------------------------------------------------------------------------
 
 export default function AdminPage() {
+  // Auth check
+  const { data: me, loading: authLoading, error: authError } = useFetch(getMe);
+  const isAdmin = me?.role === "admin";
+
   // Data fetches
   const { data: models, loading: modelsLoading } = useFetch(getAdminModels);
   const { data: scraper, loading: scraperLoading } = useFetch(getScraperStatus);
@@ -111,6 +116,33 @@ export default function AdminPage() {
         });
       }
     });
+  }
+
+  // Access denied states
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="w-4 h-4 animate-spin" /> Checking permissions...
+        </div>
+      </div>
+    );
+  }
+
+  if (authError || !isAdmin) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-3">
+          <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-red-500/10 mx-auto">
+            <XCircle className="w-6 h-6 text-red-400" />
+          </div>
+          <h2 className="text-xl font-bold text-foreground">Access Denied</h2>
+          <p className="text-sm text-muted-foreground max-w-sm">
+            {authError ? "Please log in as admin to access this page." : "You do not have admin privileges to view this page."}
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
