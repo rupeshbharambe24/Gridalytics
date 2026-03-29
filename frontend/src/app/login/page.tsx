@@ -52,7 +52,7 @@ export default function LoginPage() {
       } else {
         result = await register(email, password, fullName);
       }
-      localStorage.setItem("edfs_token", result.access_token);
+      localStorage.setItem("gridalytics_token", result.access_token);
       router.push("/");
     } catch (err: any) {
       setError(err.message || "Something went wrong");
@@ -79,8 +79,8 @@ export default function LoginPage() {
             <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-blue-600 mb-3">
               <Zap className="w-6 h-6 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">EDFS</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Delhi Power Grid</p>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">Gridalytics</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Grid Intelligence</p>
           </div>
 
           {/* Tab Toggle */}
@@ -145,7 +145,7 @@ export default function LoginPage() {
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   type="email"
-                  placeholder="admin@edfs.in"
+                  placeholder="admin@gridalytics.in"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
@@ -208,7 +208,7 @@ export default function LoginPage() {
 
           {/* Footer */}
           <p className="text-xs text-muted-foreground text-center mt-6">
-            Electricity Demand Forecasting System v2
+            Gridalytics - AI-Powered Grid Intelligence
           </p>
         </div>
       </motion.div>

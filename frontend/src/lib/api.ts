@@ -90,7 +90,7 @@ export const register = (email: string, password: string, full_name: string) =>
   });
 
 export const getMe = () => {
-  const token = typeof window !== "undefined" ? localStorage.getItem("edfs_token") : null;
+  const token = typeof window !== "undefined" ? localStorage.getItem("gridalytics_token") : null;
   if (!token) return Promise.reject(new Error("Not authenticated"));
   return fetcher<{ id: number; email: string; full_name: string; role: string }>("/api/v1/auth/me", {
     headers: { Authorization: `Bearer ${token}` },

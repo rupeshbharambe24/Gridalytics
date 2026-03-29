@@ -163,7 +163,7 @@ def train_sarimax(df, target, features, resolution="daily"):
 
 def main():
     print("#" * 60)
-    print("  EDFS v2 - Train ALL Models")
+    print("  Gridalytics - Train ALL Models")
     print("#" * 60)
 
     # === Hourly Models ===

@@ -1,4 +1,4 @@
-"""Training orchestrator for EDFS v2.
+"""Training orchestrator for Gridalytics.
 
 End-to-end pipeline that:
 1. Builds features via FeaturePipeline
@@ -136,7 +136,7 @@ def train(
     save_dir = Path(save_dir)
 
     print(f"\n{'#' * 60}")
-    print(f"  EDFS v2 - Training Pipeline ({resolution})")
+    print(f"  Gridalytics - Training Pipeline ({resolution})")
     print(f"{'#' * 60}")
 
     # --- Step 1: Build features ---

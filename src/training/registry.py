@@ -37,7 +37,7 @@ def log_training_run(
         The MLflow run ID.
     """
     setup_mlflow()
-    experiment_name = f"edfs-{resolution}"
+    experiment_name = f"gridalytics-{resolution}"
     mlflow.set_experiment(experiment_name)
 
     with mlflow.start_run(run_name=f"{model_name}-{resolution}"):
@@ -61,7 +61,7 @@ def get_best_run(resolution: str) -> dict | None:
         Dict of run info, or None if no runs exist.
     """
     setup_mlflow()
-    experiment = mlflow.get_experiment_by_name(f"edfs-{resolution}")
+    experiment = mlflow.get_experiment_by_name(f"gridalytics-{resolution}")
     if not experiment:
         return None
 
@@ -77,7 +77,7 @@ def get_best_run(resolution: str) -> dict | None:
 
 
 def list_experiments() -> list[dict]:
-    """List all EDFS MLflow experiments with their best runs.
+    """List all Gridalytics MLflow experiments with their best runs.
 
     Returns:
         List of dicts, each with experiment name, resolution, run count,
@@ -88,7 +88,7 @@ def list_experiments() -> list[dict]:
     results = []
 
     for exp in experiments:
-        if not exp.name.startswith("edfs-"):
+        if not exp.name.startswith("gridalytics-"):
             continue
 
         runs = mlflow.search_runs(
@@ -103,7 +103,7 @@ def list_experiments() -> list[dict]:
 
         results.append({
             "experiment": exp.name,
-            "resolution": exp.name.replace("edfs-", ""),
+            "resolution": exp.name.replace("gridalytics-", ""),
             "total_runs": len(runs),
             "best_mape": best_mape,
             "runs": runs.to_dict("records") if not runs.empty else [],
@@ -118,7 +118,7 @@ def compare_runs(resolution: str, top_n: int = 10) -> pd.DataFrame:
     Useful for printing a leaderboard of model performance.
     """
     setup_mlflow()
-    experiment = mlflow.get_experiment_by_name(f"edfs-{resolution}")
+    experiment = mlflow.get_experiment_by_name(f"gridalytics-{resolution}")
     if not experiment:
         return pd.DataFrame()
 

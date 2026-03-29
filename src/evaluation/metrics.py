@@ -1,4 +1,4 @@
-"""Evaluation metrics for EDFS forecasting models."""
+"""Evaluation metrics for Gridalytics forecasting models."""
 
 import numpy as np
 import pandas as pd

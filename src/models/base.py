@@ -1,4 +1,4 @@
-"""Abstract base class for all EDFS forecasting models."""
+"""Abstract base class for all Gridalytics forecasting models."""
 
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -8,7 +8,7 @@ import pandas as pd
 
 
 class BaseForecaster(ABC):
-    """Base interface for all EDFS forecasting models."""
+    """Base interface for all Gridalytics forecasting models."""
 
     def __init__(self, resolution: str, name: str):
         self.resolution = resolution

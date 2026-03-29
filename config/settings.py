@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str = "sqlite:///./data/edfs.db"
+    DATABASE_URL: str = "sqlite:///./data/gridalytics.db"
 
     # Delhi coordinates
     DELHI_LAT: float = 28.7041
@@ -29,7 +29,7 @@ class Settings(BaseSettings):
 
     # Model serving
     MODEL_REGISTRY_PATH: Path = Path("./mlflow/artifacts")
-    CHAMPION_MODEL_NAME: str = "edfs-champion"
+    CHAMPION_MODEL_NAME: str = "gridalytics-champion"
 
     # Scheduling
     SCRAPE_INTERVAL_HOURS: int = 6

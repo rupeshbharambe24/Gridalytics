@@ -163,7 +163,7 @@ export default function ModelsPage() {
         ))}
       </div>
 
-      {/* Comparison with Old EDFS */}
+      {/* Comparison with Old EDFS (legacy project name kept intentionally) */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

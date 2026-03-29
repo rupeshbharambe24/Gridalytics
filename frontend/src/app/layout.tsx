@@ -14,8 +14,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "EDFS - Delhi Power Grid Forecasting",
-  description: "Electricity Demand Forecasting System for Delhi Power Grid",
+  title: "Gridalytics - Delhi Power Grid Intelligence",
+  description: "AI-Powered Grid Intelligence for Delhi Power Grid",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

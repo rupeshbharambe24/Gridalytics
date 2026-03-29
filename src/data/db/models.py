@@ -1,4 +1,4 @@
-"""SQLAlchemy ORM models for all EDFS data tables."""
+"""SQLAlchemy ORM models for all Gridalytics data tables."""
 
 from datetime import datetime, date, time
 from sqlalchemy import (

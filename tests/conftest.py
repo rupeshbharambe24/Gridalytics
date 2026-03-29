@@ -1,4 +1,4 @@
-"""Shared test fixtures for EDFS v2."""
+"""Shared test fixtures for Gridalytics."""
 
 import pytest
 from datetime import date, datetime, timedelta

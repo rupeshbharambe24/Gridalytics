@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class BaseScraper(ABC):
-    """Base interface for all EDFS data scrapers."""
+    """Base interface for all Gridalytics data scrapers."""
 
     def __init__(self, name: str, max_retries: int = 3, retry_delay: float = 2.0):
         self.name = name

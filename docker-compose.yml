@@ -1,4 +1,4 @@
-# EDFS v2 - Docker Compose (optional, not required for local dev)
+# Gridalytics - Docker Compose (optional, not required for local dev)
 # Usage: docker-compose up
 # Note: Everything runs fine without Docker via:
 #   uvicorn src.api.main:app --reload --port 8000

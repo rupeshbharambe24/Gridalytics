@@ -1,4 +1,4 @@
-"""Data quality validation for EDFS data pipeline."""
+"""Data quality validation for Gridalytics data pipeline."""
 
 import logging
 from datetime import date, timedelta

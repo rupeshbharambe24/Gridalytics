@@ -1,10 +1,11 @@
 [project]
-name = "edfs"
+name = "gridalytics"
 version = "2.0.0"
-description = "Electricity Demand Forecasting System for Delhi Power Grid"
+description = "AI-Powered Grid Intelligence for Delhi Power Grid"
 requires-python = ">=3.11"
 readme = "README.md"
 license = {text = "MIT"}
+authors = [{name = "Rupesh Bharambe"}]
 
 dependencies = [
     # Core
