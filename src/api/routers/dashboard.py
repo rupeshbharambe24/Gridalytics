@@ -358,7 +358,7 @@ def get_accuracy_trend(
     )
 
     if not logs:
-        return {"dates": [], "daily_mape": [], "rolling_7d_mape": [], "rolling_30d_mape": []}
+        return {"dates": [], "daily_mape": [], "rolling_7d_mape": [], "rolling_30d_mape": [], "drift_status": "stable", "threshold": 5.0}
 
     dates = [str(l.target_date) for l in logs]
     mapes = [l.mape_pct for l in logs]
