@@ -17,8 +17,10 @@ mlflow/
 
 # Environment
 .env
-*.json
-!pyproject.toml
+# Firebase/credential JSON files (but allow package.json, tsconfig, etc.)
+*-adminsdk-*.json
+*-firebase-*.json
+credentials*.json
 
 # Python
 __pycache__/
