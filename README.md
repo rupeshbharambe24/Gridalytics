@@ -25,6 +25,7 @@
 
 | Model | Resolution | MAPE | RMSE | R2 | Size |
 |:------|:----------|-----:|-----:|---:|-----:|
+| **LightGBM (Optuna)** | **Hourly** | **0.50%** | 24.9 MW | 0.9983 | 15.8 MB |
 | **LightGBM** | **5-Minute** | **0.18%** | 8.6 MW | 0.9997 | 8.1 MB |
 | **XGBoost** | **Hourly** | **0.52%** | 25.3 MW | 0.9987 | 24.5 MB |
 | LightGBM | Hourly | 0.62% | 30.2 MW | 0.9985 | ~5 MB |
@@ -62,20 +63,24 @@
 </td>
 <td width="50%">
 
-### API (23 Endpoints)
-- Forecast: single day, date range, peak extraction
-- What-if scenarios (temperature/humidity/holiday overrides)
-- Dashboard: live demand, stats, heatmaps, accuracy trend
-- Admin: model management, retrain, scraper status
-- JWT authentication with bcrypt
+### API (25 Endpoints)
+- Forecast: single day, date range, peak, model selection
+- Sub-regional DISCOM forecasting (BRPL, BYPL, NDPL, NDMC, MES)
+- What-if scenarios (7 parameters: temp, humidity, AQI, cloud, holiday, festival)
+- Dashboard: live demand with 1h forecast, stats, heatmaps, accuracy trend
+- Admin: model management, retrain, scraper status, rate limiting
+- JWT authentication with bcrypt, admin role gating
 
-### Frontend (9 Pages)
-- Real-time dashboard with KPI cards
-- Interactive forecast with confidence bands
-- Model comparison (all 7 models)
-- What-if scenario explorer
+### Frontend (10 Pages)
+- Real-time dashboard with KPI cards + DISCOM breakdown
+- Interactive forecast with model selector + confidence bands
+- Model comparison (all 7 models with metrics)
+- What-if scenario explorer (7 parameters)
 - Prediction accuracy tracker with drift detection
-- Comprehensive "How It Works" guide
+- Seasonal analytics + anomaly detection
+- Admin panel (auth-gated, retrain, pipeline status)
+- Login/Register with JWT
+- Comprehensive "How It Works" guide (10 sections)
 
 </td>
 </tr>
