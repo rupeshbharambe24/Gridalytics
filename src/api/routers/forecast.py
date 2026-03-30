@@ -6,7 +6,7 @@ Handles both:
 """
 
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, date as date_module, datetime, timedelta
 
 import numpy as np
 import pandas as pd
@@ -222,6 +222,75 @@ def get_forecast_peak(
         "avg_mw": round(float(np.mean(predicted)), 1),
         "min_mw": round(float(np.min(predicted)), 1),
     }
+
+
+@router.get("/{resolution}/subregion/{region}")
+def get_subregion_forecast(
+    resolution: str,
+    region: str,
+    date: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    """Forecast for a specific DISCOM sub-region using historical proportions."""
+    valid = {"delhi", "brpl", "bypl", "ndpl", "ndmc", "mes"}
+    if region.lower() not in valid:
+        raise HTTPException(400, f"Region must be one of: {', '.join(valid)}")
+
+    if region.lower() == "delhi":
+        return _build_forecast(resolution, date, None, db)
+
+    delhi = _build_forecast(resolution, date, None, db)
+
+    # Calculate historical ratio of sub-region to Delhi total
+    from src.data.db.models import DemandRecord
+    col_map = {
+        "brpl": DemandRecord.brpl_mw, "bypl": DemandRecord.bypl_mw,
+        "ndpl": DemandRecord.ndpl_mw, "ndmc": DemandRecord.ndmc_mw,
+        "mes": DemandRecord.mes_mw,
+    }
+    fallback = {"brpl": 0.35, "bypl": 0.20, "ndpl": 0.25, "ndmc": 0.10, "mes": 0.05}
+    cutoff = date_module.today() - timedelta(days=30)
+
+    ratio_val = db.query(func.avg(col_map[region.lower()] / DemandRecord.delhi_mw)).filter(
+        DemandRecord.timestamp >= cutoff.isoformat(),
+        DemandRecord.delhi_mw > 0,
+        col_map[region.lower()].isnot(None),
+    ).scalar()
+
+    ratio = float(ratio_val) if ratio_val else fallback[region.lower()]
+
+    return ForecastResponse(
+        timestamps=delhi.timestamps,
+        predicted_mw=[round(v * ratio, 1) for v in delhi.predicted_mw],
+        lower_bound_mw=[round(v * ratio, 1) for v in delhi.lower_bound_mw],
+        upper_bound_mw=[round(v * ratio, 1) for v in delhi.upper_bound_mw],
+        model_name=delhi.model_name,
+        resolution=resolution,
+        region=region.upper(),
+        metadata={"date": date, "region": region, "ratio": round(ratio, 4)},
+    )
+
+
+@router.get("/{resolution}/subregion")
+def get_all_subregions(
+    resolution: str,
+    date: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    """Forecast breakdown for all sub-regions."""
+    regions = ["delhi", "brpl", "bypl", "ndpl", "ndmc", "mes"]
+    results = {}
+    for r in regions:
+        try:
+            f = get_subregion_forecast(resolution, r, date, db)
+            results[r] = {
+                "predicted_mw": f.predicted_mw,
+                "peak_mw": round(max(f.predicted_mw), 1) if f.predicted_mw else None,
+                "avg_mw": round(sum(f.predicted_mw) / len(f.predicted_mw), 1) if f.predicted_mw else None,
+            }
+        except Exception:
+            results[r] = {"predicted_mw": [], "peak_mw": None, "avg_mw": None}
+    return {"date": date, "resolution": resolution, "regions": results}
 
 
 @router.get("/models/available")

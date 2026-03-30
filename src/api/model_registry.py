@@ -34,7 +34,19 @@ def load_models():
                 except Exception as e:
                     logger.error(f"Failed to load {model_name}/{resolution}: {e}")
 
-    logger.info(f"Total models loaded: {len(_models)}")
+    # Create ensemble from loaded models for each resolution
+    from src.models.ensemble import EnsembleForecaster
+
+    for resolution in ["5min", "hourly", "daily"]:
+        res_models = [v for k, v in _models.items()
+                      if k.startswith(f"{resolution}_") and "ensemble" not in k]
+        if len(res_models) >= 2:
+            ensemble = EnsembleForecaster(res_models, resolution=resolution)
+            ensemble.is_fitted = True
+            _models[f"{resolution}_ensemble"] = ensemble
+            logger.info(f"Created ensemble for {resolution} from {len(res_models)} models")
+
+    logger.info(f"Total models loaded: {len(_models)} (including ensembles)")
 
 
 def get_model(resolution: str, model_name: str | None = None):

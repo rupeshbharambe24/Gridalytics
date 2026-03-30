@@ -133,7 +133,7 @@ def update_holidays():
 
 
 def run_prediction_tracker():
-    """Daily job: predict tomorrow, fill yesterday's actuals."""
+    """Daily job: predict tomorrow, fill yesterday's actuals, check drift."""
     logger.info("Running prediction tracker")
     try:
         from src.api.model_registry import load_models
@@ -142,6 +142,21 @@ def run_prediction_tracker():
         with get_session() as session:
             daily_prediction_job(session)
             logger.info("Prediction tracker complete")
+
+            # Drift check on the prediction log
+            from src.data.db.models import PredictionLog
+            from src.training.alerts import check_and_alert_drift
+            from datetime import timedelta
+            cutoff = date.today() - timedelta(days=7)
+            recent = session.query(PredictionLog).filter(
+                PredictionLog.mape_pct.isnot(None),
+                PredictionLog.target_date >= cutoff,
+            ).all()
+            if recent:
+                mapes = [r.mape_pct for r in recent if r.mape_pct is not None]
+                if mapes:
+                    rolling = sum(mapes) / len(mapes)
+                    check_and_alert_drift(rolling)
     except Exception as e:
         logger.error(f"Prediction tracker failed: {e}")
 
