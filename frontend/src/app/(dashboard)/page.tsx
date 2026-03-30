@@ -8,7 +8,7 @@ import { KPISkeletons, ChartSkeleton } from "@/components/dashboard/skeleton-car
 import { DemandChart } from "@/components/charts/demand-chart";
 import { HeatmapChart } from "@/components/charts/heatmap-chart";
 import { Badge } from "@/components/ui/badge";
-import { getLive, getHistorical, getHeatmap, getStats, getModelPerformance, getPredictionHistory } from "@/lib/api";
+import { getLive, getHistorical, getHeatmap, getStats, getModelPerformance, getPredictionHistory, getSubregionForecast } from "@/lib/api";
 import { useFetch } from "@/lib/hooks";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
@@ -21,6 +21,11 @@ export default function DashboardPage() {
   const { data: historical, loading: histLoading } = useFetch(() => getHistorical(7, "hourly"));
   const { data: heatmap, loading: heatLoading } = useFetch(() => getHeatmap(30));
   const { data: predHistory } = useFetch(() => getPredictionHistory(14));
+  const { data: subregions } = useFetch(() => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return getSubregionForecast("hourly", yesterday.toISOString().split("T")[0]);
+  });
 
   useEffect(() => {
     const interval = setInterval(refetchLive, 5 * 60 * 1000);
@@ -124,6 +129,44 @@ export default function DashboardPage() {
           ) : null}
         </div>
       </div>
+
+      {/* Sub-Regional / DISCOM Breakdown */}
+      {subregions?.regions && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
+          className="rounded-xl border border-border bg-card p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-4">
+            DISCOM Breakdown — {subregions.date || "Yesterday"} (Peak MW)
+          </h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart
+              data={Object.entries(subregions.regions)
+                .filter(([k]) => k !== "delhi")
+                .map(([name, data]: [string, any]) => ({
+                  name: name.toUpperCase(),
+                  peak: data.peak_mw || 0,
+                  avg: data.avg_mw || 0,
+                }))}
+              layout="vertical"
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+              <XAxis type="number" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} />
+              <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={55} />
+              <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} />
+              <Bar dataKey="peak" name="Peak MW" fill="#f59e0b" radius={[0, 4, 4, 0]} opacity={0.8} />
+              <Bar dataKey="avg" name="Avg MW" fill="#3b82f6" radius={[0, 4, 4, 0]} opacity={0.6} />
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mt-3">
+            {Object.entries(subregions.regions).map(([name, data]: [string, any]) => (
+              <div key={name} className="rounded-lg bg-accent/30 p-2 text-center">
+                <p className="text-[10px] text-muted-foreground uppercase">{name}</p>
+                <p className="text-sm font-bold font-mono text-foreground">{data.peak_mw?.toFixed(0) || "---"}</p>
+                <p className="text-[10px] text-muted-foreground">MW peak</p>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {/* Accuracy Mini-Chart (Predicted vs Actual - last 10 days) */}
       {accuracyData.length > 0 && (
