@@ -93,12 +93,15 @@ export default function AdminPage() {
     setRetrainLoading(true);
     setRetrainError(null);
     setRetrainResult(null);
+    const { toast } = await import("sonner");
     try {
       const res = await triggerRetrain(resolution);
       setRetrainResult(res.status);
+      toast.success(`Retraining started for ${resolution} model`);
       pollStatus();
     } catch (err: any) {
       setRetrainError(err.message || "Retrain failed");
+      toast.error(`Retrain failed: ${err.message}`);
     } finally {
       setRetrainLoading(false);
     }

@@ -44,6 +44,38 @@ function exportCSV(result: any) {
   a.click();
 }
 
+function exportPDF(result: any) {
+  if (!result) return;
+  import("jspdf").then(({ jsPDF }) => {
+    import("jspdf-autotable").then((autoTable) => {
+      const doc = new jsPDF();
+      doc.setFontSize(16);
+      doc.text("Gridalytics - Demand Forecast", 14, 20);
+      doc.setFontSize(10);
+      doc.text(`Resolution: ${result.resolution} | Model: ${result.model_name}`, 14, 28);
+      doc.text(`Date: ${result.metadata?.date || result.metadata?.start || ""}`, 14, 34);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 40);
+
+      const rows = result.timestamps.map((t: string, i: number) => [
+        new Date(t).toLocaleString("en-IN"),
+        result.predicted_mw[i].toFixed(1),
+        result.lower_bound_mw[i].toFixed(1),
+        result.upper_bound_mw[i].toFixed(1),
+      ]);
+
+      (autoTable as any).default(doc, {
+        startY: 48,
+        head: [["Timestamp", "Predicted (MW)", "Lower Bound", "Upper Bound"]],
+        body: rows,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [59, 130, 246] },
+      });
+
+      doc.save(`gridalytics_forecast_${result.resolution}_${result.metadata?.date || "range"}.pdf`);
+    });
+  });
+}
+
 export default function ForecastPage() {
   const [mode, setMode] = useState<Mode>("single");
   const [resolution, setResolution] = useState<Resolution>("hourly");
@@ -331,15 +363,26 @@ export default function ForecastPage() {
             <div className="rounded-xl border border-border bg-card overflow-hidden">
               <div className="flex items-center justify-between p-4 border-b border-border">
                 <h3 className="text-sm font-semibold">Prediction Data ({result.predicted_mw.length} points)</h3>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => exportCSV(result)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  Export CSV
-                </motion.button>
+                <div className="flex gap-2">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => exportCSV(result)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    CSV
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => exportPDF(result)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    PDF
+                  </motion.button>
+                </div>
               </div>
               <div className="max-h-96 overflow-y-auto">
                 <table className="w-full text-sm">
