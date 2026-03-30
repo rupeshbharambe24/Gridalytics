@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Info, Zap, Clock, BarChart3, Database, Brain, AlertTriangle, ExternalLink } from "lucide-react";
+import { Info, Zap, Clock, BarChart3, Database, Brain, AlertTriangle, ExternalLink, FlaskConical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const fadeIn = (delay: number) => ({
@@ -235,12 +235,13 @@ export default function InfoPage() {
             </thead>
             <tbody className="text-xs">
               {[
-                { name: "LightGBM", type: "Gradient Boosting", best: "5-Minute (286/day)", mape: "0.18%", champion: true },
-                { name: "XGBoost", type: "Gradient Boosting", best: "Hourly (24/day)", mape: "0.52%", champion: true },
-                { name: "LightGBM", type: "Gradient Boosting", best: "Daily / 5-Min", mape: "0.62-2.65%", champion: true },
-                { name: "BiLSTM", type: "Deep Learning (GPU)", best: "Sequence patterns", mape: "6.66%", champion: false },
-                { name: "SARIMAX", type: "Statistical", best: "Daily baseline", mape: "4.18%", champion: false },
-                { name: "NeuralProphet", type: "Neural Decomposition", best: "Holidays/seasons", mape: "7.68%", champion: false },
+                { name: "LightGBM", type: "Gradient Boosting", best: "5-Minute", mape: "0.18%", champion: true },
+                { name: "LightGBM (Optuna)", type: "Gradient Boosting", best: "Hourly", mape: "0.50%", champion: false },
+                { name: "XGBoost", type: "Gradient Boosting", best: "Hourly", mape: "0.52%", champion: true },
+                { name: "LightGBM", type: "Gradient Boosting", best: "Daily", mape: "2.65%", champion: true },
+                { name: "SARIMAX", type: "Statistical (ARIMA)", best: "Daily", mape: "4.18%", champion: false },
+                { name: "BiLSTM", type: "Deep Learning (PyTorch)", best: "Hourly", mape: "6.66%", champion: false },
+                { name: "NeuralProphet", type: "Neural + Decomposition", best: "Daily", mape: "7.68%", champion: false },
               ].map((m) => (
                 <tr key={m.name} className="border-b border-border/50">
                   <td className="p-2.5 font-medium text-foreground flex items-center gap-1.5">
@@ -392,6 +393,106 @@ export default function InfoPage() {
           The summer peak (8,500+ MW) is more than <strong className="text-foreground">3x the winter minimum</strong> (2,500 MW).
           This extreme variation is driven almost entirely by air conditioning.
           Delhi generates almost no power locally — all electricity is purchased from generators across Northern India.
+        </p>
+      </Section>
+
+      {/* Sub-Regional / DISCOM Forecasting */}
+      <Section title="Sub-Regional (DISCOM) Forecasting" icon={Zap} delay={0.38}>
+        <p>
+          Delhi&#39;s electricity is distributed by <strong className="text-foreground">5 DISCOMs</strong> (distribution companies).
+          Gridalytics forecasts demand for each sub-region by applying <strong className="text-foreground">historical demand ratios</strong> to
+          the total Delhi forecast.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left p-2.5 text-xs font-medium text-muted-foreground">DISCOM</th>
+                <th className="text-left p-2.5 text-xs font-medium text-muted-foreground">Full Name</th>
+                <th className="text-left p-2.5 text-xs font-medium text-muted-foreground">Area</th>
+                <th className="text-center p-2.5 text-xs font-medium text-muted-foreground">Approx Share</th>
+              </tr>
+            </thead>
+            <tbody className="text-xs">
+              {[
+                { code: "BRPL", name: "BSES Rajdhani Power Ltd", area: "South & West Delhi", share: "~35%" },
+                { code: "NDPL/TPDDL", name: "Tata Power Delhi Distribution Ltd", area: "North & Northwest", share: "~25%" },
+                { code: "BYPL", name: "BSES Yamuna Power Ltd", area: "Central & East Delhi", share: "~20%" },
+                { code: "NDMC", name: "New Delhi Municipal Council", area: "Lutyens&#39; Delhi (New Delhi)", share: "~10%" },
+                { code: "MES", name: "Military Engineering Services", area: "Delhi Cantonment", share: "~5%" },
+              ].map((d) => (
+                <tr key={d.code} className="border-b border-border/50">
+                  <td className="p-2.5 font-mono font-bold text-foreground">{d.code}</td>
+                  <td className="p-2.5">{d.name}</td>
+                  <td className="p-2.5">{d.area}</td>
+                  <td className="p-2.5 text-center font-mono">{d.share}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-xs">
+          The ratios are computed dynamically from the last 30 days of actual SCADA data. You can see
+          the DISCOM breakdown on the <strong className="text-foreground">Dashboard</strong> (horizontal bar chart)
+          and request per-region forecasts via the API.
+        </p>
+      </Section>
+
+      {/* What-If Scenarios */}
+      <Section title="What-If Scenario Testing" icon={FlaskConical} delay={0.41}>
+        <p>
+          The <strong className="text-foreground">What-If</strong> page lets you override weather and event conditions
+          to explore their impact on demand. This is useful for:
+        </p>
+        <ul className="list-disc list-inside space-y-1 text-xs">
+          <li><strong className="text-foreground">Grid capacity planning</strong> — &#34;What if we get a 48&#176;C heatwave next week?&#34;</li>
+          <li><strong className="text-foreground">Emergency preparedness</strong> — &#34;How much extra power do we need for Diwali?&#34;</li>
+          <li><strong className="text-foreground">Pollution impact</strong> — &#34;If AQI hits 500 (hazardous), how does demand change?&#34;</li>
+          <li><strong className="text-foreground">Sensitivity analysis</strong> — &#34;How much does each &#176;C increase add to demand?&#34;</li>
+        </ul>
+        <div className="rounded-lg bg-accent/30 p-4 border border-border mt-3">
+          <p className="text-xs font-medium text-foreground mb-2">Available parameters (7 total):</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+            {[
+              { param: "Temperature", range: "5-50&#176;C", effect: "Primary driver (AC load)" },
+              { param: "Humidity", range: "10-100%", effect: "Feels-like temperature" },
+              { param: "AQI", range: "0-500", effect: "Indoor activity shift" },
+              { param: "Cloud Cover", range: "0-100%", effect: "Solar/AC patterns" },
+              { param: "Holiday", range: "On/Off", effect: "Office closures" },
+              { param: "Festival", range: "6 types", effect: "Diwali, IPL, etc." },
+              { param: "Resolution", range: "5min/hr/day", effect: "Granularity level" },
+            ].map((p) => (
+              <div key={p.param} className="rounded bg-background/50 p-2">
+                <p className="font-medium text-foreground">{p.param}</p>
+                <p className="text-muted-foreground">{p.range}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <p className="text-xs mt-2">
+          <strong className="text-foreground">How to interpret results:</strong> The blue line shows the baseline forecast
+          (using actual/predicted conditions). The orange line shows your scenario. A positive percentage change means
+          the scenario <em>increases</em> demand — the grid needs more power. A negative change means lower demand.
+          Both average and peak impacts are shown separately because peak capacity is the critical safety constraint.
+        </p>
+      </Section>
+
+      {/* Model Selection */}
+      <Section title="Choosing a Model" icon={Brain} delay={0.44}>
+        <p>
+          On the <strong className="text-foreground">Forecast</strong> page, you can select which model to use
+          via the Model dropdown:
+        </p>
+        <ul className="list-disc list-inside space-y-1 text-xs">
+          <li><strong className="text-foreground">Auto (Best)</strong> — Uses the champion model for the selected resolution. Recommended for most use cases.</li>
+          <li><strong className="text-foreground">LightGBM</strong> — Gradient boosting. Fastest, best for 5-minute. Optuna-tuned version available for hourly.</li>
+          <li><strong className="text-foreground">XGBoost</strong> — Gradient boosting. Champion for hourly resolution.</li>
+          <li><strong className="text-foreground">Ensemble</strong> — Weighted average of all loaded models. Can be more stable but not always most accurate.</li>
+          <li><strong className="text-foreground">LSTM / BiLSTM</strong> — Deep learning. Captures sequence patterns but less accurate than tree models on this data.</li>
+        </ul>
+        <p className="text-xs mt-2">
+          For most users, <strong className="text-foreground">Auto</strong> is the best choice. It automatically selects
+          the champion model for each resolution (LightGBM for 5-min and daily, XGBoost for hourly).
         </p>
       </Section>
 
