@@ -93,11 +93,13 @@ export default function AnalyticsPage() {
               <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
+                  backgroundColor: "#1c1c22",
+                  border: "1px solid #333",
                   borderRadius: "8px",
                   fontSize: "12px",
                 }}
+                labelStyle={{ color: "#f0f0f0" }}
+                itemStyle={{ color: "#d4d4d8" }}
               />
               <Bar dataKey="avg" radius={[4, 4, 0, 0]} name="Avg Demand (MW)">
                 {dailyAvg.slice(-30).map((entry, i) => (
@@ -158,7 +160,7 @@ export default function AnalyticsPage() {
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
               <XAxis dataKey="hour" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} />
+              <Tooltip contentStyle={{ backgroundColor: "#1c1c22", border: "1px solid #333", borderRadius: "8px", fontSize: "12px" }} labelStyle={{ color: "#f0f0f0" }} itemStyle={{ color: "#d4d4d8" }} />
               <Bar dataKey="error" name="Avg Error %" radius={[4, 4, 0, 0]}>
                 {errorByHour.hours.map((_: number, i: number) => (
                   <Cell key={i} fill={errorByHour.avg_pct_error[i] > 5 ? "#ef4444" : errorByHour.avg_pct_error[i] > 3 ? "#f59e0b" : "#10b981"} fillOpacity={0.7} />
@@ -179,7 +181,7 @@ export default function AnalyticsPage() {
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
               <XAxis dataKey="season" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} />
+              <Tooltip contentStyle={{ backgroundColor: "#1c1c22", border: "1px solid #333", borderRadius: "8px", fontSize: "12px" }} labelStyle={{ color: "#f0f0f0" }} itemStyle={{ color: "#d4d4d8" }} />
               <Bar dataKey="avg_mw" name="Avg MW" radius={[4, 4, 0, 0]}>
                 {seasonal.seasons.map((s: any, i: number) => (
                   <Cell key={i} fill={

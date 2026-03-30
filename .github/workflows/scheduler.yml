@@ -1,0 +1,51 @@
+name: Data Collection & Prediction
+
+on:
+  schedule:
+    # Run every 6 hours: midnight, 6am, noon, 6pm IST
+    - cron: "30 18,0,6,12 * * *"
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  collect-and-predict:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install pandas numpy sqlalchemy psycopg2-binary pydantic pydantic-settings \
+            python-dotenv requests beautifulsoup4 httpx lightgbm xgboost scikit-learn \
+            holidays apscheduler
+
+      - name: Create .env
+        run: |
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" > .env
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+
+      - name: Run data collection
+        run: python -m src.data.scheduler --once
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Run database backup check
+        run: |
+          python -c "
+          from src.data.db.session import get_session
+          from src.data.db.models import DemandRecord, WeatherRecord
+          from sqlalchemy import func
+          with get_session() as s:
+              d = s.query(func.max(DemandRecord.timestamp)).scalar()
+              w = s.query(func.max(WeatherRecord.timestamp)).scalar()
+              dc = s.query(func.count(DemandRecord.id)).scalar()
+              print(f'Demand: {dc} rows, latest: {d}')
+              print(f'Weather: latest: {w}')
+          "
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
