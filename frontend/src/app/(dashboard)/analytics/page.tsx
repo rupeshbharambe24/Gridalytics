@@ -5,7 +5,8 @@ import { LineChart, BarChart3, TrendingUp } from "lucide-react";
 import { DemandChart } from "@/components/charts/demand-chart";
 import { HeatmapChart } from "@/components/charts/heatmap-chart";
 import { useFetch } from "@/lib/hooks";
-import { getHistorical, getHeatmap, getStats } from "@/lib/api";
+import { getHistorical, getHeatmap, getStats, getSeasonalStats, getAnomalies } from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
 } from "recharts";
@@ -23,6 +24,8 @@ export default function AnalyticsPage() {
   const { data: weekly } = useFetch(() => getHistorical(30, "hourly"));
   const { data: heatmap } = useFetch(() => getHeatmap(60));
   const { data: stats } = useFetch(getStats);
+  const { data: seasonal } = useFetch(getSeasonalStats);
+  const { data: anomalies } = useFetch(() => getAnomalies(60));
 
   const monthlyChart = monthly?.timestamps.map((t, i) => ({
     time: new Date(t).toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
@@ -137,6 +140,86 @@ export default function AnalyticsPage() {
               <p className="text-lg font-semibold text-foreground mt-1">{item.value}</p>
             </div>
           ))}
+        </motion.div>
+      )}
+      {/* Seasonal Demand Breakdown */}
+      {seasonal?.seasons && seasonal.seasons.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+          className="rounded-xl border border-border bg-card p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-4">Demand by Delhi Season (Historical)</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={seasonal.seasons}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+              <XAxis dataKey="season" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} />
+              <Bar dataKey="avg_mw" name="Avg MW" radius={[4, 4, 0, 0]}>
+                {seasonal.seasons.map((s: any, i: number) => (
+                  <Cell key={i} fill={
+                    s.season === "Summer" ? "#f59e0b" : s.season === "Winter" ? "#3b82f6" :
+                    s.season === "Monsoon" ? "#8b5cf6" : s.season === "Spring" ? "#10b981" : "#ef4444"
+                  } fillOpacity={0.7} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="overflow-x-auto mt-3">
+            <table className="w-full text-xs">
+              <thead><tr className="text-muted-foreground border-b border-border">
+                <th className="text-left p-2">Season</th>
+                <th className="text-right p-2">Avg MW</th>
+                <th className="text-right p-2">Min MW</th>
+                <th className="text-right p-2">Max MW</th>
+                <th className="text-right p-2">Days</th>
+              </tr></thead>
+              <tbody>
+                {seasonal.seasons.map((s: any) => (
+                  <tr key={s.season} className="border-b border-border/50">
+                    <td className="p-2 font-medium">{s.season}</td>
+                    <td className="p-2 text-right font-mono">{s.avg_mw?.toFixed(0)}</td>
+                    <td className="p-2 text-right font-mono text-blue-400">{s.min_mw?.toFixed(0)}</td>
+                    <td className="p-2 text-right font-mono text-amber-400">{s.max_mw?.toFixed(0)}</td>
+                    <td className="p-2 text-right font-mono">{s.days}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Anomaly Log */}
+      {anomalies && Array.isArray(anomalies) && anomalies.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
+          className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="p-4 border-b border-border flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Anomalies (High-Error Days)</h3>
+            <Badge variant="outline" className="text-xs text-amber-400 border-amber-500/30">{anomalies.length} found</Badge>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="text-xs text-muted-foreground border-b border-border">
+                <th className="text-left p-3">Date</th>
+                <th className="text-right p-3">Predicted</th>
+                <th className="text-right p-3">Actual</th>
+                <th className="text-right p-3">MAPE</th>
+                <th className="text-left p-3">Notes</th>
+              </tr></thead>
+              <tbody>
+                {anomalies.map((a: any, i: number) => (
+                  <tr key={i} className="border-b border-border/50 hover:bg-accent/20">
+                    <td className="p-3 font-mono text-xs">{a.date}</td>
+                    <td className="p-3 text-right font-mono">{a.predicted_peak?.toFixed(0)} MW</td>
+                    <td className="p-3 text-right font-mono">{a.actual_peak?.toFixed(0)} MW</td>
+                    <td className="p-3 text-right">
+                      <span className="font-mono text-rose-400">{a.mape?.toFixed(1)}%</span>
+                    </td>
+                    <td className="p-3 text-xs text-muted-foreground">{a.notes || ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </motion.div>
       )}
     </div>

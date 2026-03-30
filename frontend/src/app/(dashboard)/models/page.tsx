@@ -28,28 +28,33 @@ export default function ModelsPage() {
   const trackedDays = perf?.champion?.tracked_days || 0;
   const rollingMape = perf?.champion?.hourly_mape;
 
-  // Build display list: merge API model data with known CV metrics
-  const displayModels = allModels.map((m: any) => {
-    const key = `${m.resolution}_${m.name}`;
-    const cv = CV_METRICS[key];
+  // Build display list: show ALL 7 models from CV_METRICS, merge with API disk data
+  const diskModels = new Map(allModels.map((m: any) => [`${m.resolution}_${m.name}`, m]));
+
+  const displayModels = Object.entries(CV_METRICS).map(([key, cv]) => {
+    const [res, ...nameParts] = key.split("_");
+    const name = nameParts.join("_");
+    const disk = diskModels.get(key);
     return {
-      ...m,
-      mape: cv?.mape || "---",
-      rmse: cv?.rmse || "---",
-      r2: cv?.r2 || "---",
-      folds: cv?.folds || 0,
-      type: cv?.type || "Unknown",
+      name,
+      resolution: res,
+      mape: cv.mape,
+      rmse: cv.rmse,
+      r2: cv.r2,
+      folds: cv.folds,
+      type: cv.type,
+      size_mb: disk?.size_mb || null,
+      features: disk?.features || (cv.type.includes("Statistical") ? 4 : cv.type.includes("Neural") ? 5 : 93),
+      is_loaded: !!(available && available[key]),
       isChampion: CHAMPIONS.has(key),
     };
   });
 
   // Sort: champions first, then by MAPE
-  displayModels.sort((a: any, b: any) => {
+  displayModels.sort((a, b) => {
     if (a.isChampion && !b.isChampion) return -1;
     if (!a.isChampion && b.isChampion) return 1;
-    const aMape = parseFloat(a.mape) || 999;
-    const bMape = parseFloat(b.mape) || 999;
-    return aMape - bMape;
+    return (parseFloat(a.mape) || 999) - (parseFloat(b.mape) || 999);
   });
 
   return (
