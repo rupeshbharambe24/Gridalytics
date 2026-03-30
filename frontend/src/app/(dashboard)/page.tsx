@@ -2,7 +2,18 @@
 
 import { useEffect } from "react";
 import { motion } from "framer-motion";
-import { Zap, Thermometer, Activity, Award, RefreshCw } from "lucide-react";
+import { Zap, Thermometer, Activity, Award, RefreshCw, Download } from "lucide-react";
+
+function downloadCSV(data: Record<string, any>[], filename: string) {
+  if (!data.length) return;
+  const headers = Object.keys(data[0]);
+  const csv = [headers.join(","), ...data.map(r => headers.map(h => r[h] ?? "").join(","))].join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
 import { KPICard } from "@/components/dashboard/kpi-card";
 import { KPISkeletons, ChartSkeleton } from "@/components/dashboard/skeleton-cards";
 import { DemandChart } from "@/components/charts/demand-chart";
@@ -129,7 +140,14 @@ export default function DashboardPage() {
           {histLoading && !historical ? (
             <ChartSkeleton />
           ) : (
-            <DemandChart data={chartData} title="Demand — Last 7 Days (Hourly)" showTemp />
+            <div className="relative">
+              <button
+                onClick={() => downloadCSV(chartData, "gridalytics_demand_7d.csv")}
+                className="absolute top-5 right-5 z-10 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                title="Export CSV"
+              ><Download className="w-3.5 h-3.5" /></button>
+              <DemandChart data={chartData} title="Demand — Last 7 Days (Hourly)" showTemp />
+            </div>
           )}
         </div>
         <div>

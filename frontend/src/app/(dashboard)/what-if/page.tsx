@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FlaskConical, Loader2, Thermometer, Droplets, Calendar,
@@ -22,6 +22,40 @@ export default function WhatIfPage() {
   const [loading, setLoading] = useState(false);
   const [baseline, setBaseline] = useState<any>(null);
   const [scenario, setScenario] = useState<any>(null);
+  const [savedScenarios, setSavedScenarios] = useState<any[]>([]);
+
+  // Load saved scenarios from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("gridalytics_scenarios");
+    if (saved) setSavedScenarios(JSON.parse(saved));
+  }, []);
+
+  const saveScenario = () => {
+    if (!scenario) return;
+    const entry = {
+      id: Date.now(),
+      date, resolution, temp, humidity, aqi, cloudCover, isHoliday, festival,
+      avgMW: Math.round(scenAvg),
+      peakMW: Math.round(scenPeak),
+      diffPct: Number(diffPct.toFixed(1)),
+    };
+    const updated = [entry, ...savedScenarios].slice(0, 10);
+    setSavedScenarios(updated);
+    localStorage.setItem("gridalytics_scenarios", JSON.stringify(updated));
+    import("sonner").then(({ toast }) => toast.success("Scenario saved"));
+  };
+
+  const deleteScenario = (id: number) => {
+    const updated = savedScenarios.filter((s) => s.id !== id);
+    setSavedScenarios(updated);
+    localStorage.setItem("gridalytics_scenarios", JSON.stringify(updated));
+  };
+
+  const loadScenario = (s: any) => {
+    setDate(s.date); setResolution(s.resolution); setTemp(s.temp);
+    setHumidity(s.humidity); setAqi(s.aqi); setCloudCover(s.cloudCover);
+    setIsHoliday(s.isHoliday); setFestival(s.festival);
+  };
 
   const runScenario = async () => {
     setLoading(true);
@@ -229,6 +263,16 @@ export default function WhatIfPage() {
                 </div>
 
                 <DemandChart data={chartData} forecast={forecastData} title="Baseline vs Scenario" height={380} />
+
+                {/* Save Scenario Button */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={saveScenario}
+                  className="flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                >
+                  Save This Scenario
+                </motion.button>
               </motion.div>
             )}
           </AnimatePresence>
@@ -246,6 +290,36 @@ export default function WhatIfPage() {
           )}
         </div>
       </div>
+
+      {/* Saved Scenarios */}
+      {savedScenarios.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-border bg-card p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-3">Saved Scenarios ({savedScenarios.length}/10)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {savedScenarios.map((s) => (
+              <div key={s.id} className="rounded-lg border border-border bg-accent/20 p-3 text-xs space-y-1 group relative">
+                <button
+                  onClick={() => deleteScenario(s.id)}
+                  className="absolute top-2 right-2 text-muted-foreground hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                >x</button>
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-foreground">{s.date}</span>
+                  <span className={`font-mono font-bold ${s.diffPct > 0 ? "text-amber-400" : "text-blue-400"}`}>
+                    {s.diffPct > 0 ? "+" : ""}{s.diffPct}%
+                  </span>
+                </div>
+                <p className="text-muted-foreground">{s.temp}C | {s.humidity}% | AQI {s.aqi}</p>
+                <p className="text-muted-foreground">Peak: {s.peakMW} MW | Avg: {s.avgMW} MW</p>
+                <button
+                  onClick={() => loadScenario(s)}
+                  className="text-blue-400 hover:underline mt-1"
+                >Load params</button>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }

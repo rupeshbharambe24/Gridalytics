@@ -94,6 +94,16 @@ export default function ForecastPage() {
   const { data: availableModels } = useFetch(getAvailableModels);
 
   const handlePredict = async () => {
+    // Input validation
+    const { toast } = await import("sonner");
+    if (mode === "single" && !date) { toast.error("Please select a date"); return; }
+    if (mode === "range") {
+      if (!startDate || !endDate) { toast.error("Please select both start and end dates"); return; }
+      const s = new Date(startDate), e = new Date(endDate);
+      if (e <= s) { toast.error("End date must be after start date"); return; }
+      if ((e.getTime() - s.getTime()) / 86400000 > 90) { toast.error("Date range cannot exceed 90 days"); return; }
+    }
+
     setLoading(true);
     setError(null);
     setResult(null);

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from src.data.db.session import get_db
-from src.data.db.models import DemandRecord, WeatherRecord, PredictionLog
+from src.data.db.models import DemandRecord, WeatherRecord, PredictionLog, WeatherForecastLog
 from src.data.loaders import load_demand, load_weather
 from src.api.schemas import (
     LiveDashboardResponse, SummaryStatsResponse,
@@ -517,4 +517,45 @@ def get_error_by_hour(
         "std_demand": [round(v, 1) for v in by_hour["std_demand"]],
         "avg_error": [round(v, 1) for v in by_hour["avg_error"]],
         "avg_pct_error": [round(v, 2) for v in by_hour["avg_pct_error"]],
+    }
+
+
+@router.get("/weather-accuracy")
+def get_weather_accuracy(
+    days: int = Query(30, ge=7, le=365),
+    db: Session = Depends(get_db),
+):
+    """Get weather forecast vs actual accuracy for the last N days."""
+    cutoff = date.today() - timedelta(days=days)
+    logs = (
+        db.query(WeatherForecastLog)
+        .filter(WeatherForecastLog.target_date >= cutoff)
+        .order_by(WeatherForecastLog.target_date)
+        .all()
+    )
+
+    if not logs:
+        return {"entries": [], "avg_temp_error": None, "avg_humidity_error": None}
+
+    entries = [
+        {
+            "date": str(l.target_date),
+            "forecast_temp": l.forecast_temp,
+            "actual_temp": l.actual_temp,
+            "temp_error": l.temp_error,
+            "forecast_humidity": l.forecast_humidity,
+            "actual_humidity": l.actual_humidity,
+            "humidity_error": l.humidity_error,
+        }
+        for l in logs
+    ]
+
+    temp_errors = [l.temp_error for l in logs if l.temp_error is not None]
+    hum_errors = [l.humidity_error for l in logs if l.humidity_error is not None]
+
+    return {
+        "entries": entries,
+        "avg_temp_error": round(np.mean([abs(e) for e in temp_errors]), 2) if temp_errors else None,
+        "avg_humidity_error": round(np.mean([abs(e) for e in hum_errors]), 2) if hum_errors else None,
+        "days_tracked": len(entries),
     }

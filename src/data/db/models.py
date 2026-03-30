@@ -112,6 +112,25 @@ class ModelMetric(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class WeatherForecastLog(Base):
+    """Tracks weather forecast vs actual for forecast accuracy attribution."""
+    __tablename__ = "weather_forecast_log"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    target_date = Column(Date, nullable=False, index=True)
+    forecast_temp = Column(Float)
+    actual_temp = Column(Float)
+    forecast_humidity = Column(Float)
+    actual_humidity = Column(Float)
+    temp_error = Column(Float)
+    humidity_error = Column(Float)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("target_date", name="uq_weather_forecast_date"),
+    )
+
+
 class PredictionLog(Base):
     """Daily log: what the model predicted vs what actually happened.
 
