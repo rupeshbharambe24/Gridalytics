@@ -1,5 +1,6 @@
 # Data (large files)
 data/*.db
+data/backups/
 data/interim/
 data/processed/
 data/raw/

@@ -10,6 +10,14 @@ async function fetcher<T>(path: string, init?: RequestInit): Promise<T> {
 
   const res = await fetch(`${BASE}${path}`, { ...init, headers });
   if (!res.ok) {
+    // Auto-redirect to login on 401 (expired/invalid token)
+    if (res.status === 401 && typeof window !== "undefined" && !path.includes("/auth/")) {
+      localStorage.removeItem("gridalytics_token");
+      // Don't redirect for public endpoints that work without auth
+      if (path.includes("/admin/")) {
+        window.location.href = "/login";
+      }
+    }
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     const error = new Error(err.detail || res.statusText);
     (error as any).status = res.status;

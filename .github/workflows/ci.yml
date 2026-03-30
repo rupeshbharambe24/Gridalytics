@@ -1,0 +1,52 @@
+name: Gridalytics CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install pandas numpy sqlalchemy pydantic pydantic-settings python-dotenv \
+            requests beautifulsoup4 httpx lightgbm xgboost scikit-learn \
+            fastapi uvicorn python-jose passlib holidays apscheduler \
+            mlflow optuna pytest
+
+      - name: Setup environment
+        run: |
+          cp .env.example .env
+          python -c "from src.data.db.session import create_tables; create_tables()"
+
+      - name: Run tests
+        run: python -m pytest tests/ -v --tb=short
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build

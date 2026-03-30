@@ -229,6 +229,49 @@ python -m src.data.scheduler --once # Run once
 
 ---
 
+## API Usage Examples
+
+### Get hourly forecast for a date
+```bash
+curl -s "http://localhost:8000/api/v1/forecast/hourly?date=2026-04-01" | python -m json.tool
+```
+
+### Get peak demand prediction
+```bash
+curl -s "http://localhost:8000/api/v1/forecast/hourly/peak?date=2026-03-28"
+# {"date":"2026-03-28","peak_mw":4175.3,"peak_time":"2026-03-28 19:00:00","avg_mw":3649.8,"min_mw":2921.0}
+```
+
+### Get DISCOM sub-regional breakdown
+```bash
+curl -s "http://localhost:8000/api/v1/forecast/hourly/subregion?date=2026-03-28"
+```
+
+### Run a what-if scenario (45°C heatwave)
+```bash
+curl -s -X POST "http://localhost:8000/api/v1/forecast/what-if" \
+  -H "Content-Type: application/json" \
+  -d '{"date":"2026-04-01","resolution":"hourly","overrides":{"temperature":45.0,"humidity":30,"aqi":200}}'
+```
+
+### Python client
+```python
+import requests
+BASE = "http://localhost:8000/api/v1"
+
+# Live dashboard
+live = requests.get(f"{BASE}/dashboard/live").json()
+print(f"Current: {live['current_demand_mw']} MW")
+print(f"1h forecast: {live['forecast_1h_mw']} MW")
+
+# Hourly forecast with specific model
+forecast = requests.get(f"{BASE}/forecast/hourly",
+    params={"date": "2026-04-01", "model": "xgboost"}).json()
+print(f"Peak: {max(forecast['predicted_mw']):.0f} MW ({forecast['model_name']})")
+```
+
+---
+
 ## Feature Engineering (93 Features)
 
 | Category | Count | Examples |

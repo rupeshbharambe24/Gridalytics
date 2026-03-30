@@ -58,6 +58,17 @@ export default function DashboardPage() {
           <p className="text-sm text-muted-foreground mt-0.5">Delhi Power Grid — Real-time demand monitoring</p>
         </div>
         <div className="flex items-center gap-3">
+          {/* Data freshness indicator */}
+          {live?.timestamp && (
+            <Badge variant="outline" className={`text-[10px] gap-1 px-2 py-0.5 hidden md:flex ${
+              (Date.now() - new Date(live.timestamp).getTime()) > 12 * 3600000 ? "text-amber-400 border-amber-500/30" : "text-emerald-400 border-emerald-500/30"
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                (Date.now() - new Date(live.timestamp).getTime()) > 12 * 3600000 ? "bg-amber-400" : "bg-emerald-400 animate-pulse"
+              }`} />
+              Data: {Math.round((Date.now() - new Date(live.timestamp).getTime()) / 3600000)}h ago
+            </Badge>
+          )}
           {stats && (
             <Badge variant="outline" className="text-xs gap-1.5 px-3 py-1 hidden sm:flex">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
