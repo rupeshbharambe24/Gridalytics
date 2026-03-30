@@ -9,7 +9,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { DemandChart } from "@/components/charts/demand-chart";
-import { getForecast, getForecastRange, getForecastPeak } from "@/lib/api";
+import { getForecast, getForecastRange, getForecastPeak, getForecastWithModel, getAvailableModels } from "@/lib/api";
+import { useFetch } from "@/lib/hooks";
 
 type Mode = "single" | "range";
 type Resolution = "daily" | "hourly" | "5min";
@@ -83,10 +84,13 @@ export default function ForecastPage() {
   const [rangePreset, setRangePreset] = useState<RangePreset>("7d");
   const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
   const [endDate, setEndDate] = useState(addDays(new Date().toISOString().split("T")[0], 7));
+  const [selectedModel, setSelectedModel] = useState<string>("auto");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [peakData, setPeakData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const { data: availableModels } = useFetch(getAvailableModels);
 
   const handlePredict = async () => {
     setLoading(true);
@@ -96,8 +100,11 @@ export default function ForecastPage() {
 
     try {
       if (mode === "single") {
+        const fetchFn = selectedModel === "auto"
+          ? getForecast(resolution, date)
+          : getForecastWithModel(resolution, date, selectedModel);
         const [forecast, peak] = await Promise.all([
-          getForecast(resolution, date),
+          fetchFn,
           getForecastPeak(resolution, date).catch(() => null),
         ]);
         setResult(forecast);
@@ -105,7 +112,7 @@ export default function ForecastPage() {
       } else {
         const start = startDate;
         const end = rangePreset === "custom" ? endDate : addDays(startDate, RANGE_PRESETS.find((p) => p.value === rangePreset)!.days);
-        const forecast = await getForecastRange(resolution, start, end);
+        const forecast = await getForecastRange(resolution, start, end, selectedModel === "auto" ? undefined : selectedModel);
         setResult(forecast);
 
         // Get peak for first day
@@ -200,6 +207,24 @@ export default function ForecastPage() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Model Selector */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Model</label>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground"
+            >
+              <option value="auto">Auto (Best)</option>
+              {availableModels && Object.entries(availableModels).map(([key, name]) => (
+                <option key={key} value={key.split("_").pop()}>
+                  {key} ({name})
+                </option>
+              ))}
+              <option value="ensemble">Ensemble</option>
+            </select>
           </div>
 
           {/* Date Controls */}

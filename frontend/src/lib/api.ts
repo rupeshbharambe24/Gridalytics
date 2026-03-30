@@ -90,6 +90,20 @@ export const getAccuracyTrend = (days: number) =>
     `/api/v1/dashboard/accuracy-trend?days=${days}`
   );
 
+export const getForecastWithModel = (resolution: string, date: string, model: string) =>
+  fetcher<{
+    timestamps: string[]; predicted_mw: number[]; lower_bound_mw: number[]; upper_bound_mw: number[];
+    model_name: string; resolution: string; metadata: Record<string, any>;
+  }>(`/api/v1/forecast/${resolution}?date=${date}&model=${model}`);
+
+export const getSubregionForecast = (resolution: string, date: string) =>
+  fetcher<{ date: string; resolution: string; regions: Record<string, { predicted_mw: number[]; peak_mw: number | null; avg_mw: number | null }> }>(
+    `/api/v1/forecast/${resolution}/subregion?date=${date}`
+  );
+
+export const getAnomalies = (days: number = 30) =>
+  fetcher<any[]>(`/api/v1/dashboard/anomalies?days=${days}`);
+
 // --- Auth ---
 export const login = (email: string, password: string) =>
   fetcher<{ access_token: string; token_type: string }>("/api/v1/auth/login", {
