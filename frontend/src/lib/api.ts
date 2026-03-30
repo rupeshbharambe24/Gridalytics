@@ -110,7 +110,12 @@ export const getSubregionForecast = (resolution: string, date: string) =>
   );
 
 export const getAnomalies = (days: number = 30) =>
-  fetcher<any[]>(`/api/v1/dashboard/anomalies?days=${days}`);
+  fetcher<any>(`/api/v1/dashboard/anomalies?days=${days}`);
+
+export const getErrorByHour = (days: number = 30) =>
+  fetcher<{ hours: number[]; avg_demand: number[]; std_demand: number[]; avg_error: number[]; avg_pct_error: number[] }>(
+    `/api/v1/dashboard/error-by-hour?days=${days}`
+  );
 
 // --- Auth ---
 export const login = (email: string, password: string) =>

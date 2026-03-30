@@ -480,3 +480,41 @@ def get_anomalies(
         "threshold_pct": 3.0,
         "days_queried": days,
     }
+
+
+@router.get("/error-by-hour")
+def get_error_by_hour(
+    days: int = Query(30, ge=7, le=365),
+    db: Session = Depends(get_db),
+):
+    """Get demand variability broken down by hour of day.
+
+    Shows which hours have the highest prediction difficulty
+    by comparing each hour's demand with 24h-ago demand (lag_24 baseline).
+    """
+    cutoff = date.today() - timedelta(days=days)
+    hourly = load_demand(db, "hourly", cutoff, date.today())
+
+    if hourly.empty:
+        return {"hours": list(range(24)), "avg_demand": [], "std_demand": [], "avg_error": [], "avg_pct_error": []}
+
+    hourly["hour"] = hourly.index.hour
+    hourly["lag_24"] = hourly["delhi_mw"].shift(24)
+    hourly["error"] = (hourly["delhi_mw"] - hourly["lag_24"]).abs()
+    hourly["pct_error"] = hourly["error"] / hourly["delhi_mw"].clip(lower=1) * 100
+    hourly = hourly.dropna(subset=["lag_24"])
+
+    by_hour = hourly.groupby("hour").agg(
+        avg_demand=("delhi_mw", "mean"),
+        std_demand=("delhi_mw", "std"),
+        avg_error=("error", "mean"),
+        avg_pct_error=("pct_error", "mean"),
+    ).reset_index()
+
+    return {
+        "hours": by_hour["hour"].tolist(),
+        "avg_demand": [round(v, 1) for v in by_hour["avg_demand"]],
+        "std_demand": [round(v, 1) for v in by_hour["std_demand"]],
+        "avg_error": [round(v, 1) for v in by_hour["avg_error"]],
+        "avg_pct_error": [round(v, 2) for v in by_hour["avg_pct_error"]],
+    }

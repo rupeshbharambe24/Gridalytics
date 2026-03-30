@@ -62,3 +62,33 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Print-friendly styles */
+@media print {
+  html, body {
+    background: white !important;
+    color: black !important;
+    font-size: 12px;
+  }
+  .dark {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --border: 0 0% 85%;
+    --muted-foreground: 0 0% 30%;
+  }
+  aside, nav, [class*="sidebar"], button, select, input[type="range"],
+  footer, .theme-toggle {
+    display: none !important;
+  }
+  main {
+    margin-left: 0 !important;
+    padding: 8px !important;
+  }
+  .recharts-wrapper {
+    page-break-inside: avoid;
+  }
+  table { border-collapse: collapse; }
+  td, th { border: 1px solid #ccc !important; padding: 4px 8px !important; }
+}

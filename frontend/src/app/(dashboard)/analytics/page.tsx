@@ -5,7 +5,7 @@ import { LineChart, BarChart3, TrendingUp } from "lucide-react";
 import { DemandChart } from "@/components/charts/demand-chart";
 import { HeatmapChart } from "@/components/charts/heatmap-chart";
 import { useFetch } from "@/lib/hooks";
-import { getHistorical, getHeatmap, getStats, getSeasonalStats, getAnomalies } from "@/lib/api";
+import { getHistorical, getHeatmap, getStats, getSeasonalStats, getAnomalies, getErrorByHour } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
@@ -26,6 +26,7 @@ export default function AnalyticsPage() {
   const { data: stats } = useFetch(getStats);
   const { data: seasonal } = useFetch(getSeasonalStats);
   const { data: anomalies } = useFetch(() => getAnomalies(60));
+  const { data: errorByHour } = useFetch(() => getErrorByHour(30));
 
   const monthlyChart = monthly?.timestamps.map((t, i) => ({
     time: new Date(t).toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
@@ -142,6 +143,32 @@ export default function AnalyticsPage() {
           ))}
         </motion.div>
       )}
+      {/* Error by Hour of Day */}
+      {errorByHour && errorByHour.hours?.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
+          className="rounded-xl border border-border bg-card p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-1">Prediction Difficulty by Hour of Day</h3>
+          <p className="text-xs text-muted-foreground mb-4">Shows which hours have highest demand variability (harder to predict). Based on 24h-lag baseline error.</p>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={errorByHour.hours.map((h: number, i: number) => ({
+              hour: `${h}:00`,
+              error: errorByHour.avg_pct_error[i],
+              demand: errorByHour.avg_demand[i],
+            }))}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+              <XAxis dataKey="hour" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} />
+              <Bar dataKey="error" name="Avg Error %" radius={[4, 4, 0, 0]}>
+                {errorByHour.hours.map((_: number, i: number) => (
+                  <Cell key={i} fill={errorByHour.avg_pct_error[i] > 5 ? "#ef4444" : errorByHour.avg_pct_error[i] > 3 ? "#f59e0b" : "#10b981"} fillOpacity={0.7} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </motion.div>
+      )}
+
       {/* Seasonal Demand Breakdown */}
       {seasonal?.seasons && seasonal.seasons.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
