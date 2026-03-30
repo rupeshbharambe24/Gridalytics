@@ -38,6 +38,15 @@ class Settings(BaseSettings):
     # Optional API keys
     VISUAL_CROSSING_API_KEY: str | None = None
 
+    # Drift alerts (optional - set in .env to enable email alerts)
+    ALERT_EMAIL: str | None = None
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_USER: str | None = None
+    SMTP_PASS: str | None = None
+    ALERT_FROM_EMAIL: str | None = None
+    DRIFT_MAPE_THRESHOLD: float = 5.0
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

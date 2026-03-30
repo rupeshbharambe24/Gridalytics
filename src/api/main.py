@@ -38,6 +38,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Rate limiting
+from src.api.middleware import RateLimitMiddleware  # noqa: E402
+app.add_middleware(RateLimitMiddleware)
+
 # Import routers after app is created to avoid circular imports
 from src.api.routers import forecast, dashboard, auth, health, admin  # noqa: E402
 
