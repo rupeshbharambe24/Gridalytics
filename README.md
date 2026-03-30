@@ -92,29 +92,13 @@
 
 ```
                     ┌─────────────────────────────────────────┐
-                    │          Next.js Frontend (9 pages)      │
-                    │   Dashboard │ Forecast │ Models │ Admin   │
-                    └──────────────────┬──────────────────────┘
-                                       │ REST API (JSON)
-                    ┌──────────────────▼──────────────────────┐
-                    │        FastAPI Backend (23 endpoints)     │
-                    │   Auth │ Forecast │ Dashboard │ Admin     │
-                    └───┬──────────┬──────────┬───────────────┘
-                        │          │          │
-              ┌─────────▼──┐  ┌───▼────┐  ┌──▼──────────────┐
-              │   Models    │  │  Data  │  │   Forecasting   │
-              │ LightGBM    │  │ SQLite │  │ Future Engine   │
-              │ XGBoost     │  │ 252K+  │  │ Recursive Pred  │
-              │ LSTM        │  │  rows  │  │ Weather Forecast│
-              │ NeuralProphet│ │        │  │ Pred Tracker    │
-              │ SARIMAX     │  │        │  │ Drift Detection │
-              └─────────────┘  └───┬────┘  └─────────────────┘
-                                   │
-              ┌────────────────────▼─────────────────────────┐
-              │           Automated Data Pipeline             │
-              │  SLDC Scraper │ Open-Meteo │ AQI │ Holidays  │
-              │         APScheduler (7 jobs, 24/7)           │
-              └──────────────────────────────────────────────┘
+       Vercel (free)         → Next.js Frontend (10 pages)
+         ↓ API calls
+       Render (free)         → FastAPI Backend (27 endpoints)
+         ↓ reads/writes
+       Supabase (free)       → PostgreSQL Database (252K+ rows)
+         ↑ scheduled writes
+       GitHub Actions (free) → Data Collection every 6h
 ```
 
 ---
@@ -161,9 +145,10 @@ python -m src.data.scheduler --once # Run once
 
 | Service | URL |
 |---------|-----|
-| Dashboard | http://localhost:3000 |
-| API Docs | http://localhost:8000/docs |
-| Redoc | http://localhost:8000/redoc |
+| Live Dashboard | https://gridalytics.vercel.app |
+| API Docs | https://gridalytics-api.onrender.com/docs |
+| Local Dashboard | http://localhost:3000 |
+| Local API | http://localhost:8000/docs |
 
 ---
 
@@ -296,9 +281,9 @@ print(f"Peak: {max(forecast['predicted_mw']):.0f} MW ({forecast['model_name']})"
 | Frontend | Next.js 14, Tailwind CSS, Framer Motion, Recharts, shadcn/ui |
 | Backend | FastAPI, SQLAlchemy, Pydantic, JWT (python-jose + bcrypt) |
 | ML | LightGBM, XGBoost, PyTorch (BiLSTM), NeuralProphet, SARIMAX |
-| Data | SQLite, APScheduler, BeautifulSoup, httpx |
+| Data | Supabase (PostgreSQL), APScheduler, BeautifulSoup, httpx |
 | MLOps | MLflow, Optuna, walk-forward CV, drift detection |
-| Deploy | Docker, docker-compose (optional) |
+| Deploy | Vercel + Render + Supabase + GitHub Actions ($0/month) |
 
 ---
 
@@ -320,11 +305,11 @@ Gridalytics/
 │   │   ├── future.py           # Recursive prediction engine
 │   │   └── tracker.py          # Prediction vs actual logging
 │   ├── training/               # MLflow, Optuna, orchestrator
-│   └── api/                    # FastAPI (23 endpoints)
+│   └── api/                    # FastAPI (27 endpoints)
 ├── frontend/                   # Next.js 14 (9 pages)
 ├── models/                     # Trained model files
 ├── notebooks/                  # 4 analysis notebooks
-├── tests/                      # 49 tests (all passing)
+├── tests/                      # 50 tests (all passing)
 ├── scripts/                    # Training, migration, backfill
 └── docker/                     # Dockerfiles (optional)
 ```
@@ -334,7 +319,7 @@ Gridalytics/
 ## Tests
 
 ```bash
-python -m pytest tests/ -v    # 49/49 passing
+python -m pytest tests/ -v    # 50/50 passing
 ```
 
 | Suite | Tests | Coverage |
@@ -342,7 +327,7 @@ python -m pytest tests/ -v    # 49/49 passing
 | test_scrapers.py | 6 | SLDC validation, Open-Meteo, holidays |
 | test_features.py | 12 | Lags, cyclical encoding, CDD/HDD, rolling stats |
 | test_models.py | 8 | LightGBM, XGBoost, Ensemble fit/predict/save |
-| test_api.py | 23 | All 23 API endpoints |
+| test_api.py | 24 | All API endpoints + admin auth |
 
 ---
 
