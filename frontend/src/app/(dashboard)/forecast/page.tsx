@@ -9,7 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { DemandChart } from "@/components/charts/demand-chart";
-import { getForecast, getForecastRange, getForecastPeak, getForecastWithModel, getAvailableModels } from "@/lib/api";
+import { getForecast, getForecastRange, getForecastPeak, getForecastWithModel, getAvailableModels, getHistorical } from "@/lib/api";
 import { useFetch } from "@/lib/hooks";
 
 type Mode = "single" | "range";
@@ -87,6 +87,7 @@ export default function ForecastPage() {
   const [selectedModel, setSelectedModel] = useState<string>("auto");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [actualData, setActualData] = useState<any>(null);
   const [peakData, setPeakData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,6 +97,7 @@ export default function ForecastPage() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setActualData(null);
     setPeakData(null);
 
     try {
@@ -119,6 +121,15 @@ export default function ForecastPage() {
         const peak = await getForecastPeak(resolution, start).catch(() => null);
         setPeakData(peak);
       }
+      // For past dates, fetch actual data for overlay
+      const targetDate = mode === "single" ? date : startDate;
+      if (new Date(targetDate) < new Date()) {
+        try {
+          const days = mode === "single" ? 1 : Math.min((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000, 30);
+          const actual = await getHistorical(Math.max(1, Math.ceil(days)), resolution);
+          setActualData(actual);
+        } catch { /* no actual data available */ }
+      }
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -134,7 +145,16 @@ export default function ForecastPage() {
             : result.timestamps.length > 48
               ? new Date(t).toLocaleDateString("en-IN", { month: "short", day: "numeric", hour: "2-digit" })
               : new Date(t).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
-        demand: null as number | null,
+        demand: (() => {
+          // Try to match actual data by timestamp for past date overlay
+          if (!actualData?.timestamps) return null;
+          const matchIdx = actualData.timestamps.findIndex((at: string) => {
+            const aDate = new Date(at);
+            const fDate = new Date(t);
+            return Math.abs(aDate.getTime() - fDate.getTime()) < 3600000; // within 1 hour
+          });
+          return matchIdx >= 0 ? actualData.demand_mw[matchIdx] : null;
+        })(),
       }))
     : [];
 
@@ -150,7 +170,11 @@ export default function ForecastPage() {
   const peak = result ? Math.max(...result.predicted_mw) : null;
   const trough = result ? Math.min(...result.predicted_mw) : null;
   const avg = result ? result.predicted_mw.reduce((a: number, b: number) => a + b, 0) / result.predicted_mw.length : null;
-  const totalMWh = result ? result.predicted_mw.reduce((a: number, b: number) => a + b, 0) : null;
+  // Energy calculation: MW * hours per interval
+  // Hourly: each point = 1 hour, so sum of MW = MWh. Daily: each point = 24 hours. 5min: each point = 5/60 hours.
+  const hoursPerPoint = result?.resolution === "daily" ? 24 : result?.resolution === "5min" ? 5 / 60 : 1;
+  const totalMWh = result ? result.predicted_mw.reduce((a: number, b: number) => a + b, 0) * hoursPerPoint : null;
+  const totalMU = totalMWh ? totalMWh / 1000 : null;
   const peakIdx = result ? result.predicted_mw.indexOf(Math.max(...result.predicted_mw)) : -1;
   const peakTime = result && peakIdx >= 0 ? result.timestamps[peakIdx] : null;
 
@@ -352,9 +376,11 @@ export default function ForecastPage() {
                 className="rounded-xl border border-border bg-card p-4">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Energy</p>
                 <span className="text-2xl font-bold font-mono mt-1 block">
-                  {totalMWh ? (totalMWh / 1000).toFixed(1) : "---"}
+                  {totalMU ? totalMU.toFixed(1) : totalMWh ? (totalMWh / 1000).toFixed(2) : "---"}
                 </span>
-                <span className="text-xs text-muted-foreground">GWh</span>
+                <span className="text-xs text-muted-foreground">
+                  {totalMU && totalMU >= 1 ? "MU" : "GWh"} ({totalMWh ? totalMWh.toFixed(0) : "---"} MWh)
+                </span>
               </motion.div>
 
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
