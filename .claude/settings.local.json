@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(curl -sL \"https://raw.githubusercontent.com/irasus-technologies/delhi-electricity-database/master/create_database.sql\")",
-      "Bash(curl -sL \"https://api.github.com/repos/irasus-technologies/delhi-electricity-parser/contents/delhi-electricity\")",
-      "Bash(curl:*)"
-    ]
-  }
-}

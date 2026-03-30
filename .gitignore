@@ -1,3 +1,6 @@
+# Claude Code (local only)
+.claude/
+
 # Data (large files)
 data/*.db
 data/backups/
