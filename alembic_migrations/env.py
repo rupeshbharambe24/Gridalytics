@@ -1,13 +1,27 @@
+import os
 from logging.config import fileConfig
+from pathlib import Path
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
 
+# Load .env file if present
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent.parent / ".env")
+except ImportError:
+    pass
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# Override sqlalchemy.url from DATABASE_URL env var if set
+database_url = os.environ.get("DATABASE_URL")
+if database_url:
+    config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -16,7 +30,6 @@ if config.config_file_name is not None:
 
 # Import Gridalytics models for autogenerate support
 import sys
-from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.data.db.models import Base
 target_metadata = Base.metadata

@@ -29,7 +29,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS for Next.js frontend (localhost:3000 in dev)
+# Rate limiting (added first so CORS wraps outside it)
+from src.api.middleware import RateLimitMiddleware  # noqa: E402
+app.add_middleware(RateLimitMiddleware)
+
+# CORS for Next.js frontend — added last = outermost middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -37,16 +41,11 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "https://gridalytics.vercel.app",
         "https://*.vercel.app",
-        "*",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Rate limiting
-from src.api.middleware import RateLimitMiddleware  # noqa: E402
-app.add_middleware(RateLimitMiddleware)
 
 # Import routers after app is created to avoid circular imports
 from src.api.routers import forecast, dashboard, auth, health, admin  # noqa: E402
