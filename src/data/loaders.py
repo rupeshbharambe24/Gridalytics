@@ -9,6 +9,15 @@ from sqlalchemy import func
 from src.data.db.models import DemandRecord, WeatherRecord, AQIRecord, HolidayRecord, PSPDailyReport
 
 
+def _query_to_df(session: Session, query) -> pd.DataFrame:
+    """Execute a SQLAlchemy ORM query and return a DataFrame."""
+    results = query.all()
+    if not results:
+        return pd.DataFrame()
+    records = [{c.name: getattr(r, c.name) for c in r.__table__.columns} for r in results]
+    return pd.DataFrame(records)
+
+
 def load_demand(
     session: Session,
     resolution: str,
@@ -34,7 +43,7 @@ def load_demand(
         query = query.filter(DemandRecord.timestamp <= datetime.combine(end_date, datetime.max.time()))
 
     query = query.order_by(DemandRecord.timestamp)
-    df = pd.read_sql(query.statement, session.bind)
+    df = _query_to_df(session, query)
 
     if df.empty:
         return df
@@ -78,7 +87,7 @@ def _load_psp_daily(
         query = query.filter(PSPDailyReport.date <= end_date)
     query = query.order_by(PSPDailyReport.date)
 
-    df = pd.read_sql(query.statement, session.bind)
+    df = _query_to_df(session, query)
     if df.empty:
         return df
 
@@ -103,7 +112,7 @@ def load_weather(
         query = query.filter(WeatherRecord.timestamp <= datetime.combine(end_date, datetime.max.time()))
 
     query = query.order_by(WeatherRecord.timestamp)
-    df = pd.read_sql(query.statement, session.bind)
+    df = _query_to_df(session, query)
 
     if df.empty:
         return df
@@ -128,7 +137,7 @@ def load_holidays(
     if end_date:
         query = query.filter(HolidayRecord.date <= end_date)
 
-    df = pd.read_sql(query.statement, session.bind)
+    df = _query_to_df(session, query)
     return df
 
 
@@ -145,7 +154,7 @@ def load_aqi(
     if end_date:
         query = query.filter(AQIRecord.date <= end_date)
 
-    df = pd.read_sql(query.statement, session.bind)
+    df = _query_to_df(session, query)
     return df
 
 

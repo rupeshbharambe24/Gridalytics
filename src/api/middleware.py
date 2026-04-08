@@ -3,8 +3,9 @@
 import time
 from collections import defaultdict
 
-from fastapi import Request, HTTPException
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -12,7 +13,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     Limits:
     - /api/v1/forecast/*: 30 req/min (predictions are compute-heavy)
-    - /api/v1/admin/*: 10 req/min
+    - /api/v1/admin/*: 60 req/min
     - All other endpoints: 120 req/min
     """
 
@@ -29,7 +30,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if "/forecast/" in path:
             limit, window = 30, 60
         elif "/admin/" in path:
-            limit, window = 10, 60
+            limit, window = 60, 60
         else:
             limit, window = 120, 60
 
@@ -42,7 +43,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.requests[key] = [t for t in self.requests[key] if now - t < window]
 
         if len(self.requests[key]) >= limit:
-            raise HTTPException(status_code=429, detail="Rate limit exceeded. Please slow down.")
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Rate limit exceeded. Please slow down."},
+            )
 
         self.requests[key].append(now)
         response = await call_next(request)

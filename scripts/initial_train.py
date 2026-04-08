@@ -54,7 +54,7 @@ def train_and_evaluate(resolution: str = "hourly"):
         features = [f for f in features if f not in bad_cols]
 
     # Fill remaining sparse nulls
-    df[features] = df[features].fillna(method="ffill").fillna(0)
+    df[features] = df[features].ffill().fillna(0)
 
     print(f"  Data: {len(df):,} rows, {len(features)} features")
     print(f"  Date range: {df.index.min()} to {df.index.max()}")
