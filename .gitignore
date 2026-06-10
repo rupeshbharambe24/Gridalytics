@@ -54,3 +54,7 @@ desktop.ini
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Pipeline run artifacts (regenerated each Friday)
+pipeline.log
+bash.exe.stackdump

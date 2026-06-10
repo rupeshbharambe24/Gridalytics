@@ -2,10 +2,12 @@
 
 import json
 import logging
+import os
 import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -230,3 +232,57 @@ def get_scheduler_jobs(admin: User = Depends(require_admin)):
     ]
 
     return {"jobs": jobs}
+
+
+# ---------------------------------------------------------------------------
+# POST /trigger-pipeline  -  Kick the daily_predict GitHub Actions workflow
+# ---------------------------------------------------------------------------
+
+class TriggerPipelineRequest(BaseModel):
+    workflow: str = "daily_predict.yml"   # also accepts "scheduler.yml"
+
+
+@router.post("/trigger-pipeline")
+def trigger_pipeline(body: TriggerPipelineRequest, admin: User = Depends(require_admin)):
+    """Trigger a GitHub Actions workflow via workflow_dispatch.
+
+    Requires env vars on the API server:
+      GITHUB_PAT   - personal access token with `workflow` scope
+      GITHUB_REPO  - e.g. "rupeshbharambe24/Gridalytics" (defaults from origin)
+    """
+    pat = os.environ.get("GITHUB_PAT")
+    repo = os.environ.get("GITHUB_REPO", "rupeshbharambe24/Gridalytics")
+    if not pat:
+        raise HTTPException(
+            status_code=503,
+            detail="GITHUB_PAT not configured on the server. Add it as a Render env var.",
+        )
+
+    if body.workflow not in ("daily_predict.yml", "scheduler.yml"):
+        raise HTTPException(status_code=400, detail="Unknown workflow")
+
+    url = f"https://api.github.com/repos/{repo}/actions/workflows/{body.workflow}/dispatches"
+    headers = {
+        "Authorization": f"Bearer {pat}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    payload = {"ref": "main"}
+
+    try:
+        resp = httpx.post(url, headers=headers, json=payload, timeout=15.0)
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"GitHub API request failed: {e}")
+
+    if resp.status_code not in (204, 201):
+        raise HTTPException(
+            status_code=resp.status_code,
+            detail=f"GitHub returned {resp.status_code}: {resp.text}",
+        )
+
+    return {
+        "status": "triggered",
+        "workflow": body.workflow,
+        "repo": repo,
+        "actions_url": f"https://github.com/{repo}/actions/workflows/{body.workflow}",
+    }

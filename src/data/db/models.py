@@ -190,3 +190,40 @@ class User(Base):
     role = Column(String(20), default="user")   # user / admin
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PredictionLogHourly(Base):
+    """Hourly granular log: predicted vs actual for each hour of each day.
+
+    24 rows per (target_date, model_name). Populated alongside PredictionLog
+    by the daily predict job. Powers the hour-of-day accuracy dashboard
+    and the 6-month organizational evaluation.
+    """
+    __tablename__ = "prediction_log_hourly"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    target_date = Column(Date, nullable=False, index=True)
+    target_hour = Column(Integer, nullable=False)   # 0-23
+    model_name = Column(String(50), nullable=False)
+    resolution = Column(String(10), default="hourly")
+
+    predicted_mw = Column(Float)
+    predicted_lower_mw = Column(Float)
+    predicted_upper_mw = Column(Float)
+
+    actual_mw = Column(Float)
+    abs_error_mw = Column(Float)
+    pct_error = Column(Float)         # signed: (pred - actual) / actual * 100
+    in_interval = Column(Boolean)     # True if actual falls within [lower, upper]
+
+    temperature_c = Column(Float)
+    is_holiday = Column(Boolean, default=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("target_date", "target_hour", "model_name",
+                         name="uq_predlog_hourly_date_hour_model"),
+        Index("ix_predlog_hourly_date", "target_date"),
+    )

@@ -1,0 +1,65 @@
+name: Daily Predict and Log
+
+# Runs every day at 00:30 UTC (06:00 IST) — light-weight only.
+# Does NOT retrain models (that's done locally on Fridays via train_weekly.bat).
+# This workflow only:
+#   - Scrapes the last 2 days of SLDC demand (catches up)
+#   - Refreshes the 7-day weather forecast
+#   - Refreshes AQI
+#   - Generates the next 7 days of hourly predictions using the existing
+#     committed models, and logs each hour to prediction_log_hourly
+#   - Fills actuals + error for past hourly predictions
+#
+# Total runtime: ~2-3 min. Fits comfortably in GitHub Actions free tier.
+
+on:
+  schedule:
+    - cron: "30 0 * * *"          # 00:30 UTC daily
+  workflow_dispatch:               # manual "Run workflow" button
+
+jobs:
+  predict-and-log:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create .env
+        run: |
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" > .env
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+
+      - name: Run predict-only pipeline
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python scripts/run_full_pipeline.py --no-train
+
+      - name: Summary
+        if: always()
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python - <<'PY'
+          from src.data.db.session import get_session
+          from src.data.db.models import DemandRecord, PredictionLogHourly
+          from sqlalchemy import func
+          from datetime import date, timedelta
+          with get_session() as s:
+              d = s.query(func.max(DemandRecord.timestamp)).scalar()
+              p_total = s.query(func.count(PredictionLogHourly.id)).scalar()
+              cutoff = date.today() - timedelta(days=7)
+              p_recent = s.query(func.count(PredictionLogHourly.id)).filter(
+                  PredictionLogHourly.target_date >= cutoff
+              ).scalar()
+              print(f"::notice::Demand latest: {d}")
+              print(f"::notice::Hourly predictions total: {p_total}, last 7d: {p_recent}")
+          PY

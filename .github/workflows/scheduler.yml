@@ -1,10 +1,10 @@
 name: Data Collection & Prediction
 
 on:
-  schedule:
-    # Run every 6 hours: midnight, 6am, noon, 6pm IST
-    - cron: "30 18,0,6,12 * * *"
-  workflow_dispatch: # Allow manual trigger
+  # DEPRECATED — superseded by daily_predict.yml.
+  # Kept for manual fallback only. The schedule has been removed so it
+  # no longer fires automatically; trigger via workflow_dispatch if needed.
+  workflow_dispatch:
 
 jobs:
   collect-and-predict:

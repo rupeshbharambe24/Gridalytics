@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from src.data.db.session import get_db
-from src.data.db.models import DemandRecord, WeatherRecord, PredictionLog, WeatherForecastLog
+from src.data.db.models import DemandRecord, WeatherRecord, PredictionLog, PredictionLogHourly, WeatherForecastLog
 from src.data.loaders import load_demand, load_weather
 from src.api.schemas import (
     LiveDashboardResponse, SummaryStatsResponse,
@@ -559,3 +559,79 @@ def get_weather_accuracy(
         "avg_humidity_error": round(np.mean([abs(e) for e in hum_errors]), 2) if hum_errors else None,
         "days_tracked": len(entries),
     }
+
+
+@router.get("/hourly-accuracy")
+def get_hourly_accuracy(
+    days: int = Query(30, ge=1, le=365),
+    db: Session = Depends(get_db),
+):
+    """Per-hour prediction vs actual log for the org evaluation dashboard.
+
+    Returns three slices off `prediction_log_hourly`:
+      - `entries`: every (date, hour) row with prediction + actual + error
+      - `by_hour`: rolled-up MAPE/MAE for each hour-of-day (0-23) — surfaces
+        which times of day the model struggles most
+      - `summary`: overall stats over the window
+    """
+    cutoff = date.today() - timedelta(days=days)
+    rows = (
+        db.query(PredictionLogHourly)
+        .filter(PredictionLogHourly.target_date >= cutoff)
+        .order_by(PredictionLogHourly.target_date, PredictionLogHourly.target_hour)
+        .all()
+    )
+
+    if not rows:
+        return {"entries": [], "by_hour": [], "summary": {}}
+
+    entries = [
+        {
+            "date": str(r.target_date),
+            "hour": r.target_hour,
+            "predicted_mw": r.predicted_mw,
+            "predicted_lower_mw": r.predicted_lower_mw,
+            "predicted_upper_mw": r.predicted_upper_mw,
+            "actual_mw": r.actual_mw,
+            "abs_error_mw": r.abs_error_mw,
+            "pct_error": r.pct_error,
+            "in_interval": r.in_interval,
+            "is_holiday": r.is_holiday,
+        }
+        for r in rows
+    ]
+
+    # roll up by hour-of-day for rows with actuals
+    with_actuals = [r for r in rows if r.actual_mw is not None]
+    by_hour = []
+    if with_actuals:
+        for h in range(24):
+            hr_rows = [r for r in with_actuals if r.target_hour == h]
+            if not hr_rows:
+                continue
+            mapes = [abs(r.pct_error) for r in hr_rows if r.pct_error is not None]
+            maes = [r.abs_error_mw for r in hr_rows if r.abs_error_mw is not None]
+            covered = [1 for r in hr_rows if r.in_interval] if any(r.in_interval is not None for r in hr_rows) else []
+            by_hour.append({
+                "hour": h,
+                "mape_pct": round(float(np.mean(mapes)), 2) if mapes else None,
+                "mae_mw": round(float(np.mean(maes)), 2) if maes else None,
+                "interval_coverage_pct": round(len(covered) / len(hr_rows) * 100, 1) if hr_rows else None,
+                "samples": len(hr_rows),
+            })
+
+    summary = {
+        "rows_total": len(rows),
+        "rows_with_actuals": len(with_actuals),
+        "days_covered": len(set(r.target_date for r in rows)),
+        "overall_mape_pct": (
+            round(float(np.mean([abs(r.pct_error) for r in with_actuals if r.pct_error is not None])), 2)
+            if with_actuals else None
+        ),
+        "overall_mae_mw": (
+            round(float(np.mean([r.abs_error_mw for r in with_actuals if r.abs_error_mw is not None])), 2)
+            if with_actuals else None
+        ),
+    }
+
+    return {"entries": entries, "by_hour": by_hour, "summary": summary}

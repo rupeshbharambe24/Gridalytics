@@ -16,6 +16,7 @@ import {
   getScraperStatus,
   getSchedulerJobs,
   getMe,
+  triggerPipeline,
 } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
@@ -107,6 +108,21 @@ export default function AdminPage() {
     }
   };
 
+  const [pipelineLoading, setPipelineLoading] = useState(false);
+  const handleTriggerPipeline = async () => {
+    setPipelineLoading(true);
+    const { toast } = await import("sonner");
+    try {
+      const res = await triggerPipeline("daily_predict.yml");
+      toast.success("Daily pipeline triggered — opening Actions in a new tab");
+      window.open(res.actions_url, "_blank");
+    } catch (err: any) {
+      toast.error(`Trigger failed: ${err.message}`);
+    } finally {
+      setPipelineLoading(false);
+    }
+  };
+
   // Scraper rows
   const scraperRows: { source: string; latest: string; rows: number }[] = [];
   if (scraper) {
@@ -151,14 +167,28 @@ export default function AdminPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="flex items-center gap-2">
-          <Settings className="w-5 h-5 text-muted-foreground" />
-          <h1 className="text-2xl font-bold tracking-tight">Admin Panel</h1>
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+        className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Settings className="w-5 h-5 text-muted-foreground" />
+            <h1 className="text-2xl font-bold tracking-tight">Admin Panel</h1>
+          </div>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Model management, retraining, and pipeline monitoring
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Model management, retraining, and pipeline monitoring
-        </p>
+        <Button
+          onClick={handleTriggerPipeline}
+          disabled={pipelineLoading}
+          size="sm"
+          className="gap-2 shrink-0"
+        >
+          {pipelineLoading
+            ? <Loader2 className="w-4 h-4 animate-spin" />
+            : <Play className="w-4 h-4" />}
+          Run Daily Pipeline
+        </Button>
       </motion.div>
 
       {/* ----------------------------------------------------------------- */}

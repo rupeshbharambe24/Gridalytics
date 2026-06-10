@@ -151,3 +151,14 @@ export const getRetrainStatus = () =>
 export const getScraperStatus = () => fetcher<any>("/api/v1/admin/scraper-status");
 
 export const getSchedulerJobs = () => fetcher<any[]>("/api/v1/admin/scheduler-jobs");
+
+export const triggerPipeline = (workflow: string = "daily_predict.yml") =>
+  fetcher<{ status: string; workflow: string; actions_url: string }>(
+    "/api/v1/admin/trigger-pipeline",
+    { method: "POST", body: JSON.stringify({ workflow }) }
+  );
+
+export const getHourlyAccuracy = (days: number = 30) =>
+  fetcher<{ entries: any[]; by_hour: any[]; summary: any }>(
+    `/api/v1/dashboard/hourly-accuracy?days=${days}`
+  );
