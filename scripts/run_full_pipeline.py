@@ -201,10 +201,15 @@ def train_all_models(skip: bool = False) -> dict:
 # stage 3 — predict next 7 days + log hourly
 # -----------------------------------------------------------------
 
-def predict_and_log(session, days_ahead: int = 7) -> int:
-    """Predict the next N days at hourly resolution, log each hour.
+def predict_and_log(session, days_ahead: int = 7, days_back: int = 0) -> int:
+    """Predict a window of days at hourly resolution, log each hour.
 
-    For each future day:
+    Args:
+        days_ahead: how many days FROM today to forecast (inclusive of today).
+        days_back:  how many days BEFORE today to also (re)predict + log.
+                    Useful after fixing a forecasting bug to rebuild history.
+
+    For each day in [today - days_back, today + days_ahead):
       - run forecast_future("hourly", day)
       - upsert one PredictionLogHourly row per hour (predicted_*, lower, upper)
       - also upsert the daily PredictionLog summary
@@ -221,7 +226,7 @@ def predict_and_log(session, days_ahead: int = 7) -> int:
     rows_written = 0
     today = date.today()
 
-    for day_offset in range(0, days_ahead):
+    for day_offset in range(-days_back, days_ahead):
         target = today + timedelta(days=day_offset)
         try:
             result = forecast_future("hourly", target, model, session)
