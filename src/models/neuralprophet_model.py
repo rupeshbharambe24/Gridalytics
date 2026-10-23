@@ -132,7 +132,14 @@ class NeuralProphetForecaster(BaseForecaster):
     def save(self, path):
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
-        self.model.save(str(path / "neuralprophet_model.np"))
+        model_path = str(path / "neuralprophet_model.np")
+        # NeuralProphet >= 0.6 exposes module-level save()/load(); older
+        # versions had model.save(). Try the module API first.
+        try:
+            from neuralprophet import save as _np_save
+            _np_save(self.model, model_path)
+        except (ImportError, AttributeError):
+            self.model.save(model_path)
         meta = {
             "name": self.name, "resolution": self.resolution, "epochs": self.epochs,
             "yearly_seasonality": self.yearly_seasonality,
@@ -144,13 +151,26 @@ class NeuralProphetForecaster(BaseForecaster):
 
     @classmethod
     def load(cls, path):
-        from neuralprophet import NeuralProphet
         path = Path(path)
         with open(path / "meta.json") as f:
             meta = json.load(f)
         m = cls(resolution=meta["resolution"], epochs=meta["epochs"],
                 regressors=meta["regressor_cols"])
-        m.model = NeuralProphet.load(str(path / "neuralprophet_model.np"))
+        model_path = str(path / "neuralprophet_model.np")
+        # torch >= 2.6 defaults torch.load(weights_only=True), which rejects the
+        # NeuralProphet checkpoint. Force weights_only=False for this trusted file.
+        import torch
+        _orig_load = torch.load
+        torch.load = lambda *a, **k: _orig_load(*a, **{**k, "weights_only": False})
+        try:
+            try:
+                from neuralprophet import load as _np_load
+                m.model = _np_load(model_path)
+            except (ImportError, AttributeError):
+                from neuralprophet import NeuralProphet
+                m.model = NeuralProphet.load(model_path)
+        finally:
+            torch.load = _orig_load
         m.feature_names = meta["feature_names"]
         m._regressor_cols = meta["regressor_cols"]
         m.is_fitted = True

@@ -65,7 +65,7 @@ def train_5min():
     print("\n[1/6] Building feature matrix (5-min resolution)...")
     with get_session() as session:
         pipeline = FeaturePipeline("5min", session)
-        df = pipeline.build(date(2021, 1, 1), date(2026, 3, 28))
+        df = pipeline.build(date(2021, 1, 1), date.today())
 
     target = pipeline.get_target_name()
     features = pipeline.get_feature_names(df)

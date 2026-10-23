@@ -53,14 +53,17 @@ class FeaturePipeline:
         self,
         resolution: str,
         session: Session,
-        include_event_effect: bool = True,
+        include_event_effect: bool = False,
     ):
         """
         Args:
             resolution: '5min', 'hourly', or 'daily'
             session: SQLAlchemy database session
             include_event_effect: add the learned `expected_event_effect_pct`
-                feature. Toggle off to A/B the event layer via champion/challenger.
+                feature. Default OFF: the A/B (docs/event_aware_forecasting.md)
+                found it neutral, and enabling it changes the feature count
+                (93 -> 94), which breaks inference with models trained without
+                it. Opt in only when you retrain all models with it.
         """
         if resolution not in ("5min", "hourly", "daily"):
             raise ValueError(f"Invalid resolution: {resolution}")
