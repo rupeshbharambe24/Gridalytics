@@ -18,7 +18,7 @@ const CV_METRICS: Record<string, { mape: string; rmse: string; r2: string; folds
   "daily_neuralprophet": { mape: "6.60%", rmse: "391.9 MW", r2: "0.6075", folds: 0, type: "Neural + Decomposition" },
   "hourly_lstm": { mape: "3.76%", rmse: "258.4 MW", r2: "0.9047", folds: 0, type: "Deep Learning (PyTorch)" },
   "daily_sarimax": { mape: "5.32%", rmse: "323.1 MW", r2: "0.7332", folds: 0, type: "Classical (SARIMAX + 66 exog)" },
-  "daily_arima": { mape: "8.37%", rmse: "---", r2: "---", folds: 3, type: "Classical (ARIMA + 66 exog)" },
+  "daily_arima": { mape: "5.41%", rmse: "336.7 MW", r2: "0.7103", folds: 0, type: "Classical (ARIMA + 66 exog)" },
 };
 
 // Champion models by resolution

@@ -242,7 +242,7 @@ export default function InfoPage() {
                 { name: "NeuralProphet", type: "Neural + Decomposition", best: "Daily", mape: "6.60%", champion: false },
                 { name: "BiLSTM", type: "Deep Learning (PyTorch)", best: "Hourly", mape: "3.76%", champion: false },
                 { name: "SARIMAX", type: "Classical (full exog)", best: "Daily", mape: "5.32%", champion: false },
-                { name: "ARIMA", type: "Classical (full exog)", best: "Daily", mape: "8.37%", champion: false },
+                { name: "ARIMA", type: "Classical (full exog)", best: "Daily", mape: "5.41%", champion: false },
               ].map((m) => (
                 <tr key={m.name} className="border-b border-border/50">
                   <td className="p-2.5 font-medium text-foreground flex items-center gap-1.5">
