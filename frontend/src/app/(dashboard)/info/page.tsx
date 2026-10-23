@@ -239,9 +239,10 @@ export default function InfoPage() {
                 { name: "LightGBM (Optuna)", type: "Gradient Boosting", best: "Hourly", mape: "0.50%", champion: false },
                 { name: "XGBoost", type: "Gradient Boosting", best: "Hourly", mape: "0.52%", champion: true },
                 { name: "LightGBM", type: "Gradient Boosting", best: "Daily", mape: "2.65%", champion: true },
-                { name: "SARIMAX", type: "Statistical (ARIMA)", best: "Daily", mape: "4.18%", champion: false },
+                { name: "NeuralProphet", type: "Neural + Decomposition", best: "Daily", mape: "5.84%", champion: false },
                 { name: "BiLSTM", type: "Deep Learning (PyTorch)", best: "Hourly", mape: "6.66%", champion: false },
-                { name: "NeuralProphet", type: "Neural + Decomposition", best: "Daily", mape: "7.68%", champion: false },
+                { name: "SARIMAX", type: "Classical (full exog)", best: "Daily", mape: "8.06%", champion: false },
+                { name: "ARIMA", type: "Classical (full exog)", best: "Daily", mape: "8.37%", champion: false },
               ].map((m) => (
                 <tr key={m.name} className="border-b border-border/50">
                   <td className="p-2.5 font-medium text-foreground flex items-center gap-1.5">
@@ -487,6 +488,8 @@ export default function InfoPage() {
           <li><strong className="text-foreground">Auto (Best)</strong> — Uses the champion model for the selected resolution. Recommended for most use cases.</li>
           <li><strong className="text-foreground">LightGBM</strong> — Gradient boosting. Fastest, best for 5-minute. Optuna-tuned version available for hourly.</li>
           <li><strong className="text-foreground">XGBoost</strong> — Gradient boosting. Champion for hourly resolution.</li>
+          <li><strong className="text-foreground">SARIMAX / ARIMA</strong> — Classical time-series models that take the full engineered feature set (~66 exogenous drivers) and model demand's own autocorrelation. Challenger / diversity models, strongest at daily resolution; not champions.</li>
+          <li><strong className="text-foreground">NeuralProphet</strong> — Prophet-style trend / seasonality / holiday decomposition with neural components and configurable regressors. Best at daily resolution.</li>
           <li><strong className="text-foreground">Ensemble</strong> — Weighted average of all loaded models. Can be more stable but not always most accurate.</li>
           <li><strong className="text-foreground">LSTM / BiLSTM</strong> — Deep learning. Captures sequence patterns but less accurate than tree models on this data.</li>
         </ul>

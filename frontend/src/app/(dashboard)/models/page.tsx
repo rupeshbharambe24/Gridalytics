@@ -6,15 +6,19 @@ import { Badge } from "@/components/ui/badge";
 import { useFetch } from "@/lib/hooks";
 import { getModelPerformance, getAvailableModels } from "@/lib/api";
 
-// Known CV metrics per model (from training runs - these are validated results)
+// Known CV metrics per model. Gradient-boosting champions are from the full
+// training runs. The classical/alt challengers (SARIMAX, ARIMA, NeuralProphet)
+// are daily walk-forward evals of the CURRENT full-feature versions — see
+// docs/classical_models.md. They add modelling diversity, not accuracy.
 const CV_METRICS: Record<string, { mape: string; rmse: string; r2: string; folds: number; type: string }> = {
   "5min_lightgbm": { mape: "0.18%", rmse: "8.6 MW", r2: "0.9997", folds: 10, type: "Gradient Boosting" },
   "hourly_xgboost": { mape: "0.52%", rmse: "25.3 MW", r2: "0.9987", folds: 12, type: "Gradient Boosting" },
   "hourly_lightgbm": { mape: "0.62%", rmse: "30.2 MW", r2: "0.9985", folds: 12, type: "Gradient Boosting" },
   "daily_lightgbm": { mape: "2.65%", rmse: "96.6 MW", r2: "0.8997", folds: 12, type: "Gradient Boosting" },
-  "daily_sarimax": { mape: "4.18%", rmse: "---", r2: "---", folds: 0, type: "Statistical (ARIMA)" },
+  "daily_neuralprophet": { mape: "5.84%", rmse: "---", r2: "---", folds: 3, type: "Neural + Decomposition" },
   "hourly_lstm": { mape: "6.66%", rmse: "327.2 MW", r2: "0.7013", folds: 0, type: "Deep Learning (PyTorch)" },
-  "daily_neuralprophet": { mape: "7.68%", rmse: "---", r2: "---", folds: 0, type: "Neural + Decomposition" },
+  "daily_sarimax": { mape: "8.06%", rmse: "---", r2: "---", folds: 3, type: "Classical (SARIMAX + 66 exog)" },
+  "daily_arima": { mape: "8.37%", rmse: "---", r2: "---", folds: 3, type: "Classical (ARIMA + 66 exog)" },
 };
 
 // Champion models by resolution
