@@ -58,3 +58,9 @@ htmlcov/
 # Pipeline run artifacts (regenerated each Friday)
 pipeline.log
 bash.exe.stackdump
+
+# Training byproducts (torch / mlflow)
+mlruns/
+lightning_logs/
+checkpoints/
+*.ckpt
