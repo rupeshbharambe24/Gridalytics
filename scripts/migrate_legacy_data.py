@@ -18,6 +18,7 @@ from src.data.db.models import DemandRecord, WeatherRecord, HolidayRecord, PSPDa
 
 
 OLD_PROJECT = Path("F:/Projects/EDFS")
+PSP_REPORT_DATE_CUTOFF = pd.Timestamp("2021-01-04")
 
 
 def migrate_5min_demand():
@@ -46,7 +47,9 @@ def migrate_5min_demand():
         return
 
     # Parse timestamps
-    df["date_parsed"] = pd.to_datetime(df[date_col], errors="coerce")
+    # Dates are DD-MM-YYYY. Without dayfirst, pandas reads day<=12 as the month
+    # and coerces day>12 to NaT (silently dropped).
+    df["date_parsed"] = pd.to_datetime(df[date_col], dayfirst=True, errors="coerce")
     df["time_parsed"] = pd.to_datetime(df[time_col], format="%H:%M:%S", errors="coerce")
     if df["time_parsed"].isna().all():
         df["time_parsed"] = pd.to_datetime(df[time_col], errors="coerce")
@@ -198,7 +201,13 @@ def migrate_daily_demand():
     date_col = [c for c in df.columns if "date" in c.lower()][0]
     demand_col = [c for c in df.columns if "demand" in c.lower()][0]
 
-    df["date"] = pd.to_datetime(df[date_col], errors="coerce").dt.date
+    df["date"] = pd.to_datetime(df[date_col], errors="coerce")
+    # Rows up to 2021-01-03 are labelled by PSP *report* date, which covers the
+    # previous day (weekly low lands on Mon instead of Sun; matches 5-min data
+    # only at D-1). Shift them back so every row is the day the demand occurred.
+    early = df["date"] < PSP_REPORT_DATE_CUTOFF
+    df.loc[early, "date"] -= pd.Timedelta(days=1)
+    df["date"] = df["date"].dt.date
     df["delhi_demand_met_mw"] = pd.to_numeric(df[demand_col], errors="coerce")
     df = df.dropna(subset=["date", "delhi_demand_met_mw"])
 

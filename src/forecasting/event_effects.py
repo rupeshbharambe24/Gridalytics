@@ -30,6 +30,7 @@ Design notes:
 from __future__ import annotations
 
 import logging
+import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 
@@ -61,7 +62,8 @@ def tier_of(name: str, type_: str | None, category: str | None) -> str:
         return "sporting"
     # Name takes priority: the `holidays` lib tags big festivals as
     # 'government', so classify by name before falling back to category.
-    if any(f in nm for f in _MAJOR_FESTIVALS):
+    # whole-word match: "holi" must not catch "holika dahan"
+    if any(re.search(rf"\b{re.escape(f)}\b", nm) for f in _MAJOR_FESTIVALS):
         return "major_festival"
     if cat == "government" or (type_ or "").lower() == "national":
         return "national"

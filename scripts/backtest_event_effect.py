@@ -53,7 +53,7 @@ logging.basicConfig(level=logging.ERROR, format="%(message)s")
 
 def build_features():
     with get_session() as session:
-        pipe = FeaturePipeline(RESOLUTION, session)  # include_event_effect=True
+        pipe = FeaturePipeline(RESOLUTION, session, include_event_effect=True)
         df = pipe.build()
         features = pipe.get_feature_names(df)
     features = [f for f in features if f not in SUB_REGIONAL_COLS]
