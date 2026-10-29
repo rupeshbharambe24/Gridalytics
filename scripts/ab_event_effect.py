@@ -55,7 +55,7 @@ def _build_features(resolution: str):
     """Build feature matrix exactly as train.py does (inlined so this script
     needs only the light deps — no mlflow/xgboost/torch import)."""
     with get_session() as session:
-        pipeline = FeaturePipeline(resolution, session)  # include_event_effect=True
+        pipeline = FeaturePipeline(resolution, session, include_event_effect=True)
         df = pipeline.build()
         target = pipeline.get_target_name()
         features = pipeline.get_feature_names(df)
