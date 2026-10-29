@@ -33,6 +33,54 @@ class DemandRecord(Base):
     )
 
 
+class StateDemandRecord(Base):
+    """Generalized multi-state grid demand — one row per state per timestamp.
+
+    Scales Gridalytics beyond Delhi: every non-Delhi state/UT's total demand
+    lands here in long format, keyed by ``state_code`` (e.g. "bihar", "punjab",
+    "uttar_pradesh"). Delhi keeps its own wide ``demand_5min`` table for
+    backward compatibility; new states use this table. Resolution varies by
+    source (Bihar ~1-2 min, Punjab/UP live snapshots polled on an interval).
+    """
+    __tablename__ = "state_demand"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    state_code = Column(String(20), nullable=False, index=True)
+    timestamp = Column(DateTime, nullable=False)
+    demand_mw = Column(Float, nullable=False)
+    frequency_hz = Column(Float)
+    schedule_mw = Column(Float)
+    drawal_mw = Column(Float)
+    source = Column(String(40), default="sldc")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("state_code", "timestamp", name="uq_state_demand_state_ts"),
+        Index("ix_state_demand_state_ts", "state_code", "timestamp"),
+    )
+
+
+class StateDiscomDemandRecord(Base):
+    """DISCOM / sub-region demand for states that publish a breakdown
+    (e.g. Bihar NBPDCL/SBPDCL; Karnataka ESCOMs). Long format, one row per
+    (state, discom, timestamp)."""
+    __tablename__ = "state_demand_discom"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    state_code = Column(String(20), nullable=False, index=True)
+    discom_code = Column(String(30), nullable=False)
+    timestamp = Column(DateTime, nullable=False)
+    demand_mw = Column(Float)
+    source = Column(String(40), default="sldc")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("state_code", "discom_code", "timestamp",
+                         name="uq_state_discom_state_disc_ts"),
+        Index("ix_state_discom_state_ts", "state_code", "timestamp"),
+    )
+
+
 class WeatherRecord(Base):
     """Hourly weather data from Open-Meteo."""
     __tablename__ = "weather_hourly"

@@ -18,11 +18,12 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from config import settings
 from src.data.db.session import get_session, create_tables
-from src.data.db.models import DemandRecord, WeatherRecord, AQIRecord
+from src.data.db.models import DemandRecord, WeatherRecord, AQIRecord, StateDemandRecord
 from src.data.scrapers.sldc import SLDCScraper
 from src.data.scrapers.open_meteo import OpenMeteoScraper
 from src.data.scrapers.holidays import HolidayScraper
 from src.data.scrapers.aqi import AQIScraper
+from src.data.scrapers.state_sldc import STATE_SCRAPERS, HISTORICAL_STATES
 from sqlalchemy import func
 
 logging.basicConfig(
@@ -50,6 +51,32 @@ def scrape_demand_latest():
             logger.info(f"Demand scrape complete: {count} new rows")
     except Exception as e:
         logger.error(f"Demand scrape failed: {e}")
+
+
+def scrape_states_latest(days_back: int = 0):
+    """Collect demand for all non-Delhi states (Bihar, Punjab, UP).
+
+    days_back=0 → today only (frequent snapshot poll; Bihar's current feed is
+    rolling so dedupe handles repeats). days_back>0 → backfill the window for
+    history-capable states (Bihar); snapshot states ignore the range.
+    """
+    logger.info(f"Starting multi-state demand scrape (days_back={days_back})")
+    end = date.today()
+    start = end - timedelta(days=days_back)
+    for code, scraper_cls in STATE_SCRAPERS.items():
+        s_start = start if code in HISTORICAL_STATES else end
+        try:
+            scraper = scraper_cls()
+            with get_session() as session:
+                count = scraper.run(s_start, end, session)
+                logger.info(f"[{code}] {count} new rows")
+        except Exception as e:
+            logger.error(f"State scrape failed for {code}: {e}")
+
+
+def scrape_states_backfill():
+    """Nightly backfill of the last 3 days for history-capable states (Bihar)."""
+    scrape_states_latest(days_back=3)
 
 
 def scrape_weather_latest():
@@ -175,12 +202,21 @@ def print_status():
     logger.info(f"Status - Weather: {w_count:,} rows (latest: {w_max})")
     logger.info(f"Status - AQI: {a_count:,} rows (latest: {a_max})")
 
+    with get_session() as session:
+        for code in STATE_SCRAPERS:
+            s_count = session.query(func.count(StateDemandRecord.id)).filter(
+                StateDemandRecord.state_code == code).scalar()
+            s_max = session.query(func.max(StateDemandRecord.timestamp)).filter(
+                StateDemandRecord.state_code == code).scalar()
+            logger.info(f"Status - {code}: {s_count:,} rows (latest: {s_max})")
+
 
 def run_all_once():
     """Run all scrapers once (for manual/CLI use)."""
     logger.info("Running all scrapers once...")
     create_tables()
     scrape_demand_latest()
+    scrape_states_latest()
     scrape_weather_latest()
     scrape_weather_forecast()
     scrape_aqi_latest()
@@ -201,6 +237,26 @@ def start_scheduler():
         IntervalTrigger(hours=settings.SCRAPE_INTERVAL_HOURS),
         id="demand_scrape",
         name="SLDC Demand Scrape",
+        misfire_grace_time=3600,
+    )
+
+    # Multi-state demand snapshot poll: every 15 min (Punjab/UP are live
+    # snapshots; Bihar's rolling feed dedupes). Builds the series for states
+    # that have no history endpoint.
+    scheduler.add_job(
+        scrape_states_latest,
+        IntervalTrigger(minutes=15),
+        id="states_snapshot",
+        name="Multi-State Demand Snapshot",
+        misfire_grace_time=900,
+    )
+
+    # Multi-state backfill: nightly, last 3 days for history-capable states (Bihar).
+    scheduler.add_job(
+        scrape_states_backfill,
+        CronTrigger(hour=1, minute=15),
+        id="states_backfill",
+        name="Multi-State Demand Backfill",
         misfire_grace_time=3600,
     )
 
@@ -263,6 +319,7 @@ def start_scheduler():
 
     # Run scrapers immediately on startup
     scrape_demand_latest()
+    scrape_states_latest()
     scrape_weather_latest()
     scrape_weather_forecast()
     scrape_aqi_latest()

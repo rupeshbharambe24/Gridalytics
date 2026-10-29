@@ -18,6 +18,19 @@ class Settings(BaseSettings):
     OPEN_METEO_FORECAST_URL: str = "https://api.open-meteo.com/v1/forecast"
     GRID_INDIA_URL: str = "https://report.grid-india.in/psp_report.php"
 
+    # Multi-state SLDC sources (Phase 1 of the all-India rollout).
+    # See docs/state_grid_data_sources.md for the full per-state inventory.
+    BIHAR_SLDC_URL: str = "https://sldc.bsptcl.co.in:8086/api/SCADA/Get"
+    PUNJAB_SLDC_URL: str = "https://sldcapi.pstcl.org/wsDataService.asmx"
+    UP_SLDC_URL: str = "https://www.upsldc.org/assets/dataset"
+
+    # Bihar & Punjab SLDC servers run old/broken TLS (incomplete cert chain,
+    # legacy renegotiation) that Python rejects, though `curl` trusts them via
+    # the OS store. Set SLDC_INSECURE_TLS=true in .env to scrape them with
+    # relaxed verification. OFF by default — enabling it is a conscious choice
+    # to skip cert verification for these specific public-data endpoints.
+    SLDC_INSECURE_TLS: bool = False
+
     # JWT Authentication
     JWT_SECRET: str = "change-this-to-a-random-secret-key"
     JWT_ALGORITHM: str = "HS256"
