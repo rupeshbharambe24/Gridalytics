@@ -54,7 +54,7 @@ def _get_history_at_resolution(
     """Return demand as a Series indexed at the model's native resolution.
 
     hourly resolution → resample 5-min data with `.resample("1h").mean()`
-    daily  resolution → `.resample("1D").mean()`
+    daily  resolution → `.resample("1D").max()` (daily peak, as in training)
     5min   resolution → raw 5-min values
 
     The resample step is what makes the inference-time lag values match the
@@ -84,7 +84,8 @@ def _get_history_at_resolution(
         # take the mean of each hour's 5-min readings — matches training pipeline
         return series.resample("1h").mean().dropna()
     if resolution == "daily":
-        return series.resample("1D").mean().dropna()
+        # daily target is the day's peak — matches loaders.load_demand
+        return series.resample("1D").max().dropna()
     return series  # 5-min raw
 
 

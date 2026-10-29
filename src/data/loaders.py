@@ -57,13 +57,16 @@ def load_demand(
     if resolution == "hourly":
         df = df[demand_cols].resample("1h").mean().dropna(subset=["delhi_mw"])
     elif resolution == "daily":
-        # For daily: combine 5-min resampled data with PSP daily reports
-        df_5min_daily = df[demand_cols].resample("1D").mean().dropna(subset=["delhi_mw"])
+        # For daily: combine 5-min resampled data with PSP daily reports.
+        # The daily target is the day's PEAK: PSP reports peak demand met, so
+        # 5-min days must use .max() too (a .mean() is ~0.83x peak and put a
+        # fake level drop where PSP coverage ends in 2024-11).
+        df_5min_daily = df[demand_cols].resample("1D").max().dropna(subset=["delhi_mw"])
 
         # Also load PSP daily data (goes back to 2015)
         psp_df = _load_psp_daily(session, start_date, end_date)
         if not psp_df.empty:
-            # Merge: prefer 5-min resampled (more accurate), fill gaps with PSP
+            # Merge: prefer PSP (complete days), fill gaps with 5-min daily peaks
             combined = psp_df.combine_first(df_5min_daily)
             combined = combined.dropna(subset=["delhi_mw"])
             return combined

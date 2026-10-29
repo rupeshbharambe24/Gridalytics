@@ -1,5 +1,6 @@
 """Tests for data scrapers."""
 
+import pandas as pd
 import pytest
 from datetime import date, timedelta
 from unittest.mock import patch, MagicMock
@@ -83,3 +84,24 @@ class TestHolidayScraper:
         df = scraper.scrape(date(2024, 1, 1), date(2024, 2, 28))
         names = df["name"].str.lower().tolist()
         assert any("republic" in n for n in names)
+
+    def test_holi_and_diwali_week_every_year(self):
+        """Holi (~-31% peak) was missing before 2024; Diwali spans 3 days."""
+        scraper = HolidayScraper()
+        df = scraper.validate(scraper.scrape(date(2015, 1, 1), date(2023, 12, 31)))
+        years = lambda n: set(pd.to_datetime(df[df["name"] == n]["date"]).dt.year)
+        for name in ["Holi", "Diwali", "Govardhan Puja", "Bhai Duj"]:
+            assert years(name) == set(range(2015, 2024)), name
+        assert (df[df["name"] == "Holi"]["category"] == "festival").all()
+
+    def test_canonical_names(self):
+        scraper = HolidayScraper()
+        df = scraper.validate(scraper.scrape(date(2015, 1, 1), date(2027, 12, 31)))
+        names = set(df["name"])
+        assert not any(";" in n or "/" in n or "(estimated)" in n for n in names)
+        assert "Diwali (Deepavali)" not in names and "Eid ul-Fitr" not in names
+
+    def test_diwali_2026_date(self):
+        scraper = HolidayScraper()
+        df = scraper.scrape(date(2026, 1, 1), date(2026, 12, 31))
+        assert set(df[df["name"] == "Diwali"]["date"]) == {date(2026, 11, 8)}
