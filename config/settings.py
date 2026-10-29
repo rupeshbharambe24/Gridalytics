@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     BIHAR_SLDC_URL: str = "https://sldc.bsptcl.co.in:8086/api/SCADA/Get"
     PUNJAB_SLDC_URL: str = "https://sldcapi.pstcl.org/wsDataService.asmx"
     UP_SLDC_URL: str = "https://www.upsldc.org/assets/dataset"
+    # Phase 2 (static-HTML snapshots)
+    KARNATAKA_SLDC_URL: str = "https://kptclsldc.in/"
+    CHHATTISGARH_SLDC_URL: str = "https://sldccg.com/gen.php"
+    # Gujarat: deferred — RealTime.php is access-gated (HTTP 403) and the homepage
+    # live widget was removed; needs the official SLDC app API or GETCO access.
+    GUJARAT_SLDC_URL: str = "https://sldcguj.com/"
 
     # Bihar & Punjab SLDC servers run old/broken TLS (incomplete cert chain,
     # legacy renegotiation) that Python rejects, though `curl` trusts them via

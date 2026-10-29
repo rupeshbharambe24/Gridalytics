@@ -19,6 +19,14 @@ static HTML `<table>` · **5-minute** rows · **DISCOM-level** (Delhi + BRPL/BYP
 
 ---
 
+## Implementation status (Oct 2026)
+**Built & verified** (`src/data/scrapers/state_sldc.py`, tables `state_demand` / `state_demand_discom`,
+CLI `scripts/collect_states.py`): **Bihar, Punjab, Uttar Pradesh** (Phase 1) + **Karnataka,
+Chhattisgarh** (Phase 2). Karnataka & Bihar carry DISCOM-level breakdowns.
+**Deferred: Gujarat** — `RealTime.php` is 403-gated and the homepage live widget was removed; needs the
+official SLDC app API or GETCO access (not scrapable without it).
+**TLS:** Bihar & Punjab need `SLDC_INSECURE_TLS=true` (broken gov TLS); UP/Karnataka/Chhattisgarh work as-is.
+
 ## TL;DR acquisition strategy
 
 **Only ~5 jurisdictions are scrape-ready today; the rest need effort or fall back to national feeds.**

@@ -21,6 +21,7 @@ Snapshot sources (Punjab, UP) have no history endpoint: poll them on an interval
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
+import re
 import ssl
 import time
 
@@ -28,6 +29,7 @@ import numpy as np
 import pandas as pd
 import requests
 import urllib3
+from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from sqlalchemy.orm import Session
 
@@ -82,7 +84,17 @@ def _f(v) -> float | None:
     if v is None:
         return None
     try:
-        return float(str(v).strip())
+        return float(str(v).strip().replace(",", ""))
+    except (TypeError, ValueError):
+        return None
+
+
+def _dt(s, fmt) -> datetime | None:
+    """Parse a timestamp string with the given format; None on failure."""
+    if not s:
+        return None
+    try:
+        return datetime.strptime(str(s).strip(), fmt)
     except (TypeError, ValueError):
         return None
 
@@ -338,14 +350,111 @@ class UPSLDCScraper(StateSLDCScraper):
         }])
 
 
+# ---------------------------------------------------------------------------
+# Karnataka — server-rendered ASP.NET dashboard, live snapshot, DISCOM-level
+# ---------------------------------------------------------------------------
+class KarnatakaSLDCScraper(StateSLDCScraper):
+    STATE_CODE = "karnataka"
+    STATE_NAME = "Karnataka"
+    SOURCE = "ksldc"
+
+    # span id -> field, per the current kptclsldc.in Default.aspx layout.
+    # (Historical intraday data also lives in daily load-curve Excel files at
+    #  loadcurve.kptcl.net — not yet wired here.)
+    _DISCOMS = {"Label7": "BESCOM", "Label8": "HESCOM", "Label9": "GESCOM",
+                "Label10": "CESC", "Label11": "MESCOM"}
+
+    def scrape(self, start_date: date, end_date: date) -> pd.DataFrame:
+        resp = self._retry_request(requests.get, settings.KARNATAKA_SLDC_URL,
+                                   headers=_UA, timeout=30)
+        if resp.status_code != 200:
+            self.logger.warning(f"HTTP {resp.status_code}")
+            return pd.DataFrame()
+        soup = BeautifulSoup(resp.text, "html.parser")
+
+        def span(i: str):
+            el = soup.find("span", id=i)
+            return el.get_text(strip=True) if el else None
+
+        ts = _dt(span("Label6"), "%d/%m/%Y %H:%M")
+        demand = _f(span("Label5"))          # STATE DEMAND
+        if ts is None or demand is None:
+            self.logger.warning("Karnataka: demand/timestamp not found (layout changed?)")
+            return pd.DataFrame()
+        row = {
+            "state_code": self.STATE_CODE,
+            "timestamp": ts,
+            "demand_mw": demand,
+            "frequency_hz": _f(span("Label1")),   # FREQUENCY
+            "schedule_mw": None,
+            "drawal_mw": _f(span("Label3")),       # CGS DRAWAL
+        }
+        for sid, name in self._DISCOMS.items():
+            row[f"d__{name}"] = _f(span(sid))
+        return pd.DataFrame([row])
+
+
+# ---------------------------------------------------------------------------
+# Chhattisgarh — server-rendered table, live snapshot (single DISCOM)
+# ---------------------------------------------------------------------------
+class ChhattisgarhSLDCScraper(StateSLDCScraper):
+    STATE_CODE = "chhattisgarh"
+    STATE_NAME = "Chhattisgarh"
+    SOURCE = "csldc"
+
+    def scrape(self, start_date: date, end_date: date) -> pd.DataFrame:
+        resp = self._retry_request(requests.get, settings.CHHATTISGARH_SLDC_URL,
+                                   headers=_UA, timeout=30)
+        if resp.status_code != 200:
+            self.logger.warning(f"HTTP {resp.status_code}")
+            return pd.DataFrame()
+        soup = BeautifulSoup(resp.text, "html.parser")
+
+        pairs: dict[str, str] = {}
+        for tr in soup.find_all("tr"):
+            tds = tr.find_all("td")
+            if len(tds) == 2:
+                label = tds[0].get_text(" ", strip=True)
+                if label and re.search(r"[A-Za-z]", label):
+                    pairs.setdefault(label, tds[1].get_text(" ", strip=True))
+
+        node = soup.find(string=re.compile("Updates Latest by"))
+        ts = None
+        if node:
+            m = re.search(r"Updates Latest by\s*(.+)", node.parent.get_text(" ", strip=True))
+            if m:
+                ts = _dt(m.group(1), "%d-%b-%Y %H:%M")
+
+        demand = _f(pairs.get("CG Demand"))
+        if ts is None or demand is None:
+            self.logger.warning("Chhattisgarh: demand/timestamp not found (layout changed?)")
+            return pd.DataFrame()
+        return pd.DataFrame([{
+            "state_code": self.STATE_CODE,
+            "timestamp": ts,
+            "demand_mw": demand,
+            "frequency_hz": _f(pairs.get("WR Frequency")),
+            "schedule_mw": _f(pairs.get("CG Schedule")),
+            "drawal_mw": _f(pairs.get("CG Drawl from Central Sector")),
+        }])
+
+
 # Registry — add new states here as their scrapers land (see the data-source doc).
 STATE_SCRAPERS: dict[str, type[StateSLDCScraper]] = {
     "bihar": BiharSLDCScraper,
     "punjab": PunjabSLDCScraper,
     "uttar_pradesh": UPSLDCScraper,
+    "karnataka": KarnatakaSLDCScraper,
+    "chhattisgarh": ChhattisgarhSLDCScraper,
 }
 
 # Which states carry their own history (support date-range backfill) vs. are
 # live-snapshot only (must be polled on an interval to build a series).
 HISTORICAL_STATES = {"bihar"}
-SNAPSHOT_STATES = {"punjab", "uttar_pradesh"}
+SNAPSHOT_STATES = {"punjab", "uttar_pradesh", "karnataka", "chhattisgarh"}
+
+# Deferred (known but not yet scrapable without extra access):
+#   gujarat — sldcguj.com RealTime.php is access-gated (HTTP 403) and the
+#     homepage live widget was removed. Needs the official SLDC Android app's
+#     backing API or a GETCO data-sharing arrangement. See docs/state_grid_data_sources.md.
+DEFERRED_STATES = {"gujarat": "RealTime.php 403-gated; homepage widget removed"}
