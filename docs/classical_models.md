@@ -33,7 +33,7 @@ model (SARIMAX/ARIMA) reconstructs the target perfectly from those columns; tree
 > from the *current* target and the `delhi_mw_r{mean,std,min,max}_*` windows include the
 > current row, so every model sees y_t in its features. Walk-forward CV (LightGBM, 12 folds,
 > after the date fixes): daily **1.08%** as shipped vs **3.87%** with those features shifted to
-> end at t−1 (persistence: 5.05%); hourly 0.35% as shipped vs 3.43% persistence; the 5-min
+> end at t−1 (persistence: 5.05%); hourly **0.35%** vs **1.15%** leak-free (persistence 3.43%); the 5-min
 > 0.18% headline sits below 5-min persistence (0.68%). Inference (`future.py`) cannot see y_t —
 > it sets `diff_1 = lag_1 − lag_1 = 0` and uses windows ending before t — so there is also
 > train/serve skew. The LightGBM numbers in the table below are leak-inflated; the
