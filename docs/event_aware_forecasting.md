@@ -1,6 +1,16 @@
 # Event-Aware Forecasting — Design & Plan
 
 **Status:** proposal / tested (Idea 1 Phase 1–1.5 complete; verdict below)
+
+> ⚠️ **Correction (2026-10-30).** The magnitudes and the "neutral" verdict below were measured
+> on corrupted data: `psp_daily` 2015–2020 was dated one day late, legacy 5-min rows had
+> day/month swapped, Holi was missing from the calendar, and weather before 2021 was absent.
+> Fixed by `scripts/fix_date_integrity.py`. On corrected data the effects are much larger
+> (Holi ≈ −31%, Diwali ≈ −17% with −19%/−12% on the next two days, Republic Day ≈ −14%,
+> Id-ul-Fitr ≈ 0 rather than +3%), and a causal magnitude feature *does* cut festival-day error
+> in a leak-free daily backtest (h=7: 9.5% → 7.1%). The CV A/B and the hourly recursive backtest
+> remain uninformative until the target leak in `delhi_mw_diff_*`/rolling features is fixed
+> (see `docs/classical_models.md`). Details: `docs/paper_festival_effects.md`.
 **Owner:** Rupesh Bharambe
 **Scope:** two complementary features that make Gridalytics forecasts react to real-world events
 (festivals, holidays, and ad-hoc happenings), grounded in historically-measured demand impact.

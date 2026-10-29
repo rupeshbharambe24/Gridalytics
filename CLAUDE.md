@@ -75,13 +75,24 @@ python -m pytest tests/ -v
   exact linear identities that leak the target. SARIMA models the target's own
   autocorrelation via its `(p,d,q)(P,D,Q)` terms.
 - **Target** is `delhi_mw`; sub-regional DISCOM columns (`brpl_mw`, `bypl_mw`, …) are
-  excluded from features.
+  excluded from features. At **daily** resolution it is the day's **peak** (PSP reports
+  peak demand met; 5-min days are aggregated with `.max()`, never `.mean()`).
+- **Known open issue — target leak:** `delhi_mw_diff_*` and the `delhi_mw_r*` rolling
+  stats include the current target in training but not at inference. CV MAPEs from the
+  tree models are inflated until these are shifted to end at t−1 (see
+  `docs/classical_models.md`).
+- **Dates:** source dates are DD-MM-YYYY — always parse with `dayfirst=True`. PSP reports
+  are labelled by report date (= previous day's demand). `scripts/fix_date_integrity.py`
+  repairs a DB migrated before this was handled (dry run by default).
 
 ## Documentation
 
 - `docs/event_aware_forecasting.md` — event-effect layer design + measured results.
 - `docs/classical_models.md` — SARIMAX/ARIMA (full exogenous features) + NeuralProphet.
 - `docs/frontend_performance.md` — frontend load/tab-switch diagnosis + fixes.
+- `docs/paper_festival_effects.md` — research-paper plan: festival demand effects, the
+  data-integrity audit, feasibility results (`scripts/paper/`).
+- `docs/research_angles.md` — literature-checked paper angles (partly superseded by the above).
 
 ## Git Workflow
 

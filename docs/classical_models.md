@@ -29,6 +29,16 @@ The feature matrix is *tree-oriented* and contains exact **linear identities**:
 model (SARIMAX/ARIMA) reconstructs the target perfectly from those columns; trees
 (LightGBM) cannot exploit the identity exactly, which is why they never showed 0%.
 
+> ⚠️ **Correction (2026-10-30): trees exploit it too, just not to 0%.** `diff_n` is computed
+> from the *current* target and the `delhi_mw_r{mean,std,min,max}_*` windows include the
+> current row, so every model sees y_t in its features. Walk-forward CV (LightGBM, 12 folds,
+> after the date fixes): daily **1.08%** as shipped vs **3.87%** with those features shifted to
+> end at t−1 (persistence: 5.05%); hourly 0.35% as shipped vs 3.43% persistence; the 5-min
+> 0.18% headline sits below 5-min persistence (0.68%). Inference (`future.py`) cannot see y_t —
+> it sets `diff_1 = lag_1 − lag_1 = 0` and uses windows ending before t — so there is also
+> train/serve skew. The LightGBM numbers in the table below are leak-inflated; the
+> exogenous-only linear models are not.
+
 **Fix:** for linear models, exog = genuine **external drivers only** (weather, calendar,
 cyclical, AQI, event) — the `delhi_mw_*` lag/diff/rolling columns are excluded
 (`exclude_target_history=True`). SARIMA already models the target's own autocorrelation
