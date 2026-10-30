@@ -618,32 +618,38 @@ def _energymap_code(slug: str) -> str:
 def energymap_psp_rows(items: list[dict], state_code: str) -> list[dict]:
     """Collapse energymap posoco-psp items for one state to one row per date.
 
-    Each date can carry two source rows (a PDF-sourced ``peak_demand_mw`` and an
-    XLS-sourced ``peak_demand_met_mw``); coalesce to a single daily peak (prefer
-    'met', else 'mw', take the max when both rows exist) and the max energy_met.
+    Each date can carry two source rows: a PDF-sourced ``peak_demand_mw`` and an
+    XLS-sourced ``peak_demand_met_mw``. Validated against the official NLDC PSP
+    files (webcdn.grid-india.in, Section C "Max Demand Met during the day"), the
+    PDF ``peak_demand_mw`` is the authoritative daily peak — the XLS
+    ``peak_demand_met_mw`` is differently dated and disagrees for several states
+    (e.g. Andhra 7965 vs 10125). So prefer ``peak_demand_mw``; fall back to
+    ``peak_demand_met_mw`` only when no PDF value exists. Energy = max energy_met.
     """
     by_date: dict = {}
     for it in items:
         ds = it.get("date")
         if not ds:
             continue
-        peak = it.get("peak_demand_met_mw") or it.get("peak_demand_mw")
-        energy = it.get("energy_met_mu")
-        cur = by_date.setdefault(ds, {"peak": None, "energy": None})
-        if peak is not None:
-            cur["peak"] = peak if cur["peak"] is None else max(cur["peak"], peak)
-        if energy is not None:
-            cur["energy"] = energy if cur["energy"] is None else max(cur["energy"], energy)
+        cur = by_date.setdefault(ds, {"mw": None, "met": None, "energy": None})
+        for key, field in (("mw", "peak_demand_mw"), ("met", "peak_demand_met_mw")):
+            v = it.get(field)
+            if v is not None:
+                cur[key] = v if cur[key] is None else max(cur[key], v)
+        e = it.get("energy_met_mu")
+        if e is not None:
+            cur["energy"] = e if cur["energy"] is None else max(cur["energy"], e)
     rows = []
     for ds, v in by_date.items():
-        if v["peak"] is None:
+        peak = v["mw"] if v["mw"] is not None else v["met"]  # prefer official PDF value
+        if peak is None:
             continue
         try:
             d = datetime.strptime(ds, "%Y-%m-%d").date()
         except ValueError:
             continue
         rows.append({"state_code": state_code, "date": d,
-                     "peak_demand_met_mw": float(v["peak"]),
+                     "peak_demand_met_mw": float(peak),
                      "energy_met_mu": float(v["energy"]) if v["energy"] is not None else None,
                      "source": "energymap_posoco"})
     return rows
@@ -702,8 +708,12 @@ class EnergymapPSPScraper(BaseScraper):
         return _psp_validate(df)
 
     def upsert(self, df: pd.DataFrame, session: Session) -> int:
-        """Insert energymap rows, but never overwrite a row from another (official)
-        source — deeper SLDC history (e.g. Telangana 2016+) and its provenance win."""
+        """NLDC PSP is the canonical daily series wherever it reaches (~2021-05+):
+        validated against the official files and defined identically for every
+        state, so it wins over a per-state SLDC row on the same date (those differ
+        in definition — e.g. Odisha SLDC reports *instantaneous* peak, not 'demand
+        met'). Per-state SLDC still owns the PRE-2021 dates NLDC does not cover
+        (Telangana 2016+, Himachal 2017+), which lie outside this df's range."""
         if df is None or df.empty:
             return 0
         count = 0
@@ -712,15 +722,15 @@ class EnergymapPSPScraper(BaseScraper):
                 StatePSPDaily.state_code == row["state_code"],
                 StatePSPDaily.date == row["date"]).first()
             if exists:
-                if exists.source == "energymap_posoco":  # refresh our own row only
-                    exists.peak_demand_met_mw = row["peak_demand_met_mw"]
-                    if row.get("energy_met_mu") is not None:
-                        exists.energy_met_mu = row.get("energy_met_mu")
-                continue  # a non-energymap (official) row is left untouched
-            session.add(StatePSPDaily(
-                state_code=row["state_code"], date=row["date"],
-                peak_demand_met_mw=row["peak_demand_met_mw"],
-                energy_met_mu=row.get("energy_met_mu"), source="energymap_posoco"))
-            count += 1
+                exists.peak_demand_met_mw = row["peak_demand_met_mw"]
+                if row.get("energy_met_mu") is not None:
+                    exists.energy_met_mu = row.get("energy_met_mu")
+                exists.source = "energymap_posoco"
+            else:
+                session.add(StatePSPDaily(
+                    state_code=row["state_code"], date=row["date"],
+                    peak_demand_met_mw=row["peak_demand_met_mw"],
+                    energy_met_mu=row.get("energy_met_mu"), source="energymap_posoco"))
+                count += 1
         session.flush()
         return count
