@@ -120,10 +120,20 @@ class TestRollingFeatures:
         assert not df["delhi_mw_rmean_6h"].isna().all()
 
     def test_no_future_leakage(self, sample_demand_df):
-        """Rolling stats should only use past data."""
-        df = add_rolling_stats(sample_demand_df, "delhi_mw", "hourly")
-        # The rolling mean at index 5 should only consider indices 0-5
-        window = sample_demand_df["delhi_mw"].iloc[:6]
-        expected = window.mean()
-        actual = df["delhi_mw_rmean_6h"].iloc[5]
-        np.testing.assert_allclose(actual, expected, rtol=0.01)
+        """Rolling stats must be causal: the value at time t must not depend on y[t].
+
+        After the leak fix, add_rolling_stats shifts the window to end at t-1, so the
+        current target is never included. We verify this directly: spiking y[t] must
+        leave the rolling value at t unchanged (it would change if the window leaked
+        the present). The earlier version asserted the opposite (included y[t]).
+        """
+        col = sample_demand_df.columns.get_loc("delhi_mw")
+        base = add_rolling_stats(sample_demand_df.copy(), "delhi_mw", "hourly")
+        perturbed_df = sample_demand_df.copy()
+        perturbed_df.iloc[5, col] = perturbed_df.iloc[5, col] + 10000  # spike the current value
+        perturbed = add_rolling_stats(perturbed_df, "delhi_mw", "hourly")
+        np.testing.assert_allclose(
+            base["delhi_mw_rmean_6h"].iloc[5],
+            perturbed["delhi_mw_rmean_6h"].iloc[5],
+            rtol=1e-9,
+        )
