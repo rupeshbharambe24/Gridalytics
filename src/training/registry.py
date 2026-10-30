@@ -36,22 +36,31 @@ def log_training_run(
     Returns:
         The MLflow run ID.
     """
-    setup_mlflow()
-    experiment_name = f"gridalytics-{resolution}"
-    mlflow.set_experiment(experiment_name)
+    # MLflow tracking is BEST-EFFORT: it must never abort training or block the
+    # model save. Some environments (e.g. MLflow's SQLAlchemy store on SQLAlchemy
+    # 2.x) raise on init; we log a warning and carry on so the champion still gets
+    # saved and the retrain completes.
+    try:
+        setup_mlflow()
+        experiment_name = f"gridalytics-{resolution}"
+        mlflow.set_experiment(experiment_name)
 
-    with mlflow.start_run(run_name=f"{model_name}-{resolution}"):
-        mlflow.log_param("model_name", model_name)
-        mlflow.log_param("resolution", resolution)
-        mlflow.log_params(params)
-        mlflow.log_metrics(metrics)
+        with mlflow.start_run(run_name=f"{model_name}-{resolution}"):
+            mlflow.log_param("model_name", model_name)
+            mlflow.log_param("resolution", resolution)
+            mlflow.log_params(params)
+            mlflow.log_metrics(metrics)
 
-        if model_path:
-            mlflow.log_artifacts(str(model_path))
+            if model_path:
+                mlflow.log_artifacts(str(model_path))
 
-        run_id = mlflow.active_run().info.run_id
-        logger.info(f"Logged run {run_id} to experiment '{experiment_name}'")
-        return run_id
+            run_id = mlflow.active_run().info.run_id
+            logger.info(f"Logged run {run_id} to experiment '{experiment_name}'")
+            return run_id
+    except Exception as e:
+        logger.warning(f"MLflow logging skipped ({type(e).__name__}: {e}); "
+                       f"training continues and the model is still saved")
+        return ""
 
 
 def get_best_run(resolution: str) -> dict | None:

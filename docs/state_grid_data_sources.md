@@ -20,11 +20,25 @@ static HTML `<table>` · **5-minute** rows · **DISCOM-level** (Delhi + BRPL/BYP
 ---
 
 ## Implementation status (Oct 2026)
-**Built & verified** (`src/data/scrapers/state_sldc.py`, tables `state_demand` / `state_demand_discom`,
-CLI `scripts/collect_states.py`): **Bihar, Punjab, Uttar Pradesh** (Phase 1) + **Karnataka,
-Chhattisgarh** (Phase 2). Karnataka & Bihar carry DISCOM-level breakdowns.
+
+**State registry (read this to classify coverage):** [`src/data/scrapers/states.py`](../src/data/scrapers/states.py)
+enumerates all **36** states/UTs with region, DISCOMs, tier (`direct` / `fallback` / `deferred`), and the
+scraper handling each. Helpers: `direct_states()`, `fallback_states()`, `discom_level_states()`,
+`coverage_summary()`. Current coverage: **6 direct, 29 fallback, 1 deferred.**
+
+**Direct per-state scrapers** (`src/data/scrapers/state_sldc.py`; tables `state_demand` /
+`state_demand_discom`; CLI `scripts/collect_states.py`): **Bihar, Punjab, Uttar Pradesh** (Phase 1) +
+**Karnataka, Chhattisgarh** (Phase 2). Karnataka & Bihar carry DISCOM-level breakdowns. All verified live.
+
+**Universal fallback** (`src/data/scrapers/state_fallback.py`; table `state_psp_daily`): Grid-India daily
+PSP, one row per state per day for **all** states — the source for the 29 fallback states. The table
+parser (`parse_psp_states`) is unit-verified; ⚠️ the live PDF download needs `report.grid-india.in`
+reachable (it was unreachable from the build environment — run from an Indian network, or use the
+Selenium path in `grid_india.py`). Scheduled nightly.
+
 **Deferred: Gujarat** — `RealTime.php` is 403-gated and the homepage live widget was removed; needs the
 official SLDC app API or GETCO access (not scrapable without it).
+
 **TLS:** Bihar & Punjab need `SLDC_INSECURE_TLS=true` (broken gov TLS); UP/Karnataka/Chhattisgarh work as-is.
 
 ## TL;DR acquisition strategy

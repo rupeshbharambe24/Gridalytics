@@ -24,6 +24,7 @@ from src.data.scrapers.open_meteo import OpenMeteoScraper
 from src.data.scrapers.holidays import HolidayScraper
 from src.data.scrapers.aqi import AQIScraper
 from src.data.scrapers.state_sldc import STATE_SCRAPERS, HISTORICAL_STATES
+from src.data.scrapers.state_fallback import GridIndiaStatePSPScraper
 from sqlalchemy import func
 
 logging.basicConfig(
@@ -77,6 +78,24 @@ def scrape_states_latest(days_back: int = 0):
 def scrape_states_backfill():
     """Nightly backfill of the last 3 days for history-capable states (Bihar)."""
     scrape_states_latest(days_back=3)
+
+
+def scrape_state_psp_latest():
+    """Universal fallback: Grid-India daily PSP (per-state demand) for all states.
+
+    Covers the ~29 states/UTs without a per-state SLDC feed, at daily granularity.
+    Fetches the last few days (PSP reports publish with a 1-2 day lag).
+    """
+    logger.info("Starting state PSP (fallback) scrape")
+    scraper = GridIndiaStatePSPScraper()
+    end = date.today() - timedelta(days=1)
+    start = end - timedelta(days=2)
+    try:
+        with get_session() as session:
+            count = scraper.run(start, end, session)
+            logger.info(f"State PSP scrape complete: {count} new rows")
+    except Exception as e:
+        logger.error(f"State PSP scrape failed: {e}")
 
 
 def scrape_weather_latest():
@@ -217,6 +236,7 @@ def run_all_once():
     create_tables()
     scrape_demand_latest()
     scrape_states_latest()
+    scrape_state_psp_latest()
     scrape_weather_latest()
     scrape_weather_forecast()
     scrape_aqi_latest()
@@ -258,6 +278,15 @@ def start_scheduler():
         id="states_backfill",
         name="Multi-State Demand Backfill",
         misfire_grace_time=3600,
+    )
+
+    # Universal fallback: Grid-India per-state daily PSP, nightly (covers all states).
+    scheduler.add_job(
+        scrape_state_psp_latest,
+        CronTrigger(hour=4, minute=30),
+        id="state_psp_fallback",
+        name="State PSP Fallback (all-India daily)",
+        misfire_grace_time=7200,
     )
 
     # Weather archive: daily at 2 AM

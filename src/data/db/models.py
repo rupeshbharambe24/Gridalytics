@@ -81,6 +81,32 @@ class StateDiscomDemandRecord(Base):
     )
 
 
+class StatePSPDaily(Base):
+    """Daily per-state power-supply position (the universal fallback).
+
+    Grid-India's daily PSP report carries one row per state/UT — peak demand met,
+    energy met, and shortage — for **every** Indian state. This is the fallback
+    data source for states that have no scrapable per-state SLDC feed (see
+    src/data/scrapers/state_fallback.py and states.py). Long format, one row per
+    (state_code, date). Daily granularity (peak), not sub-hourly.
+    """
+    __tablename__ = "state_psp_daily"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    state_code = Column(String(20), nullable=False, index=True)
+    date = Column(Date, nullable=False)
+    peak_demand_met_mw = Column(Float)
+    energy_met_mu = Column(Float)
+    shortage_mw = Column(Float)
+    source = Column(String(40), default="grid_india_psp")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("state_code", "date", name="uq_state_psp_state_date"),
+        Index("ix_state_psp_state_date", "state_code", "date"),
+    )
+
+
 class WeatherRecord(Base):
     """Hourly weather data from Open-Meteo."""
     __tablename__ = "weather_hourly"
