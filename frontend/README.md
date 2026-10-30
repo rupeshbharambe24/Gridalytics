@@ -1,6 +1,8 @@
 # Gridalytics Frontend
 
-Next.js 14 (app-router) dashboard for the Gridalytics demand-forecasting API.
+Next.js 14 (app-router) dashboard for Gridalytics — electricity-demand forecasting across
+**India's state power grids**. Includes a state-wise coverage view (`/states`: 36-state map,
+per-state status, demand & analysis) alongside the Delhi forecast/analytics views.
 Built with Tailwind CSS, Recharts, Framer Motion, and shadcn/ui.
 
 ## Develop
