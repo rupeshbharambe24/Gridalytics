@@ -24,7 +24,7 @@ from __future__ import annotations
 import io
 import re
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import pandas as pd
 import requests
@@ -188,6 +188,261 @@ def _num(v) -> float | None:
         return None
 
 
+def _psp_upsert(df: pd.DataFrame, session: Session) -> int:
+    """Shared upsert into state_psp_daily, keyed on (state_code, date).
+
+    Each row must carry state_code, date, peak_demand_met_mw (+ optional
+    energy_met_mu, shortage_mw, source).
+    """
+    if df is None or df.empty:
+        return 0
+    count = 0
+    for _, row in df.iterrows():
+        exists = session.query(StatePSPDaily).filter(
+            StatePSPDaily.state_code == row["state_code"],
+            StatePSPDaily.date == row["date"]).first()
+        if exists:
+            exists.peak_demand_met_mw = row["peak_demand_met_mw"]
+            if row.get("energy_met_mu") is not None:
+                exists.energy_met_mu = row.get("energy_met_mu")
+        else:
+            session.add(StatePSPDaily(
+                state_code=row["state_code"], date=row["date"],
+                peak_demand_met_mw=row["peak_demand_met_mw"],
+                energy_met_mu=row.get("energy_met_mu"),
+                shortage_mw=row.get("shortage_mw"),
+                source=row.get("source", "sldc")))
+            count += 1
+    session.flush()
+    return count
+
+
+def _psp_validate(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame()
+    df = df.dropna(subset=["peak_demand_met_mw"])
+    df = df[(df["peak_demand_met_mw"] > 1) & (df["peak_demand_met_mw"] <= 80000)]
+    return df.drop_duplicates(subset=["state_code", "date"], keep="last").reset_index(drop=True)
+
+
+def odisha_peak(df: pd.DataFrame) -> float | None:
+    """Odisha power-status XLSX: the 'Instantaneous Peak demand' value (MW)."""
+    for r in range(len(df)):
+        for c in range(df.shape[1]):
+            v = df.iat[r, c]
+            if isinstance(v, str) and "instantaneous peak demand" in v.strip().lower():
+                for cc in range(c + 1, df.shape[1]):
+                    n = _num(df.iat[r, cc])
+                    if n is not None and n > 100:
+                        return n
+    return None
+
+
+class OdishaPSPScraper(BaseScraper):
+    """Odisha daily peak from SLDC Odisha's Power-Status-Report XLSX archive.
+
+    The listing page embeds direct .xlsx links for the whole history (~2025+);
+    each file's 'Instantaneous Peak demand' is the day peak. -> state_psp_daily.
+    """
+    LIST_URL = "https://sldcorissa.org.in/report/power-status-report/"
+
+    def __init__(self):
+        super().__init__(name="sldc-odisha-psp", max_retries=2, retry_delay=3.0)
+
+    def scrape(self, start_date: date, end_date: date) -> pd.DataFrame:
+        resp = self._retry_request(requests.get, self.LIST_URL, headers=_UA, timeout=45)
+        if resp.status_code != 200:
+            return pd.DataFrame()
+        pairs = re.findall(
+            r'(https://sldcorissa\.org\.in/[^"\']*Report_Power-Status-Report_(\d{4}-\d{2}-\d{2})[^"\']*\.xlsx)',
+            resp.text)
+        seen, rows = set(), []
+        for url, ds in pairs:
+            if ds in seen:
+                continue
+            seen.add(ds)
+            try:
+                d = datetime.strptime(ds, "%Y-%m-%d").date()
+            except ValueError:
+                continue
+            if d < start_date or d > end_date:
+                continue
+            try:
+                r = self._retry_request(requests.get, url, headers=_UA, timeout=40)
+                if r.status_code == 200 and r.content[:2] == b"PK":
+                    df = pd.read_excel(io.BytesIO(r.content), header=None, engine="openpyxl")
+                    peak = odisha_peak(df)
+                    if peak:
+                        rows.append({"state_code": "odisha", "date": d,
+                                     "peak_demand_met_mw": peak, "source": "sldc_odisha"})
+            except Exception as e:
+                self.logger.warning(f"odisha {ds}: {e}")
+            time.sleep(0.2)
+        return pd.DataFrame(rows)
+
+    def validate(self, df):
+        return _psp_validate(df)
+
+    def upsert(self, df, session):
+        return _psp_upsert(df, session)
+
+
+def himachal_peaks(html: str) -> list[dict]:
+    """HPSLDC block-demand table -> one daily-peak row per date column.
+
+    The table has 96 15-minute blocks (rows) with one column per date; the day
+    peak is the max of that date's column (equals the explicit 'Peak Demand' row).
+    """
+    tabs = pd.read_html(io.StringIO(html))
+    rows = []
+    for t in tabs:
+        if t.shape[0] < 50:
+            continue
+        # only the 96 time-block rows (Block Time like "00:00-00:15") — exclude
+        # any total/sum/energy rows, which would otherwise inflate the max.
+        block_time = t.iloc[:, 1].astype(str)
+        mask = block_time.str.match(r"\s*\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}").fillna(False)
+        if not mask.any():
+            continue
+        for ci in range(2, t.shape[1]):
+            col = t.columns[ci]
+            label = col[-1] if isinstance(col, tuple) else col
+            try:
+                d = datetime.strptime(str(label).strip(), "%Y-%m-%d").date()
+            except ValueError:
+                continue
+            vals = pd.to_numeric(t.iloc[mask.values, ci], errors="coerce").dropna()
+            if len(vals):
+                rows.append({"state_code": "himachal_pradesh", "date": d,
+                             "peak_demand_met_mw": float(vals.max()), "source": "hpsldc"})
+    return rows
+
+
+class HimachalPSPScraper(BaseScraper):
+    """Himachal daily peak from HPSLDC's block-demand admin-ajax endpoint.
+
+    POST action=demand_day_data with seldatagetyr/seldatagetmonth returns a whole
+    month of 15-minute block demand; we take each day's max. History ~FY2017+.
+    (15-min detail is available from the same source if finer resolution is wanted.)
+    -> state_psp_daily.
+    """
+    URL = "https://hpsldc.com/wp-admin/admin-ajax.php"
+
+    def __init__(self):
+        super().__init__(name="hpsldc-psp", max_retries=2, retry_delay=3.0)
+
+    def scrape(self, start_date: date, end_date: date) -> pd.DataFrame:
+        rows: list[dict] = []
+        y, m = start_date.year, start_date.month
+        while (y, m) <= (end_date.year, end_date.month):
+            try:
+                resp = self._retry_request(
+                    requests.post, self.URL, headers=_UA, timeout=40,
+                    data={"action": "demand_day_data", "seldatagetyr": y, "seldatagetmonth": m})
+                if resp.status_code == 200 and resp.text.strip():
+                    for r in himachal_peaks(resp.text):
+                        if start_date <= r["date"] <= end_date:
+                            rows.append(r)
+            except Exception as e:
+                self.logger.warning(f"himachal {y}-{m}: {e}")
+            time.sleep(0.3)
+            m += 1
+            if m > 12:
+                m, y = 1, y + 1
+        return pd.DataFrame(rows)
+
+    def validate(self, df):
+        return _psp_validate(df)
+
+    def upsert(self, df, session):
+        return _psp_upsert(df, session)
+
+
+def maharashtra_peak(content: bytes) -> float | None:
+    """Daily state peak (MW) from a MahaSLDC daily report PDF.
+
+    The 'STATE DEMAND MET' row lists Morning / Day@17 / Evening / Night-min; the
+    day peak is the max of those.
+    """
+    import pdfplumber
+    with pdfplumber.open(io.BytesIO(content)) as pdf:
+        txt = "\n".join((p.extract_text() or "") for p in pdf.pages[:2])
+    for line in txt.split("\n"):
+        if "STATE DEMAND" in line.upper():
+            nums = [n for n in (_num(x) for x in re.findall(r"\d{3,6}(?:\.\d+)?", line))
+                    if n is not None and 1000 < n < 80000]
+            if nums:
+                return max(nums)
+    return None
+
+
+class MaharashtraPSPScraper(BaseScraper):
+    """Maharashtra daily state peak from MahaSLDC's daily report PDFs.
+
+    Uses the site's CodeIgniter report API to resolve each date's PDF URL (naming
+    changed over the years), then extracts the day peak. History ~2014+. The live
+    SCADA view is an image, so these PDFs are the history source. -> state_psp_daily.
+    """
+    REPORTS_PAGE = "https://mahasldc.in/reports/system-operations-daily-reports"
+    API = "https://mahasldc.in/report/fetchReports"
+
+    def __init__(self):
+        super().__init__(name="mahasldc-psp", max_retries=2, retry_delay=3.0)
+        self._sess = requests.Session()
+
+    def _csrf(self) -> str | None:
+        r = self._sess.get(self.REPORTS_PAGE, headers=_UA, timeout=30)
+        m = re.search(r"csrfHash\s*=\s*'([0-9a-f]{32})'", r.text)
+        return m.group(1) if m else None
+
+    def scrape(self, start_date: date, end_date: date) -> pd.DataFrame:
+        rows: list[dict] = []
+        y, m = start_date.year, start_date.month
+        while (y, m) <= (end_date.year, end_date.month):
+            token = self._csrf()  # refresh per month (CodeIgniter rotates it)
+            if token:
+                try:
+                    resp = self._sess.post(self.API, headers={
+                        **_UA, "X-Requested-With": "XMLHttpRequest",
+                        "Referer": self.REPORTS_PAGE, "Origin": "https://mahasldc.in"},
+                        data={"t": "system-operations-daily-reports", "m": m, "y": y,
+                              "w": "", "d": "", "s": "", "lang": "en", "page": 1,
+                              "per_page": 40, "csrf_token": token}, timeout=40)
+                    for rep in resp.json().get("reports", []):
+                        url = rep.get("attachment_url")
+                        dd = rep.get("day") or rep.get("d")
+                        if not url or not dd:
+                            continue
+                        try:
+                            d = date(int(y), int(m), int(dd))
+                        except (ValueError, TypeError):
+                            continue
+                        if d < start_date or d > end_date:
+                            continue
+                        try:
+                            pr = self._sess.get(url, headers=_UA, timeout=40)
+                            if pr.status_code == 200 and pr.content[:4] == b"%PDF":
+                                peak = maharashtra_peak(pr.content)
+                                if peak:
+                                    rows.append({"state_code": "maharashtra", "date": d,
+                                                 "peak_demand_met_mw": peak, "source": "mahasldc"})
+                        except Exception as e:
+                            self.logger.warning(f"maha {d}: {e}")
+                        time.sleep(0.2)
+                except Exception as e:
+                    self.logger.warning(f"maha {y}-{m} list: {e}")
+            m += 1
+            if m > 12:
+                m, y = 1, y + 1
+        return pd.DataFrame(rows)
+
+    def validate(self, df):
+        return _psp_validate(df)
+
+    def upsert(self, df, session):
+        return _psp_upsert(df, session)
+
+
 def parse_telangana(df: pd.DataFrame) -> list[dict]:
     """Parse a TGSLDC power-supply-position .xlsx into daily rows.
 
@@ -284,3 +539,66 @@ class TelanganaPSPScraper(BaseScraper):
                 count += 1
         session.flush()
         return count
+
+
+def kerala_peak(html: str) -> float | None:
+    """KSLDC 'System Statistics' page -> the day's peak demand (MW).
+
+    The page is a dense, malformed stats table where a naive max over 4-digit
+    numbers picks up generation/energy figures (e.g. 6648, above Kerala's ~6033
+    all-time peak). The day's demand snapshots are the only MW values each paired
+    with a grid-frequency reading (~50 Hz), so we scan the compacted numeric
+    stream and keep a value only when the next number is a frequency in 49..51;
+    the peak is the max of those. Verified: 20/10/2026 -> 4733, 29/10/2026 -> 4953.
+    """
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html, "html.parser")
+    seq: list[float] = []
+    for cell in soup.find_all(["td", "th"]):
+        m = re.fullmatch(r"\s*([0-9]{1,5}(?:\.[0-9]+)?)\s*", cell.get_text(" ", strip=True))
+        if m:
+            seq.append(float(m.group(1)))
+    demand = [seq[i] for i in range(len(seq) - 1)
+              if 1500 <= seq[i] <= 5800 and 49.0 <= seq[i + 1] <= 51.0]
+    return max(demand) if demand else None
+
+
+class KeralaPSPScraper(BaseScraper):
+    """Kerala daily peak from KSLDC's 'System Statistics' page.
+
+    http://www.sldckerala.com/index.php?id=1 serves only the *latest* published
+    day (yesterday's full stats) — there is no date archive — so this is a daily
+    *snapshot* collector: each run captures that one day's peak and accumulates
+    history going forward. The page's own 'SYSTEM STATISTICS - FOR DD/MM/YYYY'
+    header dates the row. -> state_psp_daily (source=sldc_kerala).
+    """
+    URL = "http://www.sldckerala.com/index.php?id=1"
+
+    def __init__(self):
+        super().__init__(name="ksldc-psp", max_retries=2, retry_delay=3.0)
+
+    def scrape(self, start_date: date, end_date: date) -> pd.DataFrame:
+        try:
+            resp = self._retry_request(requests.get, self.URL, headers=_UA, timeout=45)
+        except Exception as e:
+            self.logger.warning(f"Kerala fetch failed: {e}")
+            return pd.DataFrame()
+        if resp.status_code != 200:
+            return pd.DataFrame()
+        m = re.search(r"FOR\s+(\d{1,2})/(\d{1,2})/(\d{4})", resp.text)
+        if not m:
+            return pd.DataFrame()
+        d = date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+        if d < start_date or d > end_date:  # snapshot is outside the requested window
+            return pd.DataFrame()
+        peak = kerala_peak(resp.text)
+        if not peak:
+            return pd.DataFrame()
+        return pd.DataFrame([{"state_code": "kerala", "date": d,
+                              "peak_demand_met_mw": peak, "source": "sldc_kerala"}])
+
+    def validate(self, df):
+        return _psp_validate(df)
+
+    def upsert(self, df, session):
+        return _psp_upsert(df, session)

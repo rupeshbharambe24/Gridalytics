@@ -22,3 +22,5 @@ mlflow>=2.11
 optuna>=3.6
 xlrd>=2.0.1
 openpyxl>=3.1
+pdfplumber>=0.11
+lxml>=5.0
