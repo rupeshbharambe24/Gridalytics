@@ -32,14 +32,23 @@ def add_lag_features(df: pd.DataFrame, target: str, resolution: str) -> pd.DataF
 
 
 def add_diff_features(df: pd.DataFrame, target: str, resolution: str) -> pd.DataFrame:
-    """Add demand rate-of-change features (difference from previous timestep)."""
+    """Add demand rate-of-change features (difference ending at the PREVIOUS step).
+
+    Causal by construction: ``y[t-1] - y[t-lag]`` uses only history known before
+    the step being predicted, and exactly matches how the recursive forecast
+    engine computes these at inference (`future.py` uses lag_1 as the "current"
+    proxy). The earlier ``y.diff(lag)`` used the current target ``y[t]`` itself,
+    which leaks the answer into training (inflated CV + train/serve skew).
+    Note: with this definition ``diff_1`` is identically 0 (y[t-1]-y[t-1]) and
+    carries no information — kept only for feature-name stability across models.
+    """
     key_lags = {
         "5min": [1, 288],       # vs 5min ago, vs same time yesterday
         "hourly": [1, 24],      # vs 1h ago, vs same hour yesterday
         "daily": [1, 7],        # vs yesterday, vs same day last week
     }
     for lag in key_lags.get(resolution, [1]):
-        df[f"{target}_diff_{lag}"] = df[target].diff(lag)
+        df[f"{target}_diff_{lag}"] = df[target].shift(1) - df[target].shift(lag)
     return df
 
 

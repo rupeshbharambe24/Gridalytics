@@ -35,13 +35,17 @@ def add_rolling_stats(
 ) -> pd.DataFrame:
     """Add rolling mean, std, min, max for the target variable.
 
-    All rolling windows are backward-looking only (no future data leakage).
-    min_periods=1 ensures we get values even at the start of the series.
+    Causal: the window is shifted by one step (``shift(1)``) so it ends at
+    ``t-1`` and NEVER includes the current target ``y[t]``. This matches the
+    recursive forecast engine, which rolls over history strictly before the
+    step being predicted. The earlier unshifted window included ``y[t]`` in
+    every stat (rmean/rstd/rmin/rmax) — a target leak that inflated CV scores.
+    min_periods=1 ensures we get values even near the start of the series.
     """
     windows = WINDOW_CONFIGS.get(resolution, WINDOW_CONFIGS["hourly"])
 
     for name, size in windows.items():
-        rolling = df[target].rolling(window=size, min_periods=1)
+        rolling = df[target].shift(1).rolling(window=size, min_periods=1)
 
         df[f"{target}_rmean_{name}"] = rolling.mean()
         df[f"{target}_rstd_{name}"] = rolling.std().fillna(0)

@@ -23,22 +23,24 @@
 
 ## Performance
 
-| Model | Resolution | MAPE | RMSE | R2 | Size |
-|:------|:----------|-----:|-----:|---:|-----:|
-| **LightGBM (Optuna)** | **Hourly** | **0.50%** | 24.9 MW | 0.9983 | 15.8 MB |
-| **LightGBM** | **5-Minute** | **0.18%** | 8.6 MW | 0.9997 | 8.1 MB |
-| **XGBoost** | **Hourly** | **0.52%** | 25.3 MW | 0.9987 | 24.5 MB |
-| LightGBM | Hourly | 0.62% | 30.2 MW | 0.9985 | ~5 MB |
-| **LightGBM** | **Daily** | **2.65%** | 96.6 MW | 0.90 | 3.0 MB |
-| SARIMAX | Daily | 4.18% | --- | --- | ~2 MB |
-| BiLSTM | Hourly | 6.66% | 327.2 MW | 0.70 | 0.7 MB |
-| NeuralProphet | Daily | 7.68% | --- | --- | ~5 MB |
+Walk-forward cross-validation, **leak-free** (diff/rolling target features end at `t-1`).
+Headline MAPE is reported next to a **persistence** (repeat-last-value) baseline — the number that
+actually matters for short-term load forecasting.
 
-> All metrics from walk-forward cross-validation (10-12 folds). Real-time prediction tracking: **0.97% avg MAPE** over 29 days.
+| Resolution | Champion | MAPE (leak-free) | Persistence MAPE | RMSE | R² |
+|:--|:--|--:|--:|--:|--:|
+| **Daily (peak)** | LightGBM | **3.92%** | 5.05% | 271.6 MW | 0.69 |
+| **Hourly** | LightGBM | **1.31%** | 3.43% | 95.8 MW | 0.98 |
+| **5-minute** | LightGBM | _re-running_ | 0.68% | — | — |
+
+> **Correction (Oct 2026).** Earlier headline figures (0.18% / 0.50% / 2.65%) were **inflated by a
+> target leak**: the `diff` and rolling features were computed from the value being predicted, so the
+> model effectively saw the answer during training. After fixing it (features now end at `t-1`) and
+> repairing date-integrity issues in the data, the champions **still beat persistence at every
+> resolution**, by a smaller, honest margin. The 5-minute model is being re-measured.
 >
-> **vs Previous System:** 137x better accuracy, 49x smaller models, proper methodology (no data leakage).
->
-> SARIMAX/ARIMA now consume the full 93-feature exogenous set and NeuralProphet is fully wired — see [docs/classical_models.md](docs/classical_models.md) for the updated walk-forward eval.
+> Classical challengers (SARIMAX / ARIMA / NeuralProphet / BiLSTM) are weaker and kept for diversity —
+> see [docs/classical_models.md](docs/classical_models.md).
 
 ---
 

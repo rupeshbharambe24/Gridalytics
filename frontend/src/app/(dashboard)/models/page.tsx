@@ -11,10 +11,10 @@ import { getModelPerformance, getAvailableModels } from "@/lib/api";
 // are daily walk-forward evals of the CURRENT full-feature versions — see
 // docs/classical_models.md. They add modelling diversity, not accuracy.
 const CV_METRICS: Record<string, { mape: string; rmse: string; r2: string; folds: number; type: string }> = {
-  "5min_lightgbm": { mape: "0.18%", rmse: "8.6 MW", r2: "0.9997", folds: 10, type: "Gradient Boosting" },
-  "hourly_xgboost": { mape: "0.52%", rmse: "25.3 MW", r2: "0.9987", folds: 12, type: "Gradient Boosting" },
-  "hourly_lightgbm": { mape: "0.62%", rmse: "30.2 MW", r2: "0.9985", folds: 12, type: "Gradient Boosting" },
-  "daily_lightgbm": { mape: "2.65%", rmse: "96.6 MW", r2: "0.8997", folds: 12, type: "Gradient Boosting" },
+  "5min_lightgbm": { mape: "—", rmse: "—", r2: "—", folds: 10, type: "Gradient Boosting (re-measuring, leak-free)" },
+  "hourly_xgboost": { mape: "1.32%", rmse: "97.9 MW", r2: "0.9775", folds: 12, type: "Gradient Boosting" },
+  "hourly_lightgbm": { mape: "1.31%", rmse: "95.8 MW", r2: "0.9782", folds: 12, type: "Gradient Boosting" },
+  "daily_lightgbm": { mape: "3.92%", rmse: "271.6 MW", r2: "0.6873", folds: 12, type: "Gradient Boosting" },
   "daily_neuralprophet": { mape: "6.60%", rmse: "391.9 MW", r2: "0.6075", folds: 0, type: "Neural + Decomposition" },
   "hourly_lstm": { mape: "3.76%", rmse: "258.4 MW", r2: "0.9047", folds: 0, type: "Deep Learning (PyTorch)" },
   "daily_sarimax": { mape: "5.32%", rmse: "323.1 MW", r2: "0.7332", folds: 0, type: "Classical (SARIMAX + 66 exog)" },
