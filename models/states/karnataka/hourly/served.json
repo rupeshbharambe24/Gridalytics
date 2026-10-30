@@ -1,0 +1,9 @@
+{
+  "state": "karnataka",
+  "resolution": "hourly",
+  "served_model": "LightGBM",
+  "champion": "XGBoost",
+  "champion_cv_mape": 2.461,
+  "persistence_mape": 4.698,
+  "features": 90
+}
