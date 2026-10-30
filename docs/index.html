@@ -1,0 +1,482 @@
+<title>Gridalytics Pipeline</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single vertical "data spine" — stations wired by an animated conduit,
+   with an interactive state map and a model-competition leaderboard hung off it. */
+:root{
+  --bg:#f5f7fa; --surface:#ffffff; --surface-2:#eef1f6; --fg:#101620; --muted:#59636f;
+  --border:#dce2ea; --accent:#bd6a05; --accent-2:#0c837c; --grid:rgba(16,22,32,.06);
+  --ok:#1f9d55; --warn:#b9760a; --crit:#cf3f39; --flow:#bd6a05;
+  --shadow:0 1px 2px rgba(16,22,32,.05),0 8px 24px rgba(16,22,32,.06);
+  --font-display:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  --font-body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --r:14px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c121b; --surface:#141c28; --surface-2:#1a2433; --fg:#e9eff7; --muted:#95a2b4;
+  --border:#263243; --accent:#f7a83a; --accent-2:#3ad2c7; --grid:rgba(255,255,255,.05);
+  --ok:#34d17f; --warn:#f2b43a; --crit:#f26b63; --flow:#f7a83a;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0c121b; --surface:#141c28; --surface-2:#1a2433; --fg:#e9eff7; --muted:#95a2b4;
+  --border:#263243; --accent:#f7a83a; --accent-2:#3ad2c7; --grid:rgba(255,255,255,.05);
+  --ok:#34d17f; --warn:#f2b43a; --crit:#f26b63; --flow:#f7a83a;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);line-height:1.55;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden}
+.wrap{max-width:1080px;margin:0 auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;line-height:1.15}
+a{color:var(--accent)}
+.mono{font-family:var(--font-mono)}
+.eyebrow{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
+.muted{color:var(--muted)}
+
+/* ── top bar ── */
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);
+  background:var(--bg);z-index:30}
+header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.bar .wrap{display:flex;align-items:center;gap:12px;padding-block:11px}
+.logo{display:flex;align-items:center;gap:9px;font-family:var(--font-display);font-weight:700;letter-spacing:-.01em}
+.spark{width:22px;height:22px;flex:none}
+.bar nav{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+.bar nav a{font-size:.8rem;color:var(--muted);text-decoration:none;padding:5px 9px;border-radius:8px}
+.bar nav a:hover{color:var(--fg);background:var(--surface-2)}
+.tog{margin-left:6px;border:1px solid var(--border);background:var(--surface);color:var(--fg);
+  width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:.95rem;flex:none}
+@media(max-width:640px){.bar nav{display:none}}
+
+/* ── hero ── */
+.hero{padding-block:52px 30px;position:relative}
+.hero h1{font-size:clamp(2.2rem,6.5vw,3.9rem);font-weight:700;letter-spacing:-.025em}
+.hero h1 .amp{color:var(--accent)}
+.hero p.lede{font-size:clamp(1.02rem,2.4vw,1.2rem);color:var(--muted);max-width:60ch;margin-top:16px}
+.stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 15px;min-width:0}
+.stat b{font-family:var(--font-mono);font-size:1.45rem;font-weight:500;display:block;font-variant-numeric:tabular-nums}
+.stat span{font-size:.74rem;color:var(--muted);letter-spacing:.03em}
+.hero .note{margin-top:18px;font-size:.82rem;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 25%,transparent)}
+
+/* ── pipeline spine ── */
+.flow{position:relative;padding-block:14px 30px}
+.flow h2{font-size:1.9rem;font-weight:700;letter-spacing:-.02em}
+.flow>.wrap>p.sub{color:var(--muted);max-width:62ch;margin:8px 0 26px}
+.spine{position:relative;display:flex;flex-direction:column;gap:14px;padding-left:46px}
+.conduit{position:absolute;left:17px;top:6px;bottom:6px;width:2px;background:var(--grid);overflow:hidden}
+.conduit::after{content:"";position:absolute;left:-1px;top:0;width:4px;height:34%;border-radius:4px;
+  background:linear-gradient(var(--flow),transparent);animation:drip 3.4s linear infinite}
+@keyframes drip{0%{top:-34%}100%{top:100%}}
+.station{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  box-shadow:var(--shadow);overflow:hidden}
+.station>button{all:unset;display:flex;gap:14px;align-items:flex-start;width:100%;cursor:pointer;padding:16px 18px;box-sizing:border-box}
+.station>button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.node{position:absolute;left:-39px;top:18px;width:36px;height:36px;border-radius:50%;background:var(--surface);
+  border:2px solid var(--accent);display:grid;place-items:center;font-family:var(--font-mono);font-weight:500;
+  font-size:.9rem;color:var(--accent);z-index:2}
+.st-head{flex:1;min-width:0}
+.st-head h3{font-size:1.12rem;font-weight:600;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.st-head p{margin:5px 0 0;color:var(--muted);font-size:.9rem}
+.chev{flex:none;color:var(--muted);transition:transform .25s;margin-top:3px}
+.station[aria-open="true"] .chev{transform:rotate(90deg)}
+.tag{font-family:var(--font-mono);font-size:.66rem;padding:2px 7px;border-radius:999px;border:1px solid var(--border);
+  color:var(--muted);letter-spacing:.02em;white-space:nowrap}
+.tag.a{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 40%,var(--border))}
+.body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s ease}
+.station[aria-open="true"] .body{grid-template-rows:1fr}
+.body>div{overflow:hidden;min-height:0}
+.body-in{padding:0 18px 18px 18px;border-top:1px solid var(--border);margin-top:2px}
+.body-in>.lead{color:var(--muted);font-size:.9rem;margin:14px 0 14px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.cardlet{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:11px 13px;min-width:0}
+.cardlet .t{font-family:var(--font-mono);font-size:.78rem;color:var(--fg);font-weight:500;word-break:break-word}
+.cardlet .d{font-size:.8rem;color:var(--muted);margin-top:4px}
+.toolrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;align-items:center}
+.toolrow .lbl{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+.chip{font-family:var(--font-mono);font-size:.72rem;padding:3px 9px;border-radius:7px;background:var(--surface);
+  border:1px solid var(--border);color:var(--fg)}
+.chip.k{border-color:color-mix(in srgb,var(--accent-2) 45%,var(--border));color:var(--accent-2)}
+
+/* ── sections ── */
+section.band{padding-block:34px}
+section.band>.wrap>.eyebrow{display:block;margin-bottom:6px}
+section.band h2{font-size:1.7rem;font-weight:700;letter-spacing:-.02em}
+section.band>.wrap>p.sub{color:var(--muted);max-width:62ch;margin:8px 0 22px}
+
+/* state map */
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:16px;font-size:.78rem}
+.legend span{display:inline-flex;align-items:center;gap:7px;color:var(--muted)}
+.sw{width:12px;height:12px;border-radius:4px;flex:none;border:1px solid var(--border)}
+.sw.direct{background:var(--accent)}.sw.fallback{background:var(--surface-2)}.sw.deferred{background:transparent;border-style:dashed}
+.maplayout{display:grid;grid-template-columns:1fr;gap:16px}
+@media(min-width:780px){.maplayout{grid-template-columns:1fr 290px;align-items:start}}
+.regions{display:flex;flex-direction:column;gap:16px}
+.region h4{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:500}
+.states{display:flex;flex-wrap:wrap;gap:7px}
+.state{font-family:var(--font-mono);font-size:.74rem;padding:5px 10px;border-radius:8px;cursor:pointer;
+  border:1px solid var(--border);background:var(--surface);color:var(--fg);transition:transform .12s,border-color .12s}
+.state:hover{transform:translateY(-1px);border-color:var(--accent)}
+.state[data-tier="direct"]{border-color:color-mix(in srgb,var(--accent) 55%,var(--border));
+  background:color-mix(in srgb,var(--accent) 12%,var(--surface))}
+.state[data-tier="deferred"]{border-style:dashed;color:var(--muted)}
+.state.sel{outline:2px solid var(--accent);outline-offset:1px}
+.state .lv{color:var(--accent-2);font-size:.64rem}
+.detail{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;position:sticky;top:76px;box-shadow:var(--shadow)}
+.detail h4{font-size:1.1rem;font-weight:600;margin-bottom:2px}
+.detail .reg{font-size:.76rem;color:var(--muted);font-family:var(--font-mono)}
+.detail dl{display:grid;grid-template-columns:auto 1fr;gap:7px 12px;margin:14px 0 0;font-size:.82rem}
+.detail dt{color:var(--muted)}.detail dd{margin:0;word-break:break-word}
+.detail .pill{display:inline-block;font-family:var(--font-mono);font-size:.68rem;padding:2px 8px;border-radius:999px}
+.pill.direct{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent)}
+.pill.fallback{background:var(--surface-2);color:var(--muted)}
+.pill.deferred{border:1px dashed var(--border);color:var(--muted)}
+
+/* leaderboard */
+.board{display:flex;flex-direction:column;gap:18px}
+.res{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow)}
+.res>.rh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.res h4{font-size:1.05rem;font-weight:600}
+.res .rh .mono{color:var(--muted);font-size:.78rem}
+.bars{display:flex;flex-direction:column;gap:9px}
+.row{display:grid;grid-template-columns:132px 1fr;gap:10px;align-items:center;min-width:0}
+@media(max-width:520px){.row{grid-template-columns:96px 1fr}}
+.row .nm{font-size:.82rem;display:flex;align-items:center;gap:6px;min-width:0}
+.row .nm b{font-weight:600}
+.track{position:relative;background:var(--surface-2);border-radius:7px;height:26px;overflow:hidden}
+.fill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:7px;transition:width 1.1s cubic-bezier(.22,.61,.36,1);
+  display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-family:var(--font-mono);font-size:.74rem;color:#fff;white-space:nowrap}
+.fill.champ{background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 70%,#fff))}
+.fill.chall{background:color-mix(in srgb,var(--accent-2) 70%,var(--surface-2))}
+.fill.base{background:var(--muted)}
+.crown{color:var(--accent)}
+.pend{position:absolute;inset:0;display:flex;align-items:center;padding-left:10px;font-family:var(--font-mono);
+  font-size:.72rem;color:var(--muted);font-style:italic;
+  background:repeating-linear-gradient(45deg,var(--surface-2),var(--surface-2) 7px,transparent 7px,transparent 14px)}
+.res .foot{margin-top:12px;font-size:.78rem;color:var(--muted);border-top:1px dashed var(--border);padding-top:10px}
+.badge{font-family:var(--font-mono);font-size:.64rem;padding:1px 6px;border-radius:5px;border:1px solid var(--border);color:var(--muted)}
+
+/* roster */
+.roster{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:4px}
+.mcard{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:12px 13px;box-shadow:var(--shadow)}
+.mcard .role{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase}
+.mcard.ch .role{color:var(--accent)}.mcard.cl .role{color:var(--accent-2)}
+.mcard b{display:block;font-size:.98rem;font-weight:600;margin:3px 0 4px}
+.mcard p{margin:0;font-size:.78rem;color:var(--muted)}
+
+/* outcome grid */
+.out{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.ocard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:15px 16px;box-shadow:var(--shadow)}
+.ocard h4{font-size:1rem;font-weight:600;display:flex;gap:8px;align-items:center}
+.ocard p{margin:7px 0 0;font-size:.84rem;color:var(--muted)}
+.ico{width:18px;height:18px;flex:none;color:var(--accent)}
+
+footer{border-top:1px solid var(--border);padding-block:26px 40px;margin-top:20px}
+footer .wrap{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;font-size:.8rem;color:var(--muted)}
+footer .mono{color:var(--fg)}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.fill{transition:none!important}}
+</style>
+
+<header class="bar"><div class="wrap">
+  <span class="logo"><svg class="spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>Gridalytics</span>
+  <nav>
+    <a href="#sources">Sources</a><a href="#pipeline">Pipeline</a><a href="#states">States</a>
+    <a href="#models">Models</a><a href="#outcome">Outcome</a><a href="#stack">Stack</a>
+  </nav>
+  <button class="tog" id="tog" aria-label="Toggle light / dark theme" title="Toggle theme">◐</button>
+</div></header>
+
+<section class="hero"><div class="wrap">
+  <p class="eyebrow">AI grid intelligence · Delhi → all-India</p>
+  <h1>Forecasting the <span class="amp">power demand</span> of the Indian grid.</h1>
+  <p class="lede">Gridalytics turns free, public grid telemetry into live electricity-demand forecasts — at 5-minute, hourly and daily resolution — and scales the same pipeline from the Delhi grid to every Indian state.</p>
+  <div class="stats" id="stats"></div>
+  <p class="note"><span class="dot"></span> Champion models are leak-free and reported against a persistence baseline — honest numbers, no inflated accuracy.</p>
+</div></section>
+
+<section class="flow" id="pipeline"><div class="wrap">
+  <p class="eyebrow">End to end</p>
+  <h2>How a megawatt becomes a forecast</h2>
+  <p class="sub">Seven stations, one direction. Each stage is a code package you can open; the toolchain that does the work is tagged at every step. Tap a station to expand.</p>
+  <div class="spine" id="spine"><div class="conduit"></div></div>
+</div></section>
+
+<section class="band" id="states"><div class="wrap">
+  <span class="eyebrow">State-wise coverage</span>
+  <h2>One registry, 36 states &amp; UTs</h2>
+  <p class="sub"><code class="mono">src/data/scrapers/states.py</code> maps every state to its regional grid, DISCOMs, data source and the scraper that handles it. Tap a state to inspect it.</p>
+  <div class="legend">
+    <span><i class="sw direct"></i> Direct scraper (6)</span>
+    <span><i class="sw fallback"></i> National fallback (29)</span>
+    <span><i class="sw deferred"></i> Deferred (1)</span>
+    <span><i class="sw" style="background:var(--accent-2)"></i> DISCOM-level</span>
+  </div>
+  <div class="maplayout">
+    <div class="regions" id="regions"></div>
+    <aside class="detail" id="stateDetail"><h4>Pick a state</h4><p class="muted" style="font-size:.84rem;margin-top:8px">Delhi, Bihar and Karnataka stream a per-DISCOM breakdown; the rest resolve to the national daily PSP fallback until a direct feed exists.</p></aside>
+  </div>
+</div></section>
+
+<section class="band" id="models"><div class="wrap">
+  <span class="eyebrow">Champion / challenger</span>
+  <h2>Models race on walk-forward CV</h2>
+  <p class="sub">Every retrain runs the same back-tested contest per resolution; the lowest-MAPE model becomes champion. Bars show mean cross-validated error (shorter is better) against the persistence baseline a forecast must beat.</p>
+  <div class="board" id="board"></div>
+  <h3 style="font-size:1.05rem;font-weight:600;margin:26px 0 10px">The roster</h3>
+  <div class="roster" id="roster"></div>
+</div></section>
+
+<section class="band" id="outcome"><div class="wrap">
+  <span class="eyebrow">What comes out</span>
+  <h2>From champion to control room</h2>
+  <p class="sub">The chosen models serve multi-horizon forecasts through an API and a live dashboard — all on free-tier infrastructure.</p>
+  <div class="out" id="out"></div>
+</div></section>
+
+<section class="band" id="stack"><div class="wrap">
+  <span class="eyebrow">The toolchain</span>
+  <h2>What's doing the work</h2>
+  <p class="sub">Every layer leans on one job-specific tool. These are the ones carrying the pipeline.</p>
+  <div class="roster" id="stack-grid"></div>
+</div></section>
+
+<footer><div class="wrap">
+  <span>Gridalytics · open pipeline for Indian grid-demand forecasting</span>
+  <span class="mono">main · 5-min · hourly · daily · $0/mo infra</span>
+</div></footer>
+
+<script>
+/* ---- theme toggle (per-viewer convenience) ---- */
+(function(){
+  var root=document.documentElement, t=document.getElementById('tog');
+  try{var s=localStorage.getItem('gx-theme'); if(s) root.setAttribute('data-theme',s);}catch(e){}
+  t.addEventListener('click',function(){
+    var cur=root.getAttribute('data-theme');
+    var dark=cur?cur==='dark':matchMedia('(prefers-color-scheme:dark)').matches;
+    var next=dark?'light':'dark'; root.setAttribute('data-theme',next);
+    try{localStorage.setItem('gx-theme',next);}catch(e){}
+  });
+})();
+
+/* ---- hero stats ---- */
+var STATS=[['36','states & UTs mapped'],['6','direct scrapers live'],['~93','engineered features'],
+  ['3','forecast resolutions'],['3.92%','daily champion MAPE'],['$0','monthly infra cost']];
+document.getElementById('stats').innerHTML=STATS.map(function(s){
+  return '<div class="stat"><b>'+s[0]+'</b><span>'+s[1]+'</span></div>';}).join('');
+
+/* ---- pipeline stations ---- */
+var STAGES=[
+ {n:1,t:'Sources',tag:'public · free',d:'Grid telemetry + weather + calendar, from open sources only — $0 data cost.',
+  lead:'Demand comes from State Load Despatch Centres (SLDCs); everything else is weather, air quality and the festival calendar that move it.',
+  items:[['SLDC load','Per-state demand (Delhi + DISCOMs, 5-min; most states via Grid-India PSP).'],
+   ['Open-Meteo','Hourly weather + 16-day forecast + AQI, by lat/long — scales to any state free.'],
+   ['Grid-India PSP','Daily power-supply position: one row per state — the universal fallback.'],
+   ['Holidays','Indian national holidays + curated festivals (Diwali, Holi, Eid, IPL).']],
+  tools:['delhisldc.org','report.grid-india.in','open-meteo.com','python-holidays']},
+ {n:2,t:'Scrapers',tag:'src/data/scrapers',d:'One package per source type, each normalising to a common shape.',
+  lead:'Collectors are small, resilient and source-shaped: JSON APIs, server-rendered HTML, PDF reports. They retry, de-duplicate and fail safe.',
+  items:[['sldc.py','Delhi 5-min HTML table, by-date.'],
+   ['state_sldc.py','Bihar/Punjab/UP (JSON) + Karnataka/Chhattisgarh (HTML); shared validate + dedupe upsert.'],
+   ['state_fallback.py','Grid-India daily PSP parsed for all states → state_psp_daily.'],
+   ['open_meteo.py · aqi.py','Weather, forecast and AQI from the Open-Meteo APIs.']],
+  tools:['requests','httpx','BeautifulSoup','pdfplumber','legacy-TLS adapter']},
+ {n:3,t:'Storage',tag:'SQLite → Supabase',d:'Typed, de-duplicated rows in a schema that is migrated, not hand-edited.',
+  lead:'Delhi keeps a wide 5-min table; new states use long-format tables keyed by state_code, so one schema holds the whole country.',
+  items:[['demand_5min','Delhi wide table: delhi_mw + 5 DISCOM columns, 5-min.'],
+   ['state_demand (+_discom)','Long format, any state; per-DISCOM split where available.'],
+   ['state_psp_daily','Daily per-state peak demand / energy / shortage (fallback).'],
+   ['weather_hourly · aqi_daily · holidays','Aligned exogenous drivers.']],
+  tools:['SQLAlchemy','SQLite','PostgreSQL / Supabase','Alembic']},
+ {n:4,t:'Features',tag:'~93 columns',d:'Leak-free feature engineering across temporal, weather and calendar signals.',
+  lead:'The pipeline builds lags, differences, rolling stats, weather-derived stress and cyclical/Fourier seasonality — all strictly causal (ending at t−1), so the model never sees the value it predicts.',
+  items:[['Temporal','Lags (t-1 … t-7d), causal diffs, rolling mean/std/min/max shifted to t−1.'],
+   ['Weather-derived','CDD/HDD, heat index, temp² and interactions.'],
+   ['Seasonality','Sin/cos hour-day-month + Fourier terms.'],
+   ['Calendar','Holiday/festival flags, AQI, optional event-effect.']],
+  tools:['pandas','numpy','walk-forward CV','no target leakage']},
+ {n:5,t:'Training',tag:'champion / challenger',d:'Several model families compete on the same back-test; lowest CV MAPE wins.',
+  lead:'LightGBM and XGBoost lead; SARIMAX, ARIMA, NeuralProphet and a BiLSTM run as challengers for diversity. Each resolution picks its own champion.',
+  items:[['Gradient boosting','LightGBM + XGBoost — the usual winners.'],
+   ['Classical','SARIMAX / ARIMA on 66 exogenous drivers (target-history excluded).'],
+   ['Neural','NeuralProphet decomposition + a PyTorch BiLSTM.'],
+   ['Selection','Walk-forward CV, 10-12 folds; champion saved, run logged.']],
+  tools:['LightGBM','XGBoost','statsmodels','NeuralProphet','PyTorch','Optuna','MLflow (best-effort)']},
+ {n:6,t:'Forecast engine',tag:'recursive · leakage-free',d:'Rolls predictions forward step by step, up to 90 days.',
+  lead:'The engine extends history with its own predictions to build each next feature row — the same causal recipe as training — and supports as-of back-tests and what-if overrides.',
+  items:[['Recursive horizon','Day-ahead to 90 days, per resolution.'],
+   ['as_of back-test','Reconstruct any past day using only prior data.'],
+   ['What-if','Override temperature, humidity, AQI, holiday flags.'],
+   ['Intervals','Point + lower/upper bands.']],
+  tools:['src/forecasting/future.py','prediction tracker','drift detection']},
+ {n:7,t:'Serving & outcome',tag:'API + dashboard',d:'Multi-resolution forecasts through FastAPI and a live Next.js control room.',
+  lead:'~25 endpoints feed a dashboard with live demand, DISCOM breakdown, model comparison, what-if explorer and an accuracy tracker — auto-collected every 6 hours, retrained weekly.',
+  items:[['FastAPI','Forecast, peak, ranges, DISCOM, what-if, admin.'],
+   ['Next.js dashboard','Live demand, seasonal analytics, drift alerts.'],
+   ['Automation','GitHub Actions cron collection; weekly retrain.'],
+   ['Deploy','Vercel + Render + Supabase + Actions — $0/month.']],
+  tools:['FastAPI','Next.js','Recharts','APScheduler','Docker','GitHub Actions']},
+];
+document.getElementById('spine').insertAdjacentHTML('beforeend',STAGES.map(function(s){
+ return '<div class="station" aria-open="false"><span class="node">'+s.n+'</span>'+
+  '<button aria-expanded="false"><span class="st-head"><h3>'+s.t+' <span class="tag a">'+s.tag+'</span></h3>'+
+  '<p>'+s.d+'</p></span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></button>'+
+  '<div class="body"><div><div class="body-in"><p class="lead">'+s.lead+'</p>'+
+  '<div class="kv">'+s.items.map(function(i){return '<div class="cardlet"><div class="t">'+i[0]+'</div><div class="d">'+i[1]+'</div></div>';}).join('')+'</div>'+
+  '<div class="toolrow"><span class="lbl">tools</span>'+s.tools.map(function(t){return '<span class="chip k">'+t+'</span>';}).join('')+'</div>'+
+  '</div></div></div></div>';
+}).join(''));
+Array.prototype.forEach.call(document.querySelectorAll('.station>button'),function(b){
+  b.addEventListener('click',function(){
+    var st=b.closest('.station'),open=st.getAttribute('aria-open')==='true';
+    st.setAttribute('aria-open',String(!open));b.setAttribute('aria-expanded',String(!open));
+  });
+});
+
+/* ---- states ---- */
+var D='direct',F='fallback',X='deferred';
+var ST=[
+ {c:'Delhi',r:'Northern',t:D,m:'5-min HTML',s:'delhisldc.org',sc:'SLDCScraper',dc:'BRPL · BYPL · NDPL · NDMC · MES',L:1},
+ {c:'Punjab',r:'Northern',t:D,m:'JSON API',s:'sldcapi.pstcl.org',sc:'PunjabSLDCScraper',dc:'single (PSPCL)'},
+ {c:'Uttar Pradesh',r:'Northern',t:D,m:'JSON',s:'upsldc.org',sc:'UPSLDCScraper',dc:'5 DISCOMs (state total)'},
+ {c:'Haryana',r:'Northern',t:F,m:'PSP',s:'Grid-India',sc:'fallback',dc:'UHBVN · DHBVN'},
+ {c:'Rajasthan',r:'Northern',t:F,m:'PSP',s:'Grid-India',sc:'fallback',dc:'JVVNL · AVVNL · JdVVNL'},
+ {c:'Himachal Pradesh',r:'Northern',t:F,m:'JS dashboard',s:'hpsldc.com',sc:'fallback',dc:'single'},
+ {c:'Uttarakhand',r:'Northern',t:F,m:'PSP',s:'Grid-India',sc:'fallback',dc:'single'},
+ {c:'Jammu & Kashmir',r:'Northern',t:F,m:'PSP',s:'Grid-India',sc:'fallback',dc:'JPDCL · KPDCL'},
+ {c:'Ladakh',r:'Northern',t:F,m:'none yet',s:'SLDC under construction',sc:'fallback',dc:'single'},
+ {c:'Chandigarh',r:'Northern',t:F,m:'PSP',s:'Grid-India',sc:'fallback',dc:'CPDL'},
+ {c:'Karnataka',r:'Southern',t:D,m:'HTML',s:'kptclsldc.in',sc:'KarnatakaSLDCScraper',dc:'BESCOM · HESCOM · GESCOM · CESC · MESCOM',L:1},
+ {c:'Telangana',r:'Southern',t:F,m:'reports',s:'tgsldc.in',sc:'fallback',dc:'TGSPDCL · TGNPDCL'},
+ {c:'Kerala',r:'Southern',t:F,m:'reports',s:'sldckerala.com',sc:'fallback',dc:'single (KSEB)'},
+ {c:'Tamil Nadu',r:'Southern',t:F,m:'PSP',s:'Grid-India',sc:'fallback',dc:'single'},
+ {c:'Andhra Pradesh',r:'Southern',t:F,m:'PSP',s:'Grid-India',sc:'fallback',dc:'APEPDCL · APSPDCL · APCPDCL'},
+ {c:'Puducherry',r:'Southern',t:F,m:'PSP',s:'Grid-India',sc:'fallback',dc:'single'},
+ {c:'Lakshadweep',r:'Southern',t:F,m:'none',s:'isolated grid',sc:'fallback',dc:'single'},
+ {c:'Maharashtra',r:'Western',t:F,m:'reports / OCR',s:'mahasldc.in',sc:'fallback',dc:'MSEDCL · Tata · Adani · BEST'},
+ {c:'Gujarat',r:'Western',t:X,m:'access-gated',s:'sldcguj.com',sc:'— (deferred)',dc:'UGVCL · MGVCL · PGVCL · DGVCL'},
+ {c:'Madhya Pradesh',r:'Western',t:F,m:'PSP',s:'Grid-India',sc:'fallback',dc:'3 DISCOMs'},
+ {c:'Chhattisgarh',r:'Western',t:D,m:'HTML',s:'sldccg.com',sc:'ChhattisgarhSLDCScraper',dc:'CSPDCL'},
+ {c:'Goa',r:'Western',t:F,m:'PSP',s:'Grid-India',sc:'fallback',dc:'single'},
+ {c:'DNH & DD',r:'Western',t:F,m:'PSP',s:'Grid-India',sc:'fallback',dc:'DNHPDCL'},
+ {c:'Bihar',r:'Eastern',t:D,m:'JSON API',s:'sldc.bsptcl.co.in',sc:'BiharSLDCScraper',dc:'NBPDCL · SBPDCL',L:1},
+ {c:'Odisha',r:'Eastern',t:F,m:'reports',s:'sldcorissa.org.in',sc:'fallback',dc:'4 Tata-Power DISCOMs'},
+ {c:'West Bengal',r:'Eastern',t:F,m:'reports',s:'wbsldc.in',sc:'fallback',dc:'WBSEDCL · CESC · DPL'},
+ {c:'Jharkhand',r:'Eastern',t:F,m:'PSP',s:'Grid-India',sc:'fallback',dc:'JBVNL'},
+ {c:'Sikkim',r:'Eastern',t:F,m:'PSP',s:'Grid-India',sc:'fallback',dc:'single'},
+ {c:'Assam',r:'North-Eastern',t:F,m:'PSP',s:'Grid-India',sc:'fallback',dc:'APDCL'},
+ {c:'Meghalaya',r:'North-Eastern',t:F,m:'PSP',s:'Grid-India',sc:'fallback',dc:'MePDCL'},
+ {c:'Tripura',r:'North-Eastern',t:F,m:'PSP',s:'Grid-India',sc:'fallback',dc:'single'},
+ {c:'Manipur',r:'North-Eastern',t:F,m:'PSP',s:'Grid-India',sc:'fallback',dc:'MSPDCL'},
+ {c:'Mizoram',r:'North-Eastern',t:F,m:'PSP',s:'Grid-India',sc:'fallback',dc:'single'},
+ {c:'Nagaland',r:'North-Eastern',t:F,m:'PSP',s:'Grid-India',sc:'fallback',dc:'single'},
+ {c:'Arunachal Pradesh',r:'North-Eastern',t:F,m:'PSP',s:'Grid-India',sc:'fallback',dc:'single'},
+ {c:'Andaman & Nicobar',r:'North-Eastern',t:F,m:'none',s:'isolated grid',sc:'fallback',dc:'single'},
+];
+var REG=['Northern','Western','Southern','Eastern','North-Eastern'];
+document.getElementById('regions').innerHTML=REG.map(function(rg){
+ var cells=ST.filter(function(s){return s.r===rg;}).map(function(s,i){
+   var idx=ST.indexOf(s);
+   return '<button class="state" data-tier="'+s.t+'" data-i="'+idx+'">'+s.c+(s.L?' <span class="lv">◆</span>':'')+'</button>';
+ }).join('');
+ return '<div class="region"><h4>'+rg+' grid</h4><div class="states">'+cells+'</div></div>';
+}).join('');
+var TIERLABEL={direct:'Direct scraper',fallback:'National fallback',deferred:'Deferred'};
+function showState(i){
+ var s=ST[i],el=document.getElementById('stateDetail');
+ el.innerHTML='<h4>'+s.c+(s.L?' <span class="lv" style="font-size:.8rem;color:var(--accent-2)">◆ DISCOM-level</span>':'')+'</h4>'+
+  '<div class="reg">'+s.r+' regional grid</div>'+
+  '<dl><dt>Tier</dt><dd><span class="pill '+s.t+'">'+TIERLABEL[s.t]+'</span></dd>'+
+  '<dt>Method</dt><dd class="mono">'+s.m+'</dd>'+
+  '<dt>Source</dt><dd class="mono">'+s.s+'</dd>'+
+  '<dt>Scraper</dt><dd class="mono">'+s.sc+'</dd>'+
+  '<dt>DISCOMs</dt><dd>'+s.dc+'</dd></dl>';
+ Array.prototype.forEach.call(document.querySelectorAll('.state'),function(b){b.classList.toggle('sel',b.dataset.i==String(i));});
+}
+document.getElementById('regions').addEventListener('click',function(e){
+ var b=e.target.closest('.state'); if(b) showState(+b.dataset.i);
+});
+showState(0); /* open on Delhi so the panel is never empty */
+
+/* ---- model leaderboard ---- */
+var BOARD=[
+ {res:'Daily (peak)',unit:'mean CV MAPE · lower is better',rows:[
+   {n:'LightGBM',cls:'champ',v:3.92,champ:1},{n:'XGBoost',cls:'chall',v:3.97},
+   {n:'Persistence',cls:'base',v:5.05,base:1}],max:6,
+   foot:'Champion beats the repeat-last-value baseline. Was an inflated 1.08% before a target leak in diff/rolling features was fixed.'},
+ {res:'Hourly',unit:'mean CV MAPE · lower is better',rows:[
+   {n:'LightGBM',cls:'champ',v:1.31,champ:1},{n:'XGBoost',cls:'chall',v:1.32},
+   {n:'Persistence',cls:'base',v:3.43,base:1}],max:4,
+   foot:'R² ≈ 0.98 on hold-out. Leak-free, down from an inflated 0.50%.'},
+ {res:'5-minute',unit:'persistence reference',rows:[
+   {n:'LightGBM',cls:'champ',v:null,champ:1,note:'re-measuring'},
+   {n:'Persistence',cls:'base',v:0.68,base:1}],max:1.2,
+   foot:'Leak-free 5-min re-measurement in progress; aggregate load barely moves in 5 min, so persistence is already low.'},
+];
+document.getElementById('board').innerHTML=BOARD.map(function(b){
+ var rows=b.rows.map(function(r){
+   var nm='<div class="nm">'+(r.champ?'<span class="crown">♦</span>':'')+'<b>'+r.n+'</b></div>';
+   if(r.v==null){
+     return '<div class="row">'+nm+'<div class="track"><span class="pend">'+(r.note||'—')+'</span></div></div>';
+   }
+   var pct=Math.min(100,(r.v/b.max)*100);
+   return '<div class="row">'+nm+'<div class="track"><div class="fill '+r.cls+'" data-w="'+pct+'">'+r.v.toFixed(2)+'%</div></div></div>';
+ }).join('');
+ return '<div class="res"><div class="rh"><h4>'+b.res+'</h4><span class="mono">'+b.unit+'</span></div>'+
+   '<div class="bars">'+rows+'</div><div class="foot">'+b.foot+'</div></div>';
+}).join('');
+/* animate bar widths from a visible resting state (final value), honoring reduced-motion */
+var reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+requestAnimationFrame(function(){requestAnimationFrame(function(){
+ Array.prototype.forEach.call(document.querySelectorAll('.fill'),function(f){
+   var w=f.getAttribute('data-w')+'%'; if(reduce){f.style.width=w;} else {f.style.width=w;}
+ });
+})});
+
+/* ---- roster ---- */
+var MODELS=[
+ {role:'Champion',cls:'ch',n:'LightGBM',p:'Lead model at every resolution; gradient-boosted trees on the full feature set.'},
+ {role:'Champion',cls:'ch',n:'XGBoost',p:'Close second; the main challenger to LightGBM in the boosting bracket.'},
+ {role:'Challenger',cls:'cl',n:'SARIMAX / ARIMA',p:'Classical autocorrelation + 66 exogenous drivers (target lags excluded to avoid leakage).'},
+ {role:'Challenger',cls:'cl',n:'NeuralProphet',p:'Trend + seasonality + holiday decomposition with future regressors.'},
+ {role:'Challenger',cls:'cl',n:'BiLSTM',p:'PyTorch sequence model — diversity for the ensemble.'},
+];
+document.getElementById('roster').innerHTML=MODELS.map(function(m){
+ return '<div class="mcard '+m.cls+'"><div class="role">'+m.role+'</div><b>'+m.n+'</b><p>'+m.p+'</p></div>';}).join('');
+
+/* ---- outcome ---- */
+var OUT=[
+ ['Multi-horizon forecasts','Day-ahead to 90 days, at 5-min, hourly and daily resolution.'],
+ ['DISCOM breakdown','Sub-regional demand for Delhi, Bihar and Karnataka.'],
+ ['What-if explorer','Re-forecast under changed temperature, humidity, AQI or holidays.'],
+ ['Accuracy tracker','Predicted-vs-actual with rolling MAPE and drift alerts.'],
+ ['Live dashboard','Next.js control room: current load, peaks, seasonal view.'],
+ ['Zero-cost ops','Vercel + Render + Supabase + GitHub Actions — $0/month.'],
+];
+var oi='<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>';
+document.getElementById('out').innerHTML=OUT.map(function(o){
+ return '<div class="ocard"><h4>'+oi+o[0]+'</h4><p>'+o[1]+'</p></div>';}).join('');
+
+/* ---- stack ---- */
+var STACK=[
+ {role:'Collect',cls:'cl',n:'requests · httpx · BeautifulSoup · pdfplumber',p:'Fetch JSON, HTML and PDF sources; a legacy-TLS adapter handles old SLDC servers.'},
+ {role:'Store',cls:'cl',n:'SQLAlchemy · Alembic · Supabase',p:'Typed ORM, versioned migrations, SQLite locally and Postgres in production.'},
+ {role:'Engineer',cls:'cl',n:'pandas · numpy',p:'~93 causal features across temporal, weather and calendar signals.'},
+ {role:'Train',cls:'ch',n:'LightGBM · XGBoost · PyTorch · statsmodels',p:'The competing model families, selected by walk-forward CV.'},
+ {role:'Tune / track',cls:'cl',n:'Optuna · MLflow',p:'Hyper-parameter search and best-effort experiment tracking.'},
+ {role:'Serve',cls:'ch',n:'FastAPI · Next.js · Recharts',p:'API, dashboard and charts for the live control room.'},
+ {role:'Automate',cls:'cl',n:'APScheduler · GitHub Actions · Docker',p:'6-hourly collection, weekly retrain, containerised deploy.'},
+];
+document.getElementById('stack-grid').innerHTML=STACK.map(function(m){
+ return '<div class="mcard '+m.cls+'"><div class="role">'+m.role+'</div><b>'+m.n+'</b><p>'+m.p+'</p></div>';}).join('');
+</script>

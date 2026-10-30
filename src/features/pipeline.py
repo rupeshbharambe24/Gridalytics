@@ -191,9 +191,18 @@ class FeaturePipeline:
         return df
 
     def get_feature_names(self, df: pd.DataFrame) -> list[str]:
-        """Get list of feature column names (everything except target and sub-regions)."""
-        exclude = {TARGET, "brpl_mw", "bypl_mw", "ndpl_mw", "ndmc_mw", "mes_mw"}
-        return [c for c in df.columns if c not in exclude]
+        """Feature columns = everything except the target, sub-regions and DB metadata.
+
+        Also drops any non-numeric column (e.g. the ORM's ``source`` object and
+        ``created_at`` datetime), which otherwise reach the model: at daily/hourly
+        they are dropped by resampling, but at 5-min (no resample) they remained and
+        made LightGBM raise "pandas dtypes must be int, float or bool".
+        """
+        import numpy as np
+        exclude = {TARGET, "brpl_mw", "bypl_mw", "ndpl_mw", "ndmc_mw", "mes_mw",
+                   "id", "source", "created_at"}
+        feats = [c for c in df.columns if c not in exclude]
+        return [c for c in feats if np.issubdtype(df[c].dtype, np.number) or df[c].dtype == bool]
 
     def get_target_name(self) -> str:
         """Get the target column name."""
