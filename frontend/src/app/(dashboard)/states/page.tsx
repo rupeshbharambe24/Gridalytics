@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import {
   Database, Cpu, Layers, CheckCircle2, CircleDashed, Activity, MapPin,
@@ -70,7 +70,27 @@ export default function StatesPage() {
     return m;
   }, [states]);
 
-  const chartData = (demand?.series ?? []).map((p) => ({ t: fmtTime(p.t), mw: p.mw }));
+  // All analysis is computed client-side from the (already-capped) series — no
+  // extra network weight, memoized so switching states stays instant.
+  const analysis = useMemo(() => {
+    const s = demand?.series ?? [];
+    if (!s.length) return null;
+    const mws = s.map((p) => p.mw);
+    let peak = -Infinity, min = Infinity, total = 0;
+    for (const v of mws) { if (v > peak) peak = v; if (v < min) min = v; total += v; }
+    const avg = total / mws.length;
+    const sum = new Array(24).fill(0), cnt = new Array(24).fill(0);
+    for (const p of s) {
+      const d = new Date(p.t.replace(" ", "T"));
+      if (!isNaN(d.getTime())) { const h = d.getHours(); sum[h] += p.mw; cnt[h] += 1; }
+    }
+    const hourly = sum.map((v, h) => ({ h: `${h}`, mw: cnt[h] ? Math.round(v / cnt[h]) : 0 }));
+    const stride = Math.max(1, Math.ceil(s.length / 360));
+    const area = s.filter((_, i) => i % stride === 0).map((p) => ({ t: fmtTime(p.t), mw: p.mw }));
+    return { peak, min, avg, loadFactor: peak > 0 ? (avg / peak) * 100 : 0, hourly, area };
+  }, [demand]);
+  const chartData = analysis?.area ?? [];
+  const fmtMW = (v: number) => `${Math.round(v).toLocaleString("en-IN")}`;
 
   return (
     <div className="space-y-6">
@@ -188,10 +208,41 @@ export default function StatesPage() {
                 </div>
               )}
 
+              {/* analysis (client-side from the series) */}
+              {analysis && (
+                <>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([["Peak", `${fmtMW(analysis.peak)} MW`], ["Average", `${fmtMW(analysis.avg)} MW`], ["Load factor", `${analysis.loadFactor.toFixed(0)}%`]] as const).map(([l, v]) => (
+                      <div key={l} className="bg-muted/30 border border-border rounded-lg p-2.5">
+                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{l}</div>
+                        <div className="text-base font-semibold tabular-nums leading-tight mt-0.5">{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-muted-foreground">Daily load profile — avg by hour</span>
+                    <div className="h-28 mt-1.5">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={analysis.hourly} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                          <XAxis dataKey="h" tick={{ fontSize: 8 }} interval={2} stroke="currentColor" className="text-muted-foreground" />
+                          <YAxis tick={{ fontSize: 8 }} width={42} stroke="currentColor" className="text-muted-foreground" domain={["auto", "auto"]} />
+                          <Tooltip
+                            contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                            formatter={(v: any) => [`${Number(v).toLocaleString("en-IN")} MW`, "avg"]}
+                            labelFormatter={(l) => `${l}:00`}
+                          />
+                          <Bar dataKey="mw" fill="#3b82f6" radius={[2, 2, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </>
+              )}
+
               {/* demand chart */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Recent demand (14d)</span>
+                  <span className="text-xs font-medium text-muted-foreground">Recent demand</span>
                   {demand?.latest && <span className="text-[10px] text-muted-foreground font-mono">→ {fmtTime(demand.latest)}</span>}
                 </div>
                 <div className="h-40">

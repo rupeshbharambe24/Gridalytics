@@ -95,8 +95,14 @@ def state_detail(code: str, db: Session = Depends(get_db)):
 @router.get("/{code}/demand")
 def state_demand(code: str,
                  days: int = Query(14, ge=1, le=365),
+                 max_points: int = Query(1500, ge=100, le=5000),
                  db: Session = Depends(get_db)):
-    """Recent stored demand series for a state (for the dashboard chart)."""
+    """Recent stored demand series for a state (for the dashboard chart).
+
+    Downsamples (uniform stride) to at most ``max_points`` so a fine-resolution
+    state (Delhi 5-min = thousands of points) never ships a heavy payload — keeps
+    the dashboard instant.
+    """
     st = STATES_BY_CODE.get(code)
     if not st:
         raise HTTPException(status_code=404, detail=f"Unknown state '{code}'")
@@ -121,4 +127,9 @@ def state_demand(code: str,
              .order_by(StateDemandRecord.timestamp.asc()).all())
 
     series = [{"t": str(t), "mw": round(float(v), 1)} for t, v in q if v is not None]
-    return {"code": code, "name": st.name, "latest": str(latest), "series": series, "n": len(series)}
+    total = len(series)
+    if total > max_points:
+        stride = total // max_points + 1
+        series = series[::stride]
+    return {"code": code, "name": st.name, "latest": str(latest),
+            "series": series, "n": len(series), "total": total}
