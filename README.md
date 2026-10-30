@@ -301,6 +301,7 @@ and scheduler status.
 
 | Doc | What |
 |-----|------|
+| [docs/roadmap.md](docs/roadmap.md) | **State-by-state rollout plan** — phases, current status, how to onboard a state |
 | [docs/state_grid_data_sources.md](docs/state_grid_data_sources.md) | **All-India source map** — every state's SLDC, method, tier, how to scrape |
 | [docs/event_aware_forecasting.md](docs/event_aware_forecasting.md) | Event-effect layer: design, methodology, measured results |
 | [docs/classical_models.md](docs/classical_models.md) | SARIMAX/ARIMA full-exog + NeuralProphet eval |
