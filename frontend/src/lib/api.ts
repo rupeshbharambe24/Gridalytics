@@ -162,3 +162,41 @@ export const getHourlyAccuracy = (days: number = 30) =>
   fetcher<{ entries: any[]; by_hour: any[]; summary: any }>(
     `/api/v1/dashboard/hourly-accuracy?days=${days}`
   );
+
+// ── State-wise (all-India rollout) ──────────────────────────────────────────
+export interface StateModelInfo {
+  resolution: string;
+  served_model?: string;
+  champion?: string;
+  champion_cv_mape?: number;
+  persistence_mape?: number;
+  features?: number;
+  note?: string;
+}
+export interface StateInfo {
+  code: string;
+  name: string;
+  region: string;
+  tier: "direct" | "fallback" | "deferred";
+  method: string;
+  scraper: string | null;
+  discoms: string[];
+  discom_level: boolean;
+  rows_stored: number;
+  has_data: boolean;
+  has_model: boolean;
+  model?: StateModelInfo;
+  source_url?: string;
+  notes?: string;
+}
+export interface StatesResponse {
+  summary: Record<string, number>;
+  states: StateInfo[];
+}
+
+export const getStates = () => fetcher<StatesResponse>("/api/v1/states");
+
+export const getStateDemand = (code: string, days: number = 14) =>
+  fetcher<{ code: string; name: string; latest?: string; n: number; series: { t: string; mw: number }[] }>(
+    `/api/v1/states/${code}/demand?days=${days}`
+  );

@@ -196,16 +196,43 @@ def main():
           f"{pers - champ_mape:.2f} pts" if champ_mape < pers else "  (does not beat persistence)")
     print(f"{'='*60}")
 
-    # train final champion on all-but-holdout and save
+    # train final model on all-but-holdout and save a SERVABLE artifact.
+    # If the champion's save fails (e.g. the xgboost 2.1.4 / sklearn 1.9
+    # _estimator_type bug), fall back to LightGBM, which persists cleanly and is
+    # effectively tied here — so there is always a loadable model to serve.
     train_df, test_df = df.iloc[:-holdout], df.iloc[-holdout:]
-    model = champ_cls(resolution=args.resolution)
-    model.fit(train_df[feats], train_df[TARGET], test_df[feats], test_df[TARGET])
     save_dir = Path("models") / "states" / args.state / args.resolution
+
+    def _fit_and_save(cls, label):
+        m = cls(resolution=args.resolution)
+        m.fit(train_df[feats], train_df[TARGET], test_df[feats], test_df[TARGET])
+        m.save(save_dir)
+        return label
+
+    served = None
     try:
-        model.save(save_dir)
-        print(f"  saved champion -> {save_dir}")
+        served = _fit_and_save(champ_cls, champ)
     except Exception as e:
-        logger.warning(f"champion save failed ({type(e).__name__}: {e}); CV numbers still valid")
+        logger.warning(f"{champ} save failed ({type(e).__name__}: {e}); "
+                       f"falling back to LightGBM as the served model")
+        if champ != "LightGBM":
+            try:
+                served = _fit_and_save(LightGBMForecaster, "LightGBM")
+            except Exception as e2:
+                logger.warning(f"fallback save also failed ({e2}); no artifact persisted")
+    if served:
+        # record which model is actually served (champion may differ if save fell back)
+        import json
+        meta = save_dir / "served.json"
+        try:
+            meta.write_text(json.dumps({"state": args.state, "resolution": args.resolution,
+                                        "served_model": served, "champion": champ,
+                                        "champion_cv_mape": round(champ_mape, 3),
+                                        "persistence_mape": round(pers, 3),
+                                        "features": len(feats)}, indent=2))
+        except Exception:
+            pass
+        print(f"  saved served model '{served}' -> {save_dir}")
 
 
 if __name__ == "__main__":

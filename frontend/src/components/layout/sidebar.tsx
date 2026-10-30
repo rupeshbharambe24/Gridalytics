@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, TrendingUp, BarChart3, FlaskConical,
   LineChart, Target, Info, Zap, ChevronLeft, ChevronRight,
-  Settings, Sun, Moon, Menu, X,
+  Settings, Sun, Moon, Menu, X, Map,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -14,6 +14,7 @@ import { getMe } from "@/lib/api";
 
 const allNavItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/states", label: "States", icon: Map },
   { href: "/forecast", label: "Forecast", icon: TrendingUp },
   { href: "/models", label: "Models", icon: BarChart3 },
   { href: "/what-if", label: "What-If", icon: FlaskConical },
