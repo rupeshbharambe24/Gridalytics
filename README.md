@@ -42,13 +42,13 @@ actually matters for short-term load forecasting.
 |:--|:--|--:|--:|--:|--:|
 | **Daily (peak)** | LightGBM | **3.92%** | 5.05% | 271.6 MW | 0.69 |
 | **Hourly** | LightGBM | **1.31%** | 3.43% | 95.8 MW | 0.98 |
-| **5-minute** | LightGBM | _re-running_ | 0.68% | — | — |
+| **5-minute** | XGBoost | **0.45%** | 0.68% | 28.9 MW | 0.997 |
 
 > **Correction (Oct 2026).** Earlier headline figures (0.18% / 0.50% / 2.65%) were **inflated by a
 > target leak**: the `diff` and rolling features were computed from the value being predicted, so the
 > model effectively saw the answer during training. After fixing it (features now end at `t-1`) and
 > repairing date-integrity issues in the data, the champions **still beat persistence at every
-> resolution**, by a smaller, honest margin. The 5-minute model is being re-measured.
+> resolution**, by a smaller, honest margin.
 >
 > Classical challengers (SARIMAX / ARIMA / NeuralProphet / BiLSTM) are weaker and kept for diversity —
 > see [docs/classical_models.md](docs/classical_models.md).

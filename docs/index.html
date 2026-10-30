@@ -418,10 +418,10 @@ var BOARD=[
    {n:'LightGBM',cls:'champ',v:1.31,champ:1},{n:'XGBoost',cls:'chall',v:1.32},
    {n:'Persistence',cls:'base',v:3.43,base:1}],max:4,
    foot:'R² ≈ 0.98 on hold-out. Leak-free, down from an inflated 0.50%.'},
- {res:'5-minute',unit:'persistence reference',rows:[
-   {n:'LightGBM',cls:'champ',v:null,champ:1,note:'re-measuring'},
-   {n:'Persistence',cls:'base',v:0.68,base:1}],max:1.2,
-   foot:'Leak-free 5-min re-measurement in progress; aggregate load barely moves in 5 min, so persistence is already low.'},
+ {res:'5-minute',unit:'mean CV MAPE · lower is better',rows:[
+   {n:'XGBoost',cls:'champ',v:0.45,champ:1},{n:'LightGBM',cls:'chall',v:0.46},
+   {n:'Persistence',cls:'base',v:0.68,base:1}],max:1.0,
+   foot:'Leak-free (R² ≈ 0.997). Aggregate load barely moves in 5 min, so persistence (0.68%) is already low — the champion still beats it. Down from an inflated 0.18%.'},
 ];
 document.getElementById('board').innerHTML=BOARD.map(function(b){
  var rows=b.rows.map(function(r){
@@ -445,8 +445,8 @@ requestAnimationFrame(function(){requestAnimationFrame(function(){
 
 /* ---- roster ---- */
 var MODELS=[
- {role:'Champion',cls:'ch',n:'LightGBM',p:'Lead model at every resolution; gradient-boosted trees on the full feature set.'},
- {role:'Champion',cls:'ch',n:'XGBoost',p:'Close second; the main challenger to LightGBM in the boosting bracket.'},
+ {role:'Champion',cls:'ch',n:'LightGBM',p:'Champion at daily & hourly; gradient-boosted trees on the full feature set.'},
+ {role:'Champion',cls:'ch',n:'XGBoost',p:'Neck-and-neck with LightGBM; edges it to win the 5-minute resolution.'},
  {role:'Challenger',cls:'cl',n:'SARIMAX / ARIMA',p:'Classical autocorrelation + 66 exogenous drivers (target lags excluded to avoid leakage).'},
  {role:'Challenger',cls:'cl',n:'NeuralProphet',p:'Trend + seasonality + holiday decomposition with future regressors.'},
  {role:'Challenger',cls:'cl',n:'BiLSTM',p:'PyTorch sequence model — diversity for the ensemble.'},
