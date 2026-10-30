@@ -21,6 +21,7 @@ Snapshot sources (Punjab, UP) have no history endpoint: poll them on an interval
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
+import io
 import re
 import ssl
 import time
@@ -392,6 +393,82 @@ class KarnatakaSLDCScraper(StateSLDCScraper):
         for sid, name in self._DISCOMS.items():
             row[f"d__{name}"] = _f(span(sid))
         return pd.DataFrame([row])
+
+
+class KarnatakaLoadCurveScraper(StateSLDCScraper):
+    """Karnataka HOURLY demand history from KPTCL daily load-curve .xls files.
+
+    Source: loadcurve.kptcl.net/LoadCurveUpload/data/D<DDMMMYYYY>.xls — one file
+    per day, back to ~2011. Each file's "LOAD CURVE" sheet has a TIME/LOAD/
+    FREQUENCY block (24 hourly rows). This is the *history* source that makes
+    Karnataka trainable (the live kptclsldc.in page is only a snapshot). Writes
+    hourly rows to state_demand (source=ksldc_loadcurve). Needs `xlrd` for .xls.
+    """
+    STATE_CODE = "karnataka"
+    STATE_NAME = "Karnataka"
+    SOURCE = "ksldc_loadcurve"
+    BASE = "https://loadcurve.kptcl.net/LoadCurveUpload/data"
+    _OLE_MAGIC = b"\xd0\xcf\x11\xe0"  # real .xls (OLE2); a 404 returns HTML instead
+
+    def scrape(self, start_date: date, end_date: date) -> pd.DataFrame:
+        rows: list[dict] = []
+        current = start_date
+        while current <= end_date:
+            try:
+                rows.extend(self._fetch_day(current))
+            except Exception as e:
+                self.logger.warning(f"Failed {current}: {e}")
+            current += timedelta(days=1)
+            time.sleep(0.4)  # be gentle on the server
+        return pd.DataFrame(rows)
+
+    def _fetch_day(self, d: date) -> list[dict]:
+        url = f"{self.BASE}/D{d.strftime('%d%b%Y').upper()}.xls"
+        resp = self._retry_request(requests.get, url, headers=_UA, timeout=40)
+        if resp.status_code != 200 or resp.content[:4] != self._OLE_MAGIC:
+            return []  # missing day → HTML 404 page, skip quietly
+        try:
+            df = pd.ExcelFile(io.BytesIO(resp.content), engine="xlrd").parse(0, header=None)
+        except Exception as e:
+            self.logger.warning(f"xls parse failed {d}: {e}")
+            return []
+        return self._parse(df, d)
+
+    @staticmethod
+    def _parse(df: pd.DataFrame, d: date) -> list[dict]:
+        # locate the 'TIME' header cell; LOAD is the next column, FREQUENCY the one after
+        pos = None
+        for r in range(len(df)):
+            for c in range(df.shape[1]):
+                v = df.iat[r, c]
+                if isinstance(v, str) and v.strip().upper() == "TIME":
+                    pos = (r, c)
+                    break
+            if pos:
+                break
+        if not pos:
+            return []
+        r0, c = pos
+        out = []
+        for r in range(r0 + 1, len(df)):
+            try:
+                hour = int(float(df.iat[r, c]))
+            except (TypeError, ValueError):
+                continue
+            if hour < 0 or hour > 23:
+                continue
+            load = _f(df.iat[r, c + 1])
+            if load is None:
+                continue
+            out.append({
+                "state_code": "karnataka",
+                "timestamp": datetime(d.year, d.month, d.day, hour),
+                "demand_mw": load,
+                "frequency_hz": _f(df.iat[r, c + 2]) if c + 2 < df.shape[1] else None,
+                "schedule_mw": None,
+                "drawal_mw": None,
+            })
+        return out
 
 
 # ---------------------------------------------------------------------------

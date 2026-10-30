@@ -231,7 +231,7 @@ footer .mono{color:var(--fg)}
 <section class="band" id="models"><div class="wrap">
   <span class="eyebrow">Champion / challenger</span>
   <h2>Models race on walk-forward CV</h2>
-  <p class="sub">Every retrain runs the same back-tested contest per resolution; the lowest-MAPE model becomes champion. Bars show mean cross-validated error (shorter is better) against the persistence baseline a forecast must beat.</p>
+  <p class="sub">Every retrain runs the same back-tested contest per resolution; the lowest-MAPE model becomes champion. Bars show mean cross-validated error (shorter is better) against the persistence baseline a forecast must beat. The first three are Delhi; the last is <strong>Karnataka</strong> — the same pipeline, first state beyond Delhi.</p>
   <div class="board" id="board"></div>
   <h3 style="font-size:1.05rem;font-weight:600;margin:26px 0 10px">The roster</h3>
   <div class="roster" id="roster"></div>
@@ -422,6 +422,10 @@ var BOARD=[
    {n:'XGBoost',cls:'champ',v:0.45,champ:1},{n:'LightGBM',cls:'chall',v:0.46},
    {n:'Persistence',cls:'base',v:0.68,base:1}],max:1.0,
    foot:'Leak-free (R² ≈ 0.997). Aggregate load barely moves in 5 min, so persistence (0.68%) is already low — the champion still beats it. Down from an inflated 0.18%.'},
+ {res:'Karnataka · hourly',unit:'first state beyond Delhi · leak-free CV',rows:[
+   {n:'XGBoost',cls:'champ',v:2.46,champ:1},{n:'LightGBM',cls:'chall',v:2.47},
+   {n:'Persistence',cls:'base',v:4.70,base:1}],max:6,
+   foot:'Same pipeline, new state: ~200 days of KPTCL hourly load (R² ≈ 0.97) + Bengaluru weather, 90 features. Beats persistence by 2.2 pts — the state→model path works beyond Delhi.'},
 ];
 document.getElementById('board').innerHTML=BOARD.map(function(b){
  var rows=b.rows.map(function(r){
