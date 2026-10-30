@@ -19,6 +19,17 @@
   Predicts electricity demand at <strong>5-minute</strong>, <strong>hourly</strong>, and <strong>daily</strong> resolutions using 7 ML models trained on 5+ years of SCADA data from the Delhi SLDC.
 </p>
 
+<p align="center">
+  <a href="https://rupeshbharambe24.github.io/Gridalytics/"><img src="https://img.shields.io/badge/▶%20Live-Pipeline%20Walkthrough-bd6a05?style=for-the-badge" alt="Live pipeline walkthrough" /></a>
+</p>
+
+<p align="center">
+  <strong>Interactive walkthrough of the whole pipeline</strong> — sources → scrapers → storage → features →
+  champion/challenger training → forecasts — with a clickable 36-state map:
+  <a href="https://rupeshbharambe24.github.io/Gridalytics/">rupeshbharambe24.github.io/Gridalytics</a><br>
+  <sub>(served from <code>docs/index.html</code> via GitHub Pages)</sub>
+</p>
+
 ---
 
 ## Performance
