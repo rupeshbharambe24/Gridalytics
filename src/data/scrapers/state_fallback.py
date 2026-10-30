@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import io
 import re
+import time
 from datetime import date, timedelta
 
 import pandas as pd
@@ -175,6 +176,111 @@ class GridIndiaStatePSPScraper(BaseScraper):
                     shortage_mw=row.get("shortage_mw"),
                     source="grid_india_psp",
                 ))
+                count += 1
+        session.flush()
+        return count
+
+
+def _num(v) -> float | None:
+    try:
+        return float(str(v).replace(",", "").strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def parse_telangana(df: pd.DataFrame) -> list[dict]:
+    """Parse a TGSLDC power-supply-position .xlsx into daily rows.
+
+    Columns are located by header text (robust to shifts): a 'Date' column, the
+    'Unrestricted Peak' demand (MW), and energy 'Met' (MU). Pure — unit-testable.
+    """
+    date_col = peak_col = met_col = None
+    for r in range(min(4, len(df))):
+        for c in range(df.shape[1]):
+            v = str(df.iat[r, c]).strip().lower()
+            if v == "date" and date_col is None:
+                date_col = c
+            elif v == "unrestricted peak":
+                peak_col = c
+            elif v == "met" and met_col is None:
+                met_col = c
+    if date_col is None or peak_col is None:
+        return []
+    out = []
+    for r in range(len(df)):
+        raw = df.iat[r, date_col]
+        try:
+            d = pd.to_datetime(raw, dayfirst=True).date()
+        except (ValueError, TypeError):
+            continue
+        peak = _num(df.iat[r, peak_col])
+        if peak is None or peak <= 0:
+            continue
+        out.append({
+            "state_code": "telangana", "date": d,
+            "peak_demand_met_mw": peak,
+            "energy_met_mu": _num(df.iat[r, met_col]) if met_col is not None else None,
+            "shortage_mw": None,
+        })
+    return out
+
+
+class TelanganaPSPScraper(BaseScraper):
+    """Telangana daily peak demand + energy from TGSLDC's by-date-range .xlsx export.
+
+    Source: tgsldc.in/power-supply-position/download?from=&to= — clean daily series
+    back to ~2016. Writes to state_psp_daily (source=tgsldc). Needs openpyxl for .xlsx.
+    A state-specific daily source (preferred over the generic Grid-India PSP fallback).
+    """
+    URL = "https://tgsldc.in/power-supply-position/download"
+
+    def __init__(self):
+        super().__init__(name="tgsldc-psp", max_retries=2, retry_delay=3.0)
+
+    def scrape(self, start_date: date, end_date: date) -> pd.DataFrame:
+        rows: list[dict] = []
+        # The export caps each request to ~one month, so fetch month by month.
+        cur = date(start_date.year, start_date.month, 1)
+        while cur <= end_date:
+            nxt = date(cur.year + 1, 1, 1) if cur.month == 12 else date(cur.year, cur.month + 1, 1)
+            a, b = max(start_date, cur), min(end_date, nxt - timedelta(days=1))
+            try:
+                resp = self._retry_request(
+                    requests.get, self.URL, headers=_UA, timeout=45,
+                    params={"from": a.isoformat(), "to": b.isoformat()})
+                if resp.status_code == 200 and resp.content[:2] == b"PK":  # xlsx = zip
+                    df = pd.read_excel(io.BytesIO(resp.content), header=None, engine="openpyxl")
+                    rows.extend(parse_telangana(df))
+            except Exception as e:
+                self.logger.warning(f"Telangana {cur:%Y-%m} failed: {e}")
+            time.sleep(0.3)
+            cur = nxt
+        return pd.DataFrame(rows)
+
+    def validate(self, df: pd.DataFrame) -> pd.DataFrame:
+        if df is None or df.empty:
+            return pd.DataFrame()
+        df = df.dropna(subset=["peak_demand_met_mw"])
+        df = df[(df["peak_demand_met_mw"] > 1) & (df["peak_demand_met_mw"] <= 80000)]
+        return df.drop_duplicates(subset=["state_code", "date"], keep="last").reset_index(drop=True)
+
+    def upsert(self, df: pd.DataFrame, session: Session) -> int:
+        if df is None or df.empty:
+            return 0
+        count = 0
+        for _, row in df.iterrows():
+            exists = session.query(StatePSPDaily).filter(
+                StatePSPDaily.state_code == "telangana",
+                StatePSPDaily.date == row["date"]).first()
+            if exists:
+                exists.peak_demand_met_mw = row["peak_demand_met_mw"]
+                exists.energy_met_mu = row.get("energy_met_mu")
+            else:
+                session.add(StatePSPDaily(
+                    state_code="telangana", date=row["date"],
+                    peak_demand_met_mw=row["peak_demand_met_mw"],
+                    energy_met_mu=row.get("energy_met_mu"),
+                    source="tgsldc"))
                 count += 1
         session.flush()
         return count
