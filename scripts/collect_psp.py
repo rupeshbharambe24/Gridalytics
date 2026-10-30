@@ -1,16 +1,19 @@
-"""Backfill Grid-India daily PSP (per-state demand) for ALL states — the all-India
+"""Backfill daily PSP (per-state peak/energy) for ALL states — the all-India
 fallback source.
 
-One source → every state/UT at daily granularity, ~10 years deep. Run this from a
-network where `report.grid-india.in` is reachable (it does not resolve from every
-environment). Writes to the `state_psp_daily` table (source=grid_india_psp).
+One source → every state/UT at daily granularity. The official Grid-India host
+(`report.grid-india.in`) is currently NXDOMAIN (dead from every network), so this
+pulls the same NLDC PSP data via energymap.in's public API, which mirrors the
+official files (each row's source_url points at webcdn.grid-india.in). History runs
+~2021-05 onward. Writes `state_psp_daily` (source=energymap_posoco), and never
+overwrites rows already collected from an official per-state SLDC. Re-verify against
+the official files once that host is reachable again.
 
 Usage:
-  python scripts/collect_psp.py --start 2016-01-01 --end 2026-10-29
+  python scripts/collect_psp.py --start 2021-01-01 --end 2026-10-29
   python scripts/collect_psp.py --start 2025-01-01            # end defaults to yesterday
 
-Note: this downloads one PDF per day and parses it, so a decade is a long run —
-scope the range, or run it in chunks. Re-running is idempotent (upsert by state+date).
+Re-running is idempotent (refreshes only energymap rows, by state+date).
 """
 
 import sys
@@ -23,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.data.db.session import get_session, create_tables
 from src.data.db.models import StatePSPDaily
-from src.data.scrapers.state_fallback import GridIndiaStatePSPScraper
+from src.data.scrapers.state_fallback import EnergymapPSPScraper
 from sqlalchemy import func
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
@@ -42,8 +45,8 @@ def main():
     args = ap.parse_args()
 
     create_tables()
-    scraper = GridIndiaStatePSPScraper()
-    logger.info(f"PSP backfill {args.start} .. {args.end} (all states)")
+    scraper = EnergymapPSPScraper()
+    logger.info(f"PSP backfill {args.start} .. {args.end} (all states, via energymap)")
     with get_session() as session:
         count = scraper.run(args.start, args.end, session)
     logger.info(f"Inserted {count} new PSP rows.")

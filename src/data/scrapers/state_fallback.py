@@ -602,3 +602,125 @@ class KeralaPSPScraper(BaseScraper):
 
     def upsert(self, df, session):
         return _psp_upsert(df, session)
+
+
+# energymap.in state slug -> our state_code. energymap mirrors the official NLDC PSP
+# (its rows carry the source_url to the real webcdn.grid-india.in NLDC_PSP files), so
+# this one API covers every state at daily granularity — the all-India fallback that
+# report.grid-india.in used to serve before that host went dark.
+_ENERGYMAP_SPECIAL = {"jammu-and-kashmir": "jammu_kashmir", "andaman-nicobar": "andaman_nicobar"}
+
+
+def _energymap_code(slug: str) -> str:
+    return _ENERGYMAP_SPECIAL.get(slug, slug.replace("-", "_"))
+
+
+def energymap_psp_rows(items: list[dict], state_code: str) -> list[dict]:
+    """Collapse energymap posoco-psp items for one state to one row per date.
+
+    Each date can carry two source rows (a PDF-sourced ``peak_demand_mw`` and an
+    XLS-sourced ``peak_demand_met_mw``); coalesce to a single daily peak (prefer
+    'met', else 'mw', take the max when both rows exist) and the max energy_met.
+    """
+    by_date: dict = {}
+    for it in items:
+        ds = it.get("date")
+        if not ds:
+            continue
+        peak = it.get("peak_demand_met_mw") or it.get("peak_demand_mw")
+        energy = it.get("energy_met_mu")
+        cur = by_date.setdefault(ds, {"peak": None, "energy": None})
+        if peak is not None:
+            cur["peak"] = peak if cur["peak"] is None else max(cur["peak"], peak)
+        if energy is not None:
+            cur["energy"] = energy if cur["energy"] is None else max(cur["energy"], energy)
+    rows = []
+    for ds, v in by_date.items():
+        if v["peak"] is None:
+            continue
+        try:
+            d = datetime.strptime(ds, "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        rows.append({"state_code": state_code, "date": d,
+                     "peak_demand_met_mw": float(v["peak"]),
+                     "energy_met_mu": float(v["energy"]) if v["energy"] is not None else None,
+                     "source": "energymap_posoco"})
+    return rows
+
+
+class EnergymapPSPScraper(BaseScraper):
+    """All-India daily PSP via energymap.in's public API — one source, every state.
+
+    GET api.energymap.in/api/intelligence/posoco-psp?scope=state&state=<slug>&days=N
+    returns that state's daily peak/energy as published in the Grid-India (NLDC) PSP
+    reports, ~2021-05 onward (the API's `days` is capped at 2000). The state roster
+    comes from /api/states. This stands in for the official report.grid-india.in host
+    (currently NXDOMAIN); re-verify against the official files (each row's source_url
+    points at webcdn.grid-india.in) once that host is reachable. -> state_psp_daily.
+    """
+    API = "https://api.energymap.in/api/intelligence/posoco-psp"
+    ROSTER = "https://api.energymap.in/api/states"
+    MAX_DAYS = 2000
+
+    def __init__(self, states: list[str] | None = None):
+        super().__init__(name="energymap-psp", max_retries=3, retry_delay=3.0)
+        self._only = set(states) if states else None  # our state_codes to keep
+
+    def _slugs(self) -> list[str]:
+        try:
+            r = self._retry_request(requests.get, self.ROSTER, headers=_UA, timeout=30)
+            if r.status_code == 200:
+                return [it["state_slug"] for it in r.json().get("items", []) if it.get("state_slug")]
+        except Exception as e:
+            self.logger.warning(f"energymap roster failed: {e}")
+        return []
+
+    def scrape(self, start_date: date, end_date: date) -> pd.DataFrame:
+        days = min(self.MAX_DAYS, (date.today() - start_date).days + 2)
+        rows: list[dict] = []
+        for slug in self._slugs():
+            code = _energymap_code(slug)
+            if self._only and code not in self._only:
+                continue
+            try:
+                r = self._retry_request(
+                    requests.get, self.API, headers={**_UA, "Accept": "application/json"},
+                    timeout=60, params={"days": days, "scope": "state", "state": slug})
+                if r.status_code != 200:
+                    self.logger.warning(f"energymap {slug}: HTTP {r.status_code}")
+                    continue
+                for row in energymap_psp_rows(r.json().get("items", []), code):
+                    if start_date <= row["date"] <= end_date:
+                        rows.append(row)
+            except Exception as e:
+                self.logger.warning(f"energymap {slug}: {e}")
+            time.sleep(0.3)
+        return pd.DataFrame(rows)
+
+    def validate(self, df):
+        return _psp_validate(df)
+
+    def upsert(self, df: pd.DataFrame, session: Session) -> int:
+        """Insert energymap rows, but never overwrite a row from another (official)
+        source — deeper SLDC history (e.g. Telangana 2016+) and its provenance win."""
+        if df is None or df.empty:
+            return 0
+        count = 0
+        for _, row in df.iterrows():
+            exists = session.query(StatePSPDaily).filter(
+                StatePSPDaily.state_code == row["state_code"],
+                StatePSPDaily.date == row["date"]).first()
+            if exists:
+                if exists.source == "energymap_posoco":  # refresh our own row only
+                    exists.peak_demand_met_mw = row["peak_demand_met_mw"]
+                    if row.get("energy_met_mu") is not None:
+                        exists.energy_met_mu = row.get("energy_met_mu")
+                continue  # a non-energymap (official) row is left untouched
+            session.add(StatePSPDaily(
+                state_code=row["state_code"], date=row["date"],
+                peak_demand_met_mw=row["peak_demand_met_mw"],
+                energy_met_mu=row.get("energy_met_mu"), source="energymap_posoco"))
+            count += 1
+        session.flush()
+        return count
