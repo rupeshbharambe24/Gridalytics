@@ -69,6 +69,15 @@ class _LegacyTLSAdapter(HTTPAdapter):
         kwargs["ssl_context"] = ctx
         return super().init_poolmanager(*args, **kwargs)
 
+    def cert_verify(self, conn, url, verify, cert):
+        # requests re-derives cert_reqs per request (verify defaults to True) and
+        # would override the context's verify_mode set above, so the insecure flag
+        # never took effect (CERTIFICATE_VERIFY_FAILED). Force it off here when the
+        # operator has opted in; Bihar serves an incomplete chain over legacy TLS.
+        if settings.SLDC_INSECURE_TLS:
+            verify = False
+        return super().cert_verify(conn, url, verify, cert)
+
 
 def _legacy_session() -> requests.Session:
     s = requests.Session()
