@@ -31,11 +31,10 @@ class Settings(BaseSettings):
     # earlier was a geo/bot block on the US research node, not a real gate.)
     GUJARAT_SLDC_URL: str = "https://www.sldcguj.com/RealTimeUser.php"
 
-    # Bihar & Punjab SLDC servers run old/broken TLS (incomplete cert chain,
-    # legacy renegotiation) that Python rejects, though `curl` trusts them via
-    # the OS store. Set SLDC_INSECURE_TLS=true in .env to scrape them with
-    # relaxed verification. OFF by default — enabling it is a conscious choice
-    # to skip cert verification for these specific public-data endpoints.
+    # Last-resort override that skips TLS verification for the old SLDC servers.
+    # Not needed today: Bihar verifies via the shipped GoDaddy intermediate +
+    # legacy renegotiation (state_sldc._LegacyTLSAdapter) and Punjab verifies
+    # normally. Keep OFF unless a server's chain breaks again.
     SLDC_INSECURE_TLS: bool = False
 
     # JWT Authentication
