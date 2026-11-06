@@ -1,0 +1,21 @@
+{
+  "state": "himachal_pradesh",
+  "resolution": "daily",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 3.722,
+  "cv_mape": {
+    "LightGBM": 3.722,
+    "XGBoost": 3.867
+  },
+  "persistence_mape": 4.651,
+  "seasonal_naive_mape": 4.947,
+  "skill_vs_persistence": 0.2,
+  "source": "psp",
+  "data_start": "2017-07-10",
+  "data_end": "2026-10-29",
+  "rows": 3271,
+  "interpolated_rows": 40,
+  "weather": true,
+  "features": 96
+}

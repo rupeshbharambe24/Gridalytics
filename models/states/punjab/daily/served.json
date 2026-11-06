@@ -1,0 +1,21 @@
+{
+  "state": "punjab",
+  "resolution": "daily",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 4.796,
+  "cv_mape": {
+    "LightGBM": 4.796,
+    "XGBoost": 4.98
+  },
+  "persistence_mape": 5.386,
+  "seasonal_naive_mape": 10.906,
+  "skill_vs_persistence": 0.109,
+  "source": "psp",
+  "data_start": "2021-06-24",
+  "data_end": "2026-10-29",
+  "rows": 1677,
+  "interpolated_rows": 115,
+  "weather": true,
+  "features": 96
+}

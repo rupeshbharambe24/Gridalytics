@@ -1,0 +1,21 @@
+{
+  "state": "arunachal_pradesh",
+  "resolution": "daily",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 4.251,
+  "cv_mape": {
+    "LightGBM": 4.251,
+    "XGBoost": 4.44
+  },
+  "persistence_mape": 4.779,
+  "seasonal_naive_mape": 6.666,
+  "skill_vs_persistence": 0.11,
+  "source": "psp",
+  "data_start": "2021-06-24",
+  "data_end": "2026-10-29",
+  "rows": 1677,
+  "interpolated_rows": 115,
+  "weather": true,
+  "features": 96
+}

@@ -1,0 +1,21 @@
+{
+  "state": "chandigarh",
+  "resolution": "daily",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 3.633,
+  "cv_mape": {
+    "LightGBM": 3.633,
+    "XGBoost": 3.753
+  },
+  "persistence_mape": 6.462,
+  "seasonal_naive_mape": 10.265,
+  "skill_vs_persistence": 0.438,
+  "source": "psp",
+  "data_start": "2021-06-24",
+  "data_end": "2026-10-28",
+  "rows": 1676,
+  "interpolated_rows": 118,
+  "weather": true,
+  "features": 96
+}

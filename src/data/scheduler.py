@@ -24,7 +24,7 @@ from src.data.scrapers.open_meteo import OpenMeteoScraper
 from src.data.scrapers.holidays import HolidayScraper
 from src.data.scrapers.aqi import AQIScraper
 from src.data.scrapers.state_sldc import STATE_SCRAPERS, HISTORICAL_STATES
-from src.data.scrapers.state_fallback import GridIndiaStatePSPScraper
+from src.data.scrapers.state_fallback import EnergymapPSPScraper, OfficialPSPFillScraper
 from sqlalchemy import func
 
 logging.basicConfig(
@@ -87,15 +87,18 @@ def scrape_state_psp_latest():
     Fetches the last few days (PSP reports publish with a 1-2 day lag).
     """
     logger.info("Starting state PSP (fallback) scrape")
-    scraper = GridIndiaStatePSPScraper()
+    # report.grid-india.in (GridIndiaStatePSPScraper) is NXDOMAIN; energymap mirrors
+    # the official NLDC PSP for every state, and the official PDFs fill the states
+    # energymap lacks (J&K+Ladakh, DNH&DD).
     end = date.today() - timedelta(days=1)
     start = end - timedelta(days=2)
-    try:
-        with get_session() as session:
-            count = scraper.run(start, end, session)
-            logger.info(f"State PSP scrape complete: {count} new rows")
-    except Exception as e:
-        logger.error(f"State PSP scrape failed: {e}")
+    for scraper in (EnergymapPSPScraper(), OfficialPSPFillScraper()):
+        try:
+            with get_session() as session:
+                count = scraper.run(start, end, session)
+                logger.info(f"State PSP scrape ({scraper.name}) complete: {count} new rows")
+        except Exception as e:
+            logger.error(f"State PSP scrape ({scraper.name}) failed: {e}")
 
 
 def scrape_weather_latest():

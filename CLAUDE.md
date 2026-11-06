@@ -6,15 +6,17 @@ Guidance for Claude Code / AI assistants working in this repository.
 
 Gridalytics forecasts electricity demand for **India's power grid, state by state**, at
 **5-minute, hourly, and daily** resolutions. It began with the **Delhi** grid and now maps all
-**36 states/UTs** (`src/data/scrapers/states.py`), onboarding each as its data comes online —
-models are trained for **Delhi** (all 3 resolutions) and **Karnataka** (hourly) so far. FastAPI
+**36 states/UTs** (`src/data/scrapers/states.py`). Models: **Delhi** (all 3 resolutions), hourly
+**Karnataka / Bihar / Himachal Pradesh**, and a daily-peak model for each of the **33 states/UTs** in the
+Grid-India PSP (`models/states/`, results in `docs/state_models.md`). FastAPI
 backend, Next.js 14 dashboard (incl. a `/states` state-wise view), and an automated pipeline:
 per-state SLDC scrapers (`state_sldc.py`) + a Grid-India daily-PSP fallback for every state
 (`state_fallback.py`) + Open-Meteo weather/AQI + Indian holidays. Demand lands in long-format
 `state_demand` (+`state_demand_discom`) / `state_psp_daily` tables; Delhi keeps its wide
 `demand_5min`. Models are chosen by **champion/challenger walk-forward cross-validation**
 (lowest MAPE), leak-free — diff/rolling target features end at t-1. New states: get data
-(`scripts/collect_states.py`), then `scripts/train_state.py <state>`.
+(`scripts/collect_states.py`), then `scripts/train_state.py <state>` (hourly) or
+`scripts/train_state.py <state> --source psp` (daily peak).
 
 ## Key Commands
 
@@ -99,6 +101,8 @@ python -m pytest tests/ -v
 - `docs/paper_festival_effects.md` — research-paper plan: festival demand effects, the
   data-integrity audit, feasibility results (`scripts/paper/`).
 - `docs/research_angles.md` — literature-checked paper angles (partly superseded by the above).
+- `docs/state_models.md` — per-state model results vs persistence/seasonal-naive + limitations.
+- `docs/state_grid_data_sources.md` / `docs/roadmap.md` — state data sources and onboarding status.
 
 ## Git Workflow
 

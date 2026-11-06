@@ -105,3 +105,29 @@ class TestHolidayScraper:
         scraper = HolidayScraper()
         df = scraper.scrape(date(2026, 1, 1), date(2026, 12, 31))
         assert set(df[df["name"] == "Diwali"]["date"]) == {date(2026, 11, 8)}
+
+
+class TestOfficialPSPParser:
+    TEXT = "\n".join([
+        "B. Frequency Profile",
+        "UP 1 2 3 4 5 6 7",                                   # before section C: ignored
+        "C. Power Supply Position in States",
+        "NR UP 24896 490 526.5 279.7 1.4 928 20.69",
+        "Uttarakhand 2517 0 54.3 33.8 0.1 291 0.47",
+        "J&K(UT) & Ladakh(UT) 2550 0 48.7 40.9 -0.8 215/ -717 0.00",  # 2026 layout
+        "DNH 648 0 14.6 14.5 0.1 70 0.00",                    # pre-merger: not mapped
+        "DNHDDPDCL 1272 0 24.6 25.4 -0.8 19/ -298 0.00",
+        "MP 10772 0 242.0 106.5 0.0 706 0.00",
+        "D. Next section",
+        "MP 1 1 1 1 1 1 1",                                   # after section C: ignored
+    ])
+
+    def test_parses_wanted_rows(self):
+        from src.data.scrapers.state_fallback import parse_section_c
+        out = parse_section_c(self.TEXT)
+        assert set(out) == {"uttar_pradesh", "jammu_kashmir", "dnh_dd", "madhya_pradesh"}
+        assert out["uttar_pradesh"] == {"peak_demand_met_mw": 24896.0, "shortage_mw": 490.0,
+                                        "energy_met_mu": 526.5}
+        assert out["jammu_kashmir"]["peak_demand_met_mw"] == 2550.0
+        assert out["dnh_dd"]["peak_demand_met_mw"] == 1272.0
+        assert out["madhya_pradesh"]["energy_met_mu"] == 242.0

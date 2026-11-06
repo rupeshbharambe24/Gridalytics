@@ -13,7 +13,10 @@ Found during the festival-effects audit (docs/paper_festival_effects.md §3):
      the Delhi optional festivals, with inconsistent names. Fix: regenerate it
      from HolidayScraper.
 
-Fixed rows get source='legacy_fixed', so a second run is a no-op for 1-2.
+  4. state_psp_daily rows backfilled from Wayback PSP files (2016-2020) are
+     dated by report date like (1). Fix: shift back one day.
+
+Fixed rows get source='legacy_fixed' / 'nldc_psp_wayback_fixed', so a second run is a no-op for 1-2.
 Back up the DB first (scripts/backup_db.py, or copy data/edfs.db).
 
     python scripts/fix_date_integrity.py           # dry run: diagnostics only
@@ -33,12 +36,13 @@ from sqlalchemy import delete, insert, select, update
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.data.db.models import DemandRecord, HolidayRecord, PSPDailyReport
+from src.data.db.models import DemandRecord, HolidayRecord, PSPDailyReport, StatePSPDaily
 from src.data.db.session import get_session
 from src.data.scrapers.holidays import HolidayScraper
 
 PSP_CUTOFF = date(2021, 1, 4)
 LEGACY, FIXED = "legacy_migration", "legacy_fixed"
+WAYBACK, WAYBACK_FIXED = "nldc_psp_wayback", "nldc_psp_wayback_fixed"
 CALENDAR_RANGE = (date(2015, 1, 1), date(2027, 12, 31))
 
 
@@ -127,6 +131,34 @@ def fix_5min(session, apply: bool) -> tuple[int, int]:
     return n_swapped, int(clash.sum())
 
 
+def fix_wayback_psp(session, apply: bool) -> tuple[int, int]:
+    """state_psp_daily Wayback rows (scripts/backfill_wayback_psp.py) took the date
+    from the PSP file name, which before PSP_CUTOFF is the report date (= the
+    previous day's demand). Shift them back a day; where a correctly dated per-state
+    SLDC row (hpsldc/tgsldc) already holds that day, it wins and the Wayback row is
+    dropped."""
+    rows = session.execute(
+        select(StatePSPDaily)
+        .where(StatePSPDaily.source == WAYBACK, StatePSPDaily.date < PSP_CUTOFF)
+        .order_by(StatePSPDaily.state_code, StatePSPDaily.date)
+    ).scalars().all()
+    dropped = 0
+    for r in rows:
+        target = r.date - pd.Timedelta(days=1).to_pytimedelta()
+        clash = session.execute(select(StatePSPDaily.id).where(
+            StatePSPDaily.state_code == r.state_code, StatePSPDaily.date == target)).first()
+        if clash:
+            dropped += 1
+        if not apply:
+            continue
+        if clash:
+            session.delete(r)
+        else:
+            r.date, r.source = target, WAYBACK_FIXED
+        session.flush()
+    return len(rows), dropped
+
+
 def fix_holidays(session, apply: bool) -> tuple[int, int]:
     scraper = HolidayScraper()
     df = scraper.validate(scraper.scrape(*CALENDAR_RANGE))
@@ -149,11 +181,14 @@ def main():
         n_psp = fix_psp(session, args.apply)
         n_swap, n_clash = fix_5min(session, args.apply)
         n_old, n_new = fix_holidays(session, args.apply)
+        n_wb, n_wb_drop = fix_wayback_psp(session, args.apply)
         verb = "fixed" if args.apply else "would fix"
         print(f"\npsp_daily: {verb} {n_psp} rows (shift -1 day)")
         print(f"demand_5min: {verb} {n_swap} rows (day/month swap); "
               f"{n_clash} rows dropped where a live row already exists")
         print(f"holidays: {n_old} rows -> {n_new} rows (regenerated)")
+        print(f"state_psp_daily wayback: {verb} {n_wb} rows (shift -1 day); "
+              f"{n_wb_drop} dropped where a per-state SLDC row holds that day")
         if args.apply:
             session.flush()
             print("\nAFTER"); diagnostics(session)

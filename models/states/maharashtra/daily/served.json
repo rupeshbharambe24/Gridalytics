@@ -1,0 +1,21 @@
+{
+  "state": "maharashtra",
+  "resolution": "daily",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 2.556,
+  "cv_mape": {
+    "LightGBM": 2.556,
+    "XGBoost": 2.788
+  },
+  "persistence_mape": 2.982,
+  "seasonal_naive_mape": 4.074,
+  "skill_vs_persistence": 0.143,
+  "source": "psp",
+  "data_start": "2022-03-02",
+  "data_end": "2026-10-29",
+  "rows": 1638,
+  "interpolated_rows": 78,
+  "weather": true,
+  "features": 96
+}

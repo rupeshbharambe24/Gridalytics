@@ -1,0 +1,21 @@
+{
+  "state": "nagaland",
+  "resolution": "daily",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 4.595,
+  "cv_mape": {
+    "LightGBM": 4.595,
+    "XGBoost": 4.628
+  },
+  "persistence_mape": 5.589,
+  "seasonal_naive_mape": 5.516,
+  "skill_vs_persistence": 0.178,
+  "source": "psp",
+  "data_start": "2021-06-24",
+  "data_end": "2026-10-28",
+  "rows": 1676,
+  "interpolated_rows": 119,
+  "weather": true,
+  "features": 96
+}

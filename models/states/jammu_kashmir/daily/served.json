@@ -1,0 +1,21 @@
+{
+  "state": "jammu_kashmir",
+  "resolution": "daily",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 3.27,
+  "cv_mape": {
+    "LightGBM": 3.27,
+    "XGBoost": 3.471
+  },
+  "persistence_mape": 3.322,
+  "seasonal_naive_mape": 5.125,
+  "skill_vs_persistence": 0.015,
+  "source": "psp",
+  "data_start": "2022-05-16",
+  "data_end": "2026-11-04",
+  "rows": 1628,
+  "interpolated_rows": 78,
+  "weather": true,
+  "features": 96
+}

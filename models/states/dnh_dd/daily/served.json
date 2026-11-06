@@ -1,0 +1,21 @@
+{
+  "state": "dnh_dd",
+  "resolution": "daily",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 2.395,
+  "cv_mape": {
+    "LightGBM": 2.395,
+    "XGBoost": 2.613
+  },
+  "persistence_mape": 3.295,
+  "seasonal_naive_mape": 3.384,
+  "skill_vs_persistence": 0.273,
+  "source": "psp",
+  "data_start": "2023-06-01",
+  "data_end": "2026-11-04",
+  "rows": 1253,
+  "interpolated_rows": 7,
+  "weather": true,
+  "features": 96
+}

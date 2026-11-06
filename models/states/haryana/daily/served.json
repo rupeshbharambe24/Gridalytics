@@ -1,0 +1,21 @@
+{
+  "state": "haryana",
+  "resolution": "daily",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 4.252,
+  "cv_mape": {
+    "LightGBM": 4.252,
+    "XGBoost": 4.491
+  },
+  "persistence_mape": 6.153,
+  "seasonal_naive_mape": 9.758,
+  "skill_vs_persistence": 0.309,
+  "source": "psp",
+  "data_start": "2021-06-24",
+  "data_end": "2026-10-29",
+  "rows": 1677,
+  "interpolated_rows": 115,
+  "weather": true,
+  "features": 96
+}

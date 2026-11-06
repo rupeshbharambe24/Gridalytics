@@ -86,9 +86,10 @@ INDIAN_STATES: list[StateGrid] = [
     StateGrid("rajasthan", "Rajasthan", Region.NR, ("JVVNL", "AVVNL", "JdVVNL"),
               Tier.FALLBACK, Method.PSP, "fallback", "https://sldc.rajasthan.gov.in/",
               "SLDC bot-blocked (403) + bad TLS; needs browser verification."),
-    StateGrid("himachal_pradesh", "Himachal Pradesh", Region.NR, (), Tier.FALLBACK,
-              Method.JS_DASHBOARD, "fallback", "https://hpsldc.com/",
-              "rich 15-min data but JS/AJAX (nonce) — headless browser needed."),
+    StateGrid("himachal_pradesh", "Himachal Pradesh", Region.NR, (), Tier.DIRECT,
+              Method.JS_DASHBOARD, None, "https://hpsldc.com/",
+              "15-min demand history 2017+ via scripts/collect_himachal_15min.py "
+              "(monthly backfill, not yet in the scheduler); daily peak via HimachalPSPScraper."),
     StateGrid("uttarakhand", "Uttarakhand", Region.NR, (), Tier.FALLBACK, Method.PSP,
               "fallback", "https://uksldc.in/", "public SLDC site hosting-suspended."),
     StateGrid("jammu_kashmir", "Jammu & Kashmir", Region.NR, ("JPDCL", "KPDCL"),

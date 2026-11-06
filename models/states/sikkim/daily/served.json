@@ -1,0 +1,21 @@
+{
+  "state": "sikkim",
+  "resolution": "daily",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 6.31,
+  "cv_mape": {
+    "LightGBM": 6.31,
+    "XGBoost": 6.716
+  },
+  "persistence_mape": 9.805,
+  "seasonal_naive_mape": 9.98,
+  "skill_vs_persistence": 0.356,
+  "source": "psp",
+  "data_start": "2021-06-24",
+  "data_end": "2026-10-29",
+  "rows": 1677,
+  "interpolated_rows": 115,
+  "weather": true,
+  "features": 96
+}

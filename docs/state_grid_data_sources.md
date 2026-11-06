@@ -24,7 +24,8 @@ static HTML `<table>` · **5-minute** rows · **DISCOM-level** (Delhi + BRPL/BYP
 **State registry (read this to classify coverage):** [`src/data/scrapers/states.py`](../src/data/scrapers/states.py)
 enumerates all **36** states/UTs with region, DISCOMs, tier (`direct` / `fallback` / `deferred`), and the
 scraper handling each. Helpers: `direct_states()`, `fallback_states()`, `discom_level_states()`,
-`coverage_summary()`. Current coverage: **7 direct, 29 fallback.**
+`coverage_summary()`. Current coverage: **9 direct, 27 fallback** (Maharashtra and Himachal Pradesh
+moved to direct).
 
 **Direct per-state scrapers** (`src/data/scrapers/state_sldc.py`; tables `state_demand` /
 `state_demand_discom`; CLI `scripts/collect_states.py`): **Bihar, Punjab, Uttar Pradesh** (Phase 1) +
@@ -35,19 +36,35 @@ DISCOM-level breakdowns. All verified live.
 > from a **US research node** and are unreliable — from an **Indian network** (the dev Mac), `mahasldc.in`,
 > `sldcguj.com` and `vidyutpravah.in` all return HTTP 200. Re-probe any host marked unreachable from India
 > before assuming it's dead. Gujarat was reclassified direct this way; hosts with genuinely broken TLS
-> (`erldc.in`, `sldc.rajasthan.gov.in`) still need `SLDC_INSECURE_TLS`.
+> (`erldc.in`, `sldc.rajasthan.gov.in`) still need `SLDC_INSECURE_TLS`. Rajasthan additionally sits behind
+> a 403 bot filter — it is covered by the daily PSP series instead (no circumvention).
 
 **Universal fallback** (`src/data/scrapers/state_fallback.py`; table `state_psp_daily`): Grid-India daily
-PSP, one row per state per day for **all** states — the source for the 29 fallback states. The table
-parser (`parse_psp_states`) is unit-verified; ⚠️ the live PDF download needs `report.grid-india.in`
-reachable (it was unreachable from the build environment — run from an Indian network, or use the
-Selenium path in `grid_india.py`). Scheduled nightly.
+PSP, one row per state per day — the source for the fallback states' daily models. `report.grid-india.in`
+is dead; the live sources are:
+- `EnergymapPSPScraper` — the energymap.in API mirror of the NLDC PSP (demand-dated, 2021-05 →). Has no
+  J&K, Ladakh, DNH&DD, Andaman & Nicobar or Lakshadweep, and MP/UP only from 2023.
+- `OfficialPSPFillScraper` — parses section *C. Power Supply Position in States* of the official
+  `webcdn.grid-india.in/…_NLDC_PSP.pdf` (URLs taken from energymap's `source_url`) and **inserts only
+  missing rows** (source `nldc_psp_official`) for J&K(UT) & Ladakh(UT), DNHDDPDCL, UP and MP. History:
+  `scripts/backfill_psp_official.py --start 2021-05-01`.
+- Wayback-archived PSP files (2016–2021, sparse). Files dated before **2021-01-04** are named by report
+  date and hold the previous day's demand; `scripts/fix_date_integrity.py` re-dates them.
+
+The scheduler's nightly `scrape_state_psp_latest` runs both live scrapers over the last 3 days.
+
+Gaps that remain: **Ladakh** has no separate series (the official row is J&K + Ladakh combined);
+**DNH&DD** is stored only from the merged DNHDDPDCL era (mid-2022 →; the earlier separate DNH / DD rows are
+not summed); **Andaman & Nicobar** and **Lakshadweep** are not in the PSP at all.
 
 **Gujarat (now direct, snapshot):** `sldcguj.com/RealTimeUser.php` renders "Gujarat Catered" (state demand
 MW) + "Grid Frequency" in server HTML, no auth — reachable from India (the old 403 was the US node).
 `GujaratSLDCScraper`, aggregate-only, stamped at collection time, polled by the scheduler to build a series.
 
-**TLS:** Bihar & Punjab need `SLDC_INSECURE_TLS=true` (broken gov TLS); UP/Karnataka/Chhattisgarh/Gujarat work as-is.
+**TLS:** all direct scrapers run with certificate verification **on**. `_LegacyTLSAdapter` re-enables
+legacy renegotiation (old gov TLS stacks) and trusts the public intermediates in
+`src/data/scrapers/certs/` — Bihar omits the GoDaddy Secure CA G2 intermediate from its chain.
+`SLDC_INSECURE_TLS` is no longer needed for Bihar or Punjab.
 
 ## TL;DR acquisition strategy
 
@@ -91,7 +108,7 @@ Columns: **Jurisdiction · SLDC/operator · Best data source · Granularity · D
 | **Delhi** (ref) | Delhi SLDC | delhisldc.org/Loaddata.aspx?mode=DD/MM/YYYY | 5-min | ✅ 5 | by-date URL to 2021 | static HTML | **EASY** |
 | **Punjab** | PSLDC (PSTCL) | ✅LIVE `sldcapi.pstcl.org/wsDataService.asmx/dynamicData` (`loadMW`) | ~5–6 min | ✗ (single PSPCL) | current-day buffer; poll | no-auth JSON (.asmx); **broken TLS → verify=False** | **EASY** |
 | **Uttar Pradesh** | UPSLDC (UPPTCL) | ✅LIVE `upsldc.org/realtimedatap` + `/assets/dataset/*.json` (`DEMAND_MW`) | snapshot | ✗ for demand (gen-side only) | monthly PDFs; poll for series | static JSON | **EASY** |
-| **Himachal Pradesh** | HPSLDC (HPSEBL) | `hpsldc.com/real-time-hp-data/` | 15-min | ✗ | date filters + report files | **JS/AJAX (admin-ajax nonce), portal 401 → headless** | MEDIUM |
+| **Himachal Pradesh** | HPSLDC (HPSEBL) | `hpsldc.com/real-time-hp-data/` | 15-min | ✗ | date filters + report files | **JS/AJAX (admin-ajax nonce), portal 401 → headless** — ✅ 15-min history 2017 → via `scripts/collect_himachal_15min.py` (monthly backfill, not yet scheduled) | MEDIUM → direct |
 | **Haryana** | HVPNL | hvpn.org.in (Angular SPA, no data) | — | ✗ | — | none public | HARD |
 | **Rajasthan** | RVPN | sldc.rajasthan.gov.in *(403 bot-filter + bad SSL; /mis/ unverified)* | ? | ? | ? | likely JS/login *(verify in India)* | HARD |
 | **Uttarakhand** | PTCUL | uksldc.in **hosting-suspended**; sldc.uk.gov.in NXDOMAIN | — | ✗ | PTCUL equipment PDFs only | none now | HARD |

@@ -1,0 +1,21 @@
+{
+  "state": "uttarakhand",
+  "resolution": "daily",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 3.379,
+  "cv_mape": {
+    "LightGBM": 3.379,
+    "XGBoost": 3.51
+  },
+  "persistence_mape": 4.508,
+  "seasonal_naive_mape": 6.013,
+  "skill_vs_persistence": 0.25,
+  "source": "psp",
+  "data_start": "2021-06-24",
+  "data_end": "2026-10-29",
+  "rows": 1677,
+  "interpolated_rows": 115,
+  "weather": true,
+  "features": 96
+}

@@ -1,0 +1,21 @@
+{
+  "state": "bihar",
+  "resolution": "hourly",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 1.812,
+  "cv_mape": {
+    "LightGBM": 1.812,
+    "XGBoost": 1.865
+  },
+  "persistence_mape": 2.775,
+  "seasonal_naive_mape": 6.807,
+  "skill_vs_persistence": 0.347,
+  "source": "state_demand",
+  "data_start": "2023-07-01",
+  "data_end": "2026-10-31",
+  "rows": 18128,
+  "interpolated_rows": 189,
+  "weather": true,
+  "features": 90
+}

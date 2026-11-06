@@ -1,0 +1,21 @@
+{
+  "state": "odisha",
+  "resolution": "daily",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 3.819,
+  "cv_mape": {
+    "LightGBM": 3.819,
+    "XGBoost": 3.968
+  },
+  "persistence_mape": 3.726,
+  "seasonal_naive_mape": 7.667,
+  "skill_vs_persistence": -0.025,
+  "source": "psp",
+  "data_start": "2022-03-02",
+  "data_end": "2026-10-29",
+  "rows": 1632,
+  "interpolated_rows": 85,
+  "weather": true,
+  "features": 96
+}

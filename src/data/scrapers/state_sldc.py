@@ -24,6 +24,7 @@ from datetime import date, datetime, timedelta
 import io
 import re
 import ssl
+from pathlib import Path
 import time
 
 import numpy as np
@@ -48,6 +49,8 @@ from .base import BaseScraper
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 _UA = {"User-Agent": "Mozilla/5.0 (Gridalytics Research Project)"}
+# Public intermediate CA certs that some SLDC servers fail to send (see _LegacyTLSAdapter).
+_CERT_DIR = Path(__file__).parent / "certs"
 
 
 class _LegacyTLSAdapter(HTTPAdapter):
@@ -55,14 +58,18 @@ class _LegacyTLSAdapter(HTTPAdapter):
 
     Bihar's API (sldc.bsptcl.co.in) runs an old TLS stack that OpenSSL 3.x
     rejects with UNSAFE_LEGACY_RENEGOTIATION_DISABLED. We always re-enable legacy
-    renegotiation (a protocol-compat option, not a verification change). Whether
-    certificate verification is skipped is gated on ``settings.SLDC_INSECURE_TLS``
-    (default False); Bihar also serves an incomplete cert chain, so verification
-    only succeeds with that flag on. InsecureRequestWarning is silenced above.
+    renegotiation (a protocol-compat option, not a verification change). Bihar
+    also omits its intermediate CA (GoDaddy Secure CA - G2) from the handshake, so
+    we ship that public intermediate (certs/, named by the leaf's AIA "CA Issuers"
+    URL) and add it to the trust store: the chain then verifies to the GoDaddy
+    root in certifi, with verification ON. ``settings.SLDC_INSECURE_TLS`` remains
+    as an explicit last-resort override.
     """
     def init_poolmanager(self, *args, **kwargs):
         ctx = create_urllib3_context() if create_urllib3_context else ssl.create_default_context()
         ctx.options |= getattr(ssl, "OP_LEGACY_SERVER_CONNECT", 0x4)
+        for pem in _CERT_DIR.glob("*.crt"):  # PEM-encoded public CA certs
+            ctx.load_verify_locations(cafile=str(pem))
         if settings.SLDC_INSECURE_TLS:
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
