@@ -24,11 +24,18 @@ static HTML `<table>` · **5-minute** rows · **DISCOM-level** (Delhi + BRPL/BYP
 **State registry (read this to classify coverage):** [`src/data/scrapers/states.py`](../src/data/scrapers/states.py)
 enumerates all **36** states/UTs with region, DISCOMs, tier (`direct` / `fallback` / `deferred`), and the
 scraper handling each. Helpers: `direct_states()`, `fallback_states()`, `discom_level_states()`,
-`coverage_summary()`. Current coverage: **6 direct, 29 fallback, 1 deferred.**
+`coverage_summary()`. Current coverage: **7 direct, 29 fallback.**
 
 **Direct per-state scrapers** (`src/data/scrapers/state_sldc.py`; tables `state_demand` /
 `state_demand_discom`; CLI `scripts/collect_states.py`): **Bihar, Punjab, Uttar Pradesh** (Phase 1) +
-**Karnataka, Chhattisgarh** (Phase 2). Karnataka & Bihar carry DISCOM-level breakdowns. All verified live.
+**Karnataka, Chhattisgarh** (Phase 2) + **Gujarat** (Phase 2, snapshot). Karnataka & Bihar carry
+DISCOM-level breakdowns. All verified live.
+
+> **Reachability note (Nov 2026):** the "geo-blocked / 403 / unreachable" verdicts below were recorded
+> from a **US research node** and are unreliable — from an **Indian network** (the dev Mac), `mahasldc.in`,
+> `sldcguj.com` and `vidyutpravah.in` all return HTTP 200. Re-probe any host marked unreachable from India
+> before assuming it's dead. Gujarat was reclassified direct this way; hosts with genuinely broken TLS
+> (`erldc.in`, `sldc.rajasthan.gov.in`) still need `SLDC_INSECURE_TLS`.
 
 **Universal fallback** (`src/data/scrapers/state_fallback.py`; table `state_psp_daily`): Grid-India daily
 PSP, one row per state per day for **all** states — the source for the 29 fallback states. The table
@@ -36,10 +43,11 @@ parser (`parse_psp_states`) is unit-verified; ⚠️ the live PDF download needs
 reachable (it was unreachable from the build environment — run from an Indian network, or use the
 Selenium path in `grid_india.py`). Scheduled nightly.
 
-**Deferred: Gujarat** — `RealTime.php` is 403-gated and the homepage live widget was removed; needs the
-official SLDC app API or GETCO access (not scrapable without it).
+**Gujarat (now direct, snapshot):** `sldcguj.com/RealTimeUser.php` renders "Gujarat Catered" (state demand
+MW) + "Grid Frequency" in server HTML, no auth — reachable from India (the old 403 was the US node).
+`GujaratSLDCScraper`, aggregate-only, stamped at collection time, polled by the scheduler to build a series.
 
-**TLS:** Bihar & Punjab need `SLDC_INSECURE_TLS=true` (broken gov TLS); UP/Karnataka/Chhattisgarh work as-is.
+**TLS:** Bihar & Punjab need `SLDC_INSECURE_TLS=true` (broken gov TLS); UP/Karnataka/Chhattisgarh/Gujarat work as-is.
 
 ## TL;DR acquisition strategy
 
@@ -95,8 +103,8 @@ Columns: **Jurisdiction · SLDC/operator · Best data source · Granularity · D
 | Jurisdiction | SLDC / operator | Best source | Gran. | DISCOM | History | Method | Tier |
 |---|---|---|---|---|---|---|---|
 | **Chhattisgarh** | CSLDC (CSPTCL) | ✅LIVE `sldccg.com/gen.php` (CG demand + station gen) | snapshot (30-s refresh) | ✗ (single CSPDCL) | report PDFs; poll for series | static HTML + meta-refresh | **EASY** |
-| **Gujarat** | SLDC Gujarat (GETCO) | ✅LIVE `sldcguj.com` index (`Gujarat Catered` MW) + `/RealTime.php` | snapshot | ✗ (aggregate only) | dated report PDFs | static HTML text; (SLDC app has a feed) | EASY–MED |
-| **Maharashtra** | MSLDC (MSETCL) | `mahasldc.in/scada/reports/report2` (SCADA **image**) | snapshot | ✗ | ✅ by-date PDFs `mahasldc.in/wp-content/reports/` `dr0_/wr6_/mr6_` to ~2010 | image→OCR for live; PDF for history | MEDIUM |
+| **Gujarat** | SLDC Gujarat (GETCO) | ✅**BUILT** `sldcguj.com/RealTimeUser.php` (`Gujarat Catered` MW + freq) | snapshot | ✗ (aggregate only) | dated report PDFs | `GujaratSLDCScraper` static HTML; poll | **DIRECT** |
+| **Maharashtra** | MSLDC (MSETCL) | daily peak ✅ built (`state_fallback.py`); live = `mahasldc.in/scada/reports/report2` is a **JPG image** (OCR); DSR portal `dsr.mahasldc.in:94` is a login/stub "Data Warehousing System" | snapshot/daily | ✗ | by-date report PDFs (location changed from `wp-content/reports`; relocate on the redesigned site) | daily built; **sub-daily = OCR of JPG or DSR portal (deferred, heavy)** | MEDIUM |
 | **Madhya Pradesh** | MP SLDC (MPPTCL) | mptransco.in (SCADA info page only) | — | ✗ | — | none public | HARD |
 | **Goa** | Goa Electricity Dept | goaelectricity.gov.in (no live page) | — | ✗ | — | fallback only | HARD |
 | **DNH & DD** (UT) | Elec. Dept (deemed; Torrent) | none | — | ✗ | — | fallback only | HARD |
