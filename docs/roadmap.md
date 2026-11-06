@@ -11,18 +11,20 @@ Status legend: ✅ done · 🔄 in progress · ⬜ planned. Current `main` refle
 
 - **36 states/UTs mapped** in one registry (`src/data/scrapers/states.py`) — region, DISCOMs, data
   source, scraper, tier.
-- **2 states modelled:** **Delhi** (daily / hourly / 5-min) and **Karnataka** (hourly).
+- **33 states/UTs modelled:** a daily peak-demand model for every state/UT in the Grid-India PSP, plus
+  hourly models for **Karnataka, Bihar, Himachal Pradesh** and Delhi's own 5-min/hourly/daily models.
+  Results: [state_models.md](state_models.md).
 - **State-wise API + dashboard** live (`/api/v1/states`, `/states` page) showing every state's status.
 - All numbers leak-free and reported against a persistence baseline.
 
 | | Count | Detail |
 |--|--:|--|
 | States/UTs mapped | 36 | full registry |
-| Modelled | 2 | Delhi, Karnataka |
-| Collecting data | 2 | Delhi, Karnataka |
-| Direct scrapers built | 6 | Delhi, Bihar, Punjab, Uttar Pradesh, Karnataka, Chhattisgarh |
-| National fallback (Grid-India PSP) | 29 | code ready; needs the collector to run |
-| Deferred (access-gated) | 1 | Gujarat |
+| Modelled — daily peak (PSP) | 33 | all but Ladakh (inside J&K's row), Andaman & Nicobar, Lakshadweep |
+| Modelled — hourly | 4 | Delhi (+5-min), Karnataka, Bihar, Himachal Pradesh |
+| Direct scrapers built | 9 | Delhi, Bihar, Punjab, UP, Karnataka, Chhattisgarh, Gujarat, Maharashtra, Himachal |
+| Daily PSP collection | 33 | energymap mirror + official NLDC PDF fill, nightly |
+| No data | 3 | Ladakh (separately), Andaman & Nicobar, Lakshadweep |
 | DISCOM-level capable | 3 | Delhi, Bihar, Karnataka |
 
 ---
@@ -41,15 +43,15 @@ backend, Next.js dashboard, automated collection. Leak-free features + honest pe
 - States API + `/states` dashboard with per-state analysis.
 
 ### 🔄 Phase 2 — First states beyond Delhi
-- ✅ **Karnataka** — hourly model (XGBoost 2.46% vs 4.70% persistence), DISCOM-level source.
-- 🔄 **Bihar · Punjab · Uttar Pradesh · Chhattisgarh** — scrapers built; onboard each once it has enough
-  stored history. Bihar & Punjab need `SLDC_INSECURE_TLS=true` (old gov TLS); Bihar/Karnataka are
-  DISCOM-level. Recipe below.
+- ✅ **Hourly models:** Karnataka 2.33% vs 4.79% persistence, Himachal 1.75% vs 4.45%, Bihar 1.81% vs 2.77%.
+- 🔄 **Punjab · Uttar Pradesh · Chhattisgarh · Gujarat · Maharashtra** — live scrapers work (TLS verified,
+  no `SLDC_INSECURE_TLS`); they need the scheduler running to accumulate sub-daily history before an
+  hourly model. Recipe below.
 
-### ⬜ Phase 3 — National fallback live (the other 29 states)
-Run the Grid-India daily-PSP collector so every remaining state gets a **daily** state-total model.
-Gating: `report.grid-india.in` must be reachable from the run host (it was unreachable from the dev
-machine); then schedule the nightly PSP job and train daily models per state.
+### ✅ Phase 3 — National fallback live
+Daily PSP for 33 states/UTs (energymap mirror + official NLDC PDF fill for J&K, DNH&DD, MP, UP), collected
+nightly by the scheduler; a daily peak model per state. 29/33 beat persistence; MP, Bihar, Andhra and
+Odisha do not yet — serve persistence there until improved ([state_models.md](state_models.md)).
 
 ### ⬜ Phase 4 — Live per-state forecasts
 Generalise the recursive forecast engine (`src/forecasting/future.py`, currently Delhi-specific) so the
@@ -58,7 +60,7 @@ states API serves **day-ahead forecasts** per state, not just status + history +
 ### ⬜ Phase 5 — Depth & fidelity
 - More DISCOM-level states where the source allows; deeper historical backfills.
 - Higher resolution where a state exposes it (sub-hourly beyond Delhi/Bihar).
-- Gujarat (deferred) once its source access is sorted.
+- Regional holiday calendars; multi-point weather for large states.
 - Intraday event/festival shapes; per-state weather at the right load centre.
 
 ---
@@ -72,6 +74,8 @@ python scripts/collect_states.py --states <code>           # live poll (snapshot
 
 # 2. Train — same leak-free pipeline + champion/challenger CV vs persistence
 python scripts/train_state.py <code> --resolution hourly
+#    or, daily peak from the PSP table:
+python scripts/train_state.py <code> --source psp
 ```
 
 The model saves to `models/states/<code>/<resolution>/` and the `/states` dashboard flips the state to

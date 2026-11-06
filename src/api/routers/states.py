@@ -32,8 +32,11 @@ _MODELS = Path("models") / "states"
 def _row_count(db: Session, code: str) -> int:
     if code == "delhi":
         return db.query(func.count(DemandRecord.id)).scalar() or 0
-    return (db.query(func.count(StateDemandRecord.id))
-            .filter(StateDemandRecord.state_code == code).scalar() or 0)
+    sub_daily = (db.query(func.count(StateDemandRecord.id))
+                 .filter(StateDemandRecord.state_code == code).scalar() or 0)
+    psp_days = (db.query(func.count(StatePSPDaily.id))
+                .filter(StatePSPDaily.state_code == code).scalar() or 0)
+    return sub_daily + psp_days
 
 
 def _model_info(code: str) -> dict | None:
