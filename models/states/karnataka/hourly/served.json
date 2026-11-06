@@ -3,7 +3,19 @@
   "resolution": "hourly",
   "served_model": "LightGBM",
   "champion": "XGBoost",
-  "champion_cv_mape": 2.461,
-  "persistence_mape": 4.698,
+  "champion_cv_mape": 2.306,
+  "cv_mape": {
+    "LightGBM": 2.326,
+    "XGBoost": 2.306
+  },
+  "persistence_mape": 4.794,
+  "seasonal_naive_mape": 4.771,
+  "skill_vs_persistence": 0.519,
+  "source": "state_demand",
+  "data_start": "2015-01-31",
+  "data_end": "2026-10-29",
+  "rows": 93783,
+  "interpolated_rows": 1720,
+  "weather": true,
   "features": 90
 }

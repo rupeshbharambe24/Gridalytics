@@ -1,0 +1,21 @@
+{
+  "state": "kerala",
+  "resolution": "daily",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 3.218,
+  "cv_mape": {
+    "LightGBM": 3.218,
+    "XGBoost": 3.305
+  },
+  "persistence_mape": 4.012,
+  "seasonal_naive_mape": 4.868,
+  "skill_vs_persistence": 0.198,
+  "source": "psp",
+  "data_start": "2021-06-24",
+  "data_end": "2026-10-29",
+  "rows": 1677,
+  "interpolated_rows": 120,
+  "weather": true,
+  "features": 96
+}

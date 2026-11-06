@@ -1,0 +1,21 @@
+{
+  "state": "manipur",
+  "resolution": "daily",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 4.621,
+  "cv_mape": {
+    "LightGBM": 4.621,
+    "XGBoost": 4.805
+  },
+  "persistence_mape": 4.972,
+  "seasonal_naive_mape": 6.089,
+  "skill_vs_persistence": 0.071,
+  "source": "psp",
+  "data_start": "2021-06-24",
+  "data_end": "2026-10-29",
+  "rows": 1677,
+  "interpolated_rows": 115,
+  "weather": true,
+  "features": 96
+}

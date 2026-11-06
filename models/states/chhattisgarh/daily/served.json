@@ -1,0 +1,21 @@
+{
+  "state": "chhattisgarh",
+  "resolution": "daily",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 2.416,
+  "cv_mape": {
+    "LightGBM": 2.416,
+    "XGBoost": 2.608
+  },
+  "persistence_mape": 2.523,
+  "seasonal_naive_mape": 5.693,
+  "skill_vs_persistence": 0.042,
+  "source": "psp",
+  "data_start": "2021-06-24",
+  "data_end": "2026-10-28",
+  "rows": 1676,
+  "interpolated_rows": 120,
+  "weather": true,
+  "features": 96
+}

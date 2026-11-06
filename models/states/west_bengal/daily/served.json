@@ -1,0 +1,21 @@
+{
+  "state": "west_bengal",
+  "resolution": "daily",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 3.022,
+  "cv_mape": {
+    "LightGBM": 3.022,
+    "XGBoost": 3.153
+  },
+  "persistence_mape": 4.15,
+  "seasonal_naive_mape": 7.588,
+  "skill_vs_persistence": 0.272,
+  "source": "psp",
+  "data_start": "2021-06-24",
+  "data_end": "2026-10-29",
+  "rows": 1677,
+  "interpolated_rows": 115,
+  "weather": true,
+  "features": 96
+}

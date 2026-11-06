@@ -1,0 +1,21 @@
+{
+  "state": "goa",
+  "resolution": "daily",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 2.546,
+  "cv_mape": {
+    "LightGBM": 2.546,
+    "XGBoost": 2.786
+  },
+  "persistence_mape": 3.738,
+  "seasonal_naive_mape": 4.176,
+  "skill_vs_persistence": 0.319,
+  "source": "psp",
+  "data_start": "2021-06-24",
+  "data_end": "2026-10-29",
+  "rows": 1677,
+  "interpolated_rows": 115,
+  "weather": true,
+  "features": 96
+}

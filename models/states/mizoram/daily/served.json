@@ -1,0 +1,21 @@
+{
+  "state": "mizoram",
+  "resolution": "daily",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 5.59,
+  "cv_mape": {
+    "LightGBM": 5.59,
+    "XGBoost": 5.722
+  },
+  "persistence_mape": 8.793,
+  "seasonal_naive_mape": 7.449,
+  "skill_vs_persistence": 0.364,
+  "source": "psp",
+  "data_start": "2021-06-24",
+  "data_end": "2026-10-29",
+  "rows": 1677,
+  "interpolated_rows": 115,
+  "weather": true,
+  "features": 96
+}
