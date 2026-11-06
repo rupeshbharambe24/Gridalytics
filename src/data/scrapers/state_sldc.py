@@ -368,6 +368,11 @@ class KarnatakaSLDCScraper(StateSLDCScraper):
     STATE_NAME = "Karnataka"
     SOURCE = "ksldc"
 
+    # Karnataka's state demand never drops below ~3.6 GW; the KPTCL feeds emit
+    # occasional sub-20 MW placeholder values for missing samples, so floor the
+    # valid range well above them (real data resumes at ~3,615 MW, clean gap).
+    MIN_MW = 500.0
+
     # span id -> field, per the current kptclsldc.in Default.aspx layout.
     # (Historical intraday data also lives in daily load-curve Excel files at
     #  loadcurve.kptcl.net — not yet wired here.)
@@ -416,6 +421,7 @@ class KarnatakaLoadCurveScraper(StateSLDCScraper):
     STATE_CODE = "karnataka"
     STATE_NAME = "Karnataka"
     SOURCE = "ksldc_loadcurve"
+    MIN_MW = 500.0  # drop KPTCL's sub-20 MW placeholder samples (see KarnatakaSLDCScraper)
     BASE = "https://loadcurve.kptcl.net/LoadCurveUpload/data"
     _OLE_MAGIC = b"\xd0\xcf\x11\xe0"  # real .xls (OLE2); a 404 returns HTML instead
 
