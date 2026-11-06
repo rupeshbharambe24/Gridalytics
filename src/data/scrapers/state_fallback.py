@@ -604,6 +604,123 @@ class KeralaPSPScraper(BaseScraper):
         return _psp_upsert(df, session)
 
 
+# Official NLDC PSP "C. Power Supply Position in States" row labels -> state_code.
+# Exact labels only (the generic substring matcher above would let "UP"/"MP" match
+# inside other names). energymap has no rows for these states/UTs or years, so they
+# are filled from the official files directly (OfficialPSPFillScraper).
+_OFFICIAL_LABELS = {
+    "J&K(UT) & Ladakh(UT)": "jammu_kashmir",   # one combined row since the 2019 split
+    # Only the merged utility: before ~2022 "DNH" and "DD" are separate rows, and
+    # summing two non-coincident peaks would overstate the combined peak.
+    "DNHDDPDCL": "dnh_dd",
+    "UP": "uttar_pradesh",
+    "MP": "madhya_pradesh",
+}
+# label, then max demand met, shortage, energy met (later columns vary by year,
+# e.g. "952/ -1785" for Max OD/UD from 2026)
+_SECTION_C_ROW = re.compile(
+    r"^(?:(?:NR|WR|SR|ER|NER)\s+)?(?P<label>\S.*?)\s+"
+    r"(?P<nums>-?[\d.]+\s+-?[\d.]+\s+-?[\d.]+)(?:\s|$)")
+
+
+def parse_section_c(text: str) -> dict[str, dict]:
+    """Parse section C of an official NLDC PSP report (PDF text) for the states in
+    _OFFICIAL_LABELS. Columns: max demand met (MW), shortage at max demand (MW),
+    energy met (MU), drawal schedule, OD/UD, max OD, energy shortage."""
+    out: dict[str, dict] = {}
+    lines = text.splitlines()
+    try:
+        start = next(i for i, l in enumerate(lines) if "Power Supply Position in States" in l)
+    except StopIteration:
+        return out
+    for line in lines[start + 1:]:
+        if re.match(r"^\s*D\.\s", line):   # next section
+            break
+        m = _SECTION_C_ROW.match(line.strip())
+        if not m:
+            continue
+        code = _OFFICIAL_LABELS.get(m.group("label").strip())
+        if code and code not in out:
+            n = [float(v) for v in m.group("nums").split()]
+            out[code] = {"peak_demand_met_mw": n[0], "shortage_mw": n[1], "energy_met_mu": n[2]}
+    return out
+
+
+class OfficialPSPFillScraper(BaseScraper):
+    """Fill state_psp_daily gaps from the official NLDC PSP PDFs (webcdn.grid-india.in).
+
+    energymap (EnergymapPSPScraper) has no J&K/Ladakh or DNH&DD rows and only starts
+    MP/UP in 2023, but every official daily PDF carries them. File URLs come from
+    energymap's per-row ``source_url`` (Delhi roster), which is keyed by demand date:
+    from 2021 the file name is the demand date (verified: energymap Delhi == own
+    psp_daily on 100% of 1,274 overlapping days). Only inserts missing (state, date)
+    rows; never overwrites. -> state_psp_daily, source=nldc_psp_official.
+    """
+
+    def __init__(self, states: list[str] | None = None):
+        super().__init__(name="nldc-psp-official", max_retries=2, retry_delay=3.0)
+        self._only = set(states) if states else set(_OFFICIAL_LABELS.values())
+
+    def _urls(self) -> dict[date, str]:
+        r = self._retry_request(
+            requests.get, EnergymapPSPScraper.API, headers={**_UA, "Accept": "application/json"},
+            timeout=60, params={"days": EnergymapPSPScraper.MAX_DAYS, "scope": "state", "state": "delhi"})
+        out: dict[date, str] = {}
+        for it in r.json().get("items", []):
+            u, ds = it.get("source_url") or "", it.get("date")
+            if ds and u.lower().endswith(".pdf"):
+                out[datetime.strptime(ds, "%Y-%m-%d").date()] = u
+        return out
+
+    def scrape(self, start_date: date, end_date: date, skip: set | None = None) -> pd.DataFrame:
+        import pdfplumber
+        skip = skip or set()
+        rows: list[dict] = []
+        for d, url in sorted(self._urls().items()):
+            if not (start_date <= d <= end_date):
+                continue
+            wanted = {c for c in self._only if (c, d) not in skip}
+            if not wanted:
+                continue
+            try:
+                resp = self._retry_request(requests.get, url, headers=_UA, timeout=60)
+                if resp.status_code != 200 or resp.content[:4] != b"%PDF":
+                    self.logger.warning(f"{d}: HTTP {resp.status_code} {url}")
+                    continue
+                with pdfplumber.open(io.BytesIO(resp.content)) as pdf:
+                    text = "\n".join(p.extract_text() or "" for p in pdf.pages[:4])
+            except Exception as e:
+                self.logger.warning(f"{d}: {e}")
+                continue
+            for code, v in parse_section_c(text).items():
+                if code in wanted:
+                    rows.append({"state_code": code, "date": d, **v, "source": "nldc_psp_official"})
+            time.sleep(0.2)
+        return pd.DataFrame(rows)
+
+    def validate(self, df):
+        return _psp_validate(df)
+
+    def upsert(self, df: pd.DataFrame, session: Session) -> int:
+        if df is None or df.empty:
+            return 0
+        count = 0
+        for _, row in df.iterrows():
+            exists = session.query(StatePSPDaily).filter(
+                StatePSPDaily.state_code == row["state_code"],
+                StatePSPDaily.date == row["date"]).first()
+            if exists:
+                continue
+            session.add(StatePSPDaily(
+                state_code=row["state_code"], date=row["date"],
+                peak_demand_met_mw=row["peak_demand_met_mw"],
+                energy_met_mu=row.get("energy_met_mu"), shortage_mw=row.get("shortage_mw"),
+                source="nldc_psp_official"))
+            count += 1
+        session.flush()
+        return count
+
+
 # energymap.in state slug -> our state_code. energymap mirrors the official NLDC PSP
 # (its rows carry the source_url to the real webcdn.grid-india.in NLDC_PSP files), so
 # this one API covers every state at daily granularity — the all-India fallback that

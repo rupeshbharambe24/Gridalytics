@@ -7,13 +7,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import requests
 import pdfplumber
-from datetime import date
+from datetime import date, timedelta
 from src.data.db.session import get_session, create_tables
 from src.data.db.models import StatePSPDaily
 from sqlalchemy import func
 
 UA = {"User-Agent": "Mozilla/5.0 (Gridalytics Research Project)"}
 FLOOR = date(2021, 5, 9)  # energymap owns >= this; Wayback fills below
+REPORT_DATE_CUTOFF = date(2021, 1, 4)  # file names are demand dates from here on
 
 NAME2CODE = {"punjab": "punjab", "haryana": "haryana", "rajasthan": "rajasthan", "delhi": "delhi",
 "uttar pradesh": "uttar_pradesh", "up": "uttar_pradesh", "uttarakhand": "uttarakhand",
@@ -106,12 +107,16 @@ def main():
             d = date(2000 + int(yy), int(mm), int(dd))
         except ValueError:
             continue
+        # Before 2021 the file is named by REPORT date and holds the previous
+        # day ("Daily PSP Report for the date 14.06.2019" in 15.06.19_NLDC_PSP).
+        if d < REPORT_DATE_CUTOFF:
+            d -= timedelta(days=1)
         if d < FLOOR:
             byd[d].append((ts, orig))
     print(f"dates below floor {FLOOR}: {len(byd)}", flush=True)
     with get_session() as s:
         done = {r[0] for r in s.query(StatePSPDaily.date).filter(
-            StatePSPDaily.source == "nldc_psp_wayback").distinct().all()}
+            StatePSPDaily.source.in_(["nldc_psp_wayback", "nldc_psp_wayback_fixed"])).distinct().all()}
         existing = set(s.query(StatePSPDaily.state_code, StatePSPDaily.date).all())
     todo = sorted(d for d in byd if d not in done)
     print(f"dates total={len(byd)} already={len(done)} todo={len(todo)}", flush=True)
