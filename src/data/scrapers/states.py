@@ -108,9 +108,10 @@ INDIAN_STATES: list[StateGrid] = [
               Method.STATIC_HTML, "ChhattisgarhSLDCScraper", "https://sldccg.com/gen.php",
               "server-rendered table snapshot, 30-sec refresh (single DISCOM)."),
     StateGrid("gujarat", "Gujarat", Region.WR,
-              ("UGVCL", "MGVCL", "PGVCL", "DGVCL"), Tier.DEFERRED, Method.ACCESS_GATED,
-              None, "https://sldcguj.com/",
-              "RealTime.php 403-gated + homepage widget removed; needs app API / GETCO."),
+              ("UGVCL", "MGVCL", "PGVCL", "DGVCL"), Tier.DIRECT, Method.STATIC_HTML,
+              "GujaratSLDCScraper", "https://www.sldcguj.com/RealTimeUser.php",
+              "live snapshot: 'Gujarat Catered' MW + grid freq in server HTML, no auth "
+              "(aggregate only; the earlier 403 was a geo/bot block on the US node)."),
     StateGrid("maharashtra", "Maharashtra", Region.WR,
               ("MSEDCL", "Tata", "Adani", "BEST"), Tier.FALLBACK, Method.REPORTS,
               "fallback", "https://mahasldc.in/",

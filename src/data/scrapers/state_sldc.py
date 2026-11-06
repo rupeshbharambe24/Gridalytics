@@ -531,6 +531,58 @@ class ChhattisgarhSLDCScraper(StateSLDCScraper):
         }])
 
 
+# ---------------------------------------------------------------------------
+# Gujarat — server-rendered live snapshot (no auth, no history)
+# ---------------------------------------------------------------------------
+class GujaratSLDCScraper(StateSLDCScraper):
+    """Gujarat — live snapshot from sldcguj.com/RealTimeUser.php.
+
+    The page renders a small ``tr.sitedetails`` table with "Gujarat Catered"
+    (state demand met, MW) and "Grid Frequency" (Hz) directly in the server HTML
+    — no auth. There is no per-reading timestamp (the on-page clock is JS-driven),
+    so rows are stamped at collection time; poll on an interval to build a series.
+    Plain HTTPS (the historical 403 was a geo/bot block on the US research node).
+    """
+    STATE_CODE = "gujarat"
+    STATE_NAME = "Gujarat"
+    SOURCE = "gsldc"
+
+    def scrape(self, start_date: date, end_date: date) -> pd.DataFrame:
+        resp = self._retry_request(requests.get, settings.GUJARAT_SLDC_URL,
+                                   headers=_UA, timeout=30)
+        if resp.status_code != 200:
+            self.logger.warning(f"HTTP {resp.status_code}")
+            return pd.DataFrame()
+        soup = BeautifulSoup(resp.text, "html.parser")
+
+        def num(v):
+            if not v:
+                return None
+            m = re.search(r"-?\d[\d,]*\.?\d*", v)  # strips the " MW" / " Hz" unit
+            return _f(m.group()) if m else None
+
+        pairs: dict[str, str] = {}
+        for tr in soup.select("tr.sitedetails"):
+            tds = [td.get_text(" ", strip=True) for td in tr.find_all("td")]
+            if len(tds) >= 3 and re.search(r"[A-Za-z]", tds[0]):
+                pairs.setdefault(tds[0], tds[-1])
+
+        demand = num(pairs.get("Gujarat Catered"))
+        if demand is None:
+            self.logger.warning("Gujarat: 'Gujarat Catered' not found (layout changed?)")
+            return pd.DataFrame()
+        # Feed carries no timestamp → stamp at collection time (minute precision).
+        ts = datetime.now().replace(second=0, microsecond=0)
+        return pd.DataFrame([{
+            "state_code": self.STATE_CODE,
+            "timestamp": ts,
+            "demand_mw": demand,
+            "frequency_hz": num(pairs.get("Grid Frequency")),
+            "schedule_mw": None,
+            "drawal_mw": None,
+        }])
+
+
 # Registry — add new states here as their scrapers land (see the data-source doc).
 STATE_SCRAPERS: dict[str, type[StateSLDCScraper]] = {
     "bihar": BiharSLDCScraper,
@@ -538,15 +590,15 @@ STATE_SCRAPERS: dict[str, type[StateSLDCScraper]] = {
     "uttar_pradesh": UPSLDCScraper,
     "karnataka": KarnatakaSLDCScraper,
     "chhattisgarh": ChhattisgarhSLDCScraper,
+    "gujarat": GujaratSLDCScraper,
 }
 
 # Which states carry their own history (support date-range backfill) vs. are
 # live-snapshot only (must be polled on an interval to build a series).
 HISTORICAL_STATES = {"bihar"}
-SNAPSHOT_STATES = {"punjab", "uttar_pradesh", "karnataka", "chhattisgarh"}
+SNAPSHOT_STATES = {"punjab", "uttar_pradesh", "karnataka", "chhattisgarh", "gujarat"}
 
-# Deferred (known but not yet scrapable without extra access):
-#   gujarat — sldcguj.com RealTime.php is access-gated (HTTP 403) and the
-#     homepage live widget was removed. Needs the official SLDC Android app's
-#     backing API or a GETCO data-sharing arrangement. See docs/state_grid_data_sources.md.
-DEFERRED_STATES = {"gujarat": "RealTime.php 403-gated; homepage widget removed"}
+# Deferred (known but not yet scrapable without extra access). Empty for now —
+# Gujarat moved to a direct snapshot scraper (its RealTime.php 403 was a geo/bot
+# block on the US research node, not a real gate). See docs/state_grid_data_sources.md.
+DEFERRED_STATES: dict[str, str] = {}

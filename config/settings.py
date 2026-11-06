@@ -26,9 +26,10 @@ class Settings(BaseSettings):
     # Phase 2 (static-HTML snapshots)
     KARNATAKA_SLDC_URL: str = "https://kptclsldc.in/"
     CHHATTISGARH_SLDC_URL: str = "https://sldccg.com/gen.php"
-    # Gujarat: deferred — RealTime.php is access-gated (HTTP 403) and the homepage
-    # live widget was removed; needs the official SLDC app API or GETCO access.
-    GUJARAT_SLDC_URL: str = "https://sldcguj.com/"
+    # Gujarat: live snapshot — RealTimeUser.php serves "Gujarat Catered" (state
+    # demand MW) + "Grid Frequency" in server-rendered HTML, no auth. (The 403 seen
+    # earlier was a geo/bot block on the US research node, not a real gate.)
+    GUJARAT_SLDC_URL: str = "https://www.sldcguj.com/RealTimeUser.php"
 
     # Bihar & Punjab SLDC servers run old/broken TLS (incomplete cert chain,
     # legacy renegotiation) that Python rejects, though `curl` trusts them via
