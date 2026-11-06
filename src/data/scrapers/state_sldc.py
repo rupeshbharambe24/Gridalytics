@@ -583,6 +583,87 @@ class GujaratSLDCScraper(StateSLDCScraper):
         }])
 
 
+# ---------------------------------------------------------------------------
+# Maharashtra — live sub-daily state demand via OCR of the MSLDC SCADA image
+# ---------------------------------------------------------------------------
+class MaharashtraSCADAScraper(StateSLDCScraper):
+    """Maharashtra — live sub-daily "STATE DEMAND" by OCR of the MSLDC SCADA mimic.
+
+    `mahasldc.in/scada/reports/report2` embeds a fixed-layout JPG SCADA screen
+    (`assets/public/scada/report2.jpg`). Maharashtra exposes no API/table for
+    sub-daily demand (the DSR portal is login-gated; the daily peak comes from
+    monthly report PDFs via MaharashtraPSPScraper -> state_psp_daily). The
+    "STATE DEMAND" value sits at a stable *fractional* position in the mimic, so
+    we crop that box, upscale, and OCR just the digits (tesseract, psm 7).
+
+    Snapshot-only (stamped at collection time; the on-image clock is live, so
+    collection time matches within a minute). Poll on an interval to build a
+    series. Requires Pillow + the `tesseract` binary. Template OCR is inherently
+    fragile: if MSLDC redesigns the mimic the crop returns nothing (fails safe,
+    no bad rows) and `_DEMAND_BOX` must be re-pinned against a fresh image.
+    """
+    STATE_CODE = "maharashtra"
+    STATE_NAME = "Maharashtra"
+    SOURCE = "msldc_scada"
+    MIN_MW = 8000.0     # Maharashtra state demand ~12-30 GW; floor rejects OCR garbage
+    MAX_MW = 45000.0
+    IMG_URL = "https://mahasldc.in/assets/public/scada/report2.jpg"
+    # fractional (x0, y0, x1, y1) bounding box of the STATE DEMAND value in the mimic
+    _DEMAND_BOX = (0.565, 0.695, 0.675, 0.742)
+
+    def scrape(self, start_date: date, end_date: date) -> pd.DataFrame:
+        resp = self._retry_request(requests.get, self.IMG_URL, headers=_UA, timeout=30)
+        if resp.status_code != 200 or not resp.content[:2] == b"\xff\xd8":
+            self.logger.warning(f"HTTP {resp.status_code} / not a JPEG")
+            return pd.DataFrame()
+        val = self._ocr_demand(resp.content)
+        if val is None:
+            self.logger.warning("Maharashtra: STATE DEMAND not OCR-readable (mimic changed?)")
+            return pd.DataFrame()
+        # On-image clock is live SCADA → stamp at collection time (minute precision).
+        ts = datetime.now().replace(second=0, microsecond=0)
+        return pd.DataFrame([{
+            "state_code": self.STATE_CODE, "timestamp": ts, "demand_mw": float(val),
+            "frequency_hz": None, "schedule_mw": None, "drawal_mw": None,
+        }])
+
+    def _ocr_demand(self, content: bytes):
+        """Crop the STATE DEMAND box, upscale, OCR digits. None on any failure."""
+        import io as _io
+        import os
+        import subprocess
+        import tempfile
+        try:
+            from PIL import Image
+        except Exception as e:
+            self.logger.warning(f"Maharashtra OCR: Pillow missing ({e})")
+            return None
+        try:
+            im = Image.open(_io.BytesIO(content))
+            w, h = im.size
+            x0, y0, x1, y1 = self._DEMAND_BOX
+            crop = im.crop((int(x0 * w), int(y0 * h), int(x1 * w), int(y1 * h))).convert("L")
+            crop = crop.resize((crop.width * 4, crop.height * 4))
+            tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+            tmp.close()
+            crop.save(tmp.name)
+            try:
+                out = subprocess.run(
+                    ["tesseract", tmp.name, "stdout", "--psm", "7",
+                     "-c", "tessedit_char_whitelist=0123456789"],
+                    capture_output=True, text=True, timeout=30)
+            finally:
+                os.unlink(tmp.name)
+            digits = re.sub(r"\D", "", out.stdout)
+            return int(digits) if digits else None
+        except FileNotFoundError:
+            self.logger.warning("Maharashtra OCR: `tesseract` binary not found")
+            return None
+        except Exception as e:
+            self.logger.warning(f"Maharashtra OCR failed: {e}")
+            return None
+
+
 # Registry — add new states here as their scrapers land (see the data-source doc).
 STATE_SCRAPERS: dict[str, type[StateSLDCScraper]] = {
     "bihar": BiharSLDCScraper,
@@ -591,12 +672,13 @@ STATE_SCRAPERS: dict[str, type[StateSLDCScraper]] = {
     "karnataka": KarnatakaSLDCScraper,
     "chhattisgarh": ChhattisgarhSLDCScraper,
     "gujarat": GujaratSLDCScraper,
+    "maharashtra": MaharashtraSCADAScraper,
 }
 
 # Which states carry their own history (support date-range backfill) vs. are
 # live-snapshot only (must be polled on an interval to build a series).
 HISTORICAL_STATES = {"bihar"}
-SNAPSHOT_STATES = {"punjab", "uttar_pradesh", "karnataka", "chhattisgarh", "gujarat"}
+SNAPSHOT_STATES = {"punjab", "uttar_pradesh", "karnataka", "chhattisgarh", "gujarat", "maharashtra"}
 
 # Deferred (known but not yet scrapable without extra access). Empty for now —
 # Gujarat moved to a direct snapshot scraper (its RealTime.php 403 was a geo/bot

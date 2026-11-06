@@ -46,6 +46,7 @@ class Method(str, Enum):
     VIDYUTPRAVAH = "vidyutpravah"     # MoP live state demand (JS-rendered; headless)
     REPORTS = "reports"               # by-date Excel/PDF reports (Telangana/Kerala/…)
     JS_DASHBOARD = "js_dashboard"     # needs a headless browser
+    SCADA_OCR = "scada_ocr"           # OCR of a fixed-layout SCADA mimic image (Maharashtra)
     ACCESS_GATED = "access_gated"     # 403 / login / captcha
     NONE = "none"                     # no public feed found
 
@@ -113,9 +114,10 @@ INDIAN_STATES: list[StateGrid] = [
               "live snapshot: 'Gujarat Catered' MW + grid freq in server HTML, no auth "
               "(aggregate only; the earlier 403 was a geo/bot block on the US node)."),
     StateGrid("maharashtra", "Maharashtra", Region.WR,
-              ("MSEDCL", "Tata", "Adani", "BEST"), Tier.FALLBACK, Method.REPORTS,
-              "fallback", "https://mahasldc.in/",
-              "live SCADA is an image (OCR); by-date PDF archive for history."),
+              ("MSEDCL", "Tata", "Adani", "BEST"), Tier.DIRECT, Method.SCADA_OCR,
+              "MaharashtraSCADAScraper", "https://mahasldc.in/scada/reports/report2",
+              "sub-daily STATE DEMAND via OCR of the fixed SCADA mimic (snapshot); "
+              "daily peak also via report PDFs (MaharashtraPSPScraper)."),
     StateGrid("madhya_pradesh", "Madhya Pradesh", Region.WR,
               ("MPPKVVCL", "MPMKVVCL", "MPPoKVVCL"), Tier.FALLBACK, Method.PSP,
               "fallback", "https://www.mptransco.in/", "no public live demand page."),
