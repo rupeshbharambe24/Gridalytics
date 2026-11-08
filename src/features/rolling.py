@@ -15,6 +15,11 @@ WINDOW_CONFIGS = {
         "1d": 288,      # 288 x 5min = 24 hours
         "7d": 2016,     # 2016 x 5min = 7 days
     },
+    "15min": {
+        "1h": 4,        # 4 x 15min = 1 hour
+        "1d": 96,       # 96 x 15min = 24 hours
+        "7d": 672,      # 672 x 15min = 7 days
+    },
     "hourly": {
         "6h": 6,
         "1d": 24,

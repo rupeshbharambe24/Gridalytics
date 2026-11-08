@@ -1,0 +1,9 @@
+{
+  "state": "himachal_pradesh",
+  "resolution": "15min",
+  "served_model": "LightGBM",
+  "champion": "XGBoost",
+  "champion_cv_mape": 0.921,
+  "persistence_mape": 1.909,
+  "features": 86
+}

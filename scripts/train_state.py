@@ -55,6 +55,7 @@ STATE_COORDS = {
     "punjab": (30.9010, 75.8573),          # Ludhiana
     "uttar_pradesh": (26.8467, 80.9462),   # Lucknow
     "chhattisgarh": (21.2514, 81.6296),    # Raipur
+    "himachal_pradesh": (31.1048, 77.1734),  # Shimla (state load centre)
 }
 _WX = ["temperature_2m", "relative_humidity_2m", "dew_point_2m", "precipitation",
        "cloud_cover", "wind_speed_10m", "shortwave_radiation"]
@@ -72,7 +73,7 @@ def load_state_series(state: str, resolution: str) -> pd.DataFrame:
     df = pd.DataFrame(rows, columns=["timestamp", TARGET])
     df = df.set_index("timestamp").sort_index()
     df = df[~df.index.duplicated(keep="last")]
-    freq = {"hourly": "1h", "daily": "1D", "5min": "5min"}[resolution]
+    freq = {"hourly": "1h", "daily": "1D", "5min": "5min", "15min": "15min"}[resolution]
     agg = "max" if resolution == "daily" else "mean"   # daily target = peak
     df = df.resample(freq).agg({TARGET: agg})
     # The history has scattered missing hours/days; resampling leaves NaN gaps.
@@ -141,7 +142,7 @@ def persistence_mape(df: pd.DataFrame, holdout: int) -> float:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("state")
-    ap.add_argument("--resolution", default="hourly", choices=["hourly", "daily"])
+    ap.add_argument("--resolution", default="hourly", choices=["15min", "hourly", "daily"])
     ap.add_argument("--no-weather", action="store_true")
     args = ap.parse_args()
 
@@ -181,7 +182,7 @@ def main():
     if not results:
         logger.error("No CV results."); sys.exit(1)
 
-    holdout = {"hourly": 720, "daily": 30}[args.resolution]
+    holdout = {"15min": 672, "hourly": 720, "daily": 30}[args.resolution]
     pers = persistence_mape(df, holdout)
     champ = min(results, key=lambda k: results[k][0])
     champ_mape = results[champ][0]

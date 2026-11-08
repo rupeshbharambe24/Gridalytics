@@ -7,6 +7,7 @@ import pandas as pd
 # Lag definitions by resolution
 LAG_CONFIGS = {
     "5min": [1, 6, 12, 288, 2016],        # 5m, 30m, 1h, 1d, 7d
+    "15min": [1, 2, 4, 96, 672],           # 15m, 30m, 1h, 1d, 7d
     "hourly": [1, 6, 24, 168, 720],        # 1h, 6h, 1d, 7d, 30d
     "daily": [1, 7, 14, 30, 365],          # 1d, 7d, 14d, 30d, 1y
 }
@@ -14,6 +15,7 @@ LAG_CONFIGS = {
 # Fourier periods by resolution
 FOURIER_CONFIGS = {
     "5min": [288, 2016],       # daily (288 per day), weekly (2016 per week)
+    "15min": [96, 672],        # daily (96 per day), weekly (672 per week)
     "hourly": [24, 168],       # daily (24h), weekly (168h)
     "daily": [7, 30, 365],     # weekly, monthly, yearly
 }
@@ -44,6 +46,7 @@ def add_diff_features(df: pd.DataFrame, target: str, resolution: str) -> pd.Data
     """
     key_lags = {
         "5min": [1, 288],       # vs 5min ago, vs same time yesterday
+        "15min": [1, 96],       # vs 15min ago, vs same time yesterday
         "hourly": [1, 24],      # vs 1h ago, vs same hour yesterday
         "daily": [1, 7],        # vs yesterday, vs same day last week
     }

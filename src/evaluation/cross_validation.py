@@ -36,6 +36,11 @@ CV_CONFIGS = {
         "val_window_rows": 864,     # 3 days validation window
         "n_folds": 10,
     },
+    "15min": {
+        "min_train_rows": 2880,     # 30 days minimum (96 x 30)
+        "val_window_rows": 672,     # 1 week validation window (96 x 7)
+        "n_folds": 12,
+    },
 }
 
 
