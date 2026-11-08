@@ -1,0 +1,9 @@
+{
+  "state": "bihar",
+  "resolution": "hourly",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 1.559,
+  "persistence_mape": 2.715,
+  "features": 90
+}

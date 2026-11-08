@@ -17,6 +17,7 @@ import sys
 import argparse
 import logging
 import warnings
+from datetime import datetime, timedelta, date
 from pathlib import Path
 
 warnings.filterwarnings("ignore")
@@ -61,13 +62,23 @@ _WX = ["temperature_2m", "relative_humidity_2m", "dew_point_2m", "precipitation"
        "cloud_cover", "wind_speed_10m", "shortwave_radiation"]
 
 
-def load_state_series(state: str, resolution: str) -> pd.DataFrame:
-    """Load a state's demand from state_demand onto a regular time grid."""
+def load_state_series(state: str, resolution: str, start=None, end=None) -> pd.DataFrame:
+    """Load a state's demand from state_demand onto a regular time grid.
+
+    Optional ``start``/``end`` (datetime.date) clip the raw series BEFORE
+    resampling. Use this to exclude a large server-side hole that would
+    otherwise be bridged by ``interpolate`` into fabricated data (e.g. Bihar's
+    337-day BSPTCL HTTP-500 gap): train on the longest contiguous real span.
+    """
     with get_session() as s:
-        rows = (s.query(StateDemandRecord.timestamp, StateDemandRecord.demand_mw)
-                .filter(StateDemandRecord.state_code == state,
-                        StateDemandRecord.demand_mw.isnot(None))
-                .order_by(asc(StateDemandRecord.timestamp)).all())
+        q = (s.query(StateDemandRecord.timestamp, StateDemandRecord.demand_mw)
+             .filter(StateDemandRecord.state_code == state,
+                     StateDemandRecord.demand_mw.isnot(None)))
+        if start is not None:
+            q = q.filter(StateDemandRecord.timestamp >= datetime(start.year, start.month, start.day))
+        if end is not None:
+            q = q.filter(StateDemandRecord.timestamp < datetime(end.year, end.month, end.day) + timedelta(days=1))
+        rows = q.order_by(asc(StateDemandRecord.timestamp)).all()
     if not rows:
         return pd.DataFrame()
     df = pd.DataFrame(rows, columns=["timestamp", TARGET])
@@ -142,12 +153,16 @@ def persistence_mape(df: pd.DataFrame, holdout: int) -> float:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("state")
-    ap.add_argument("--resolution", default="hourly", choices=["15min", "hourly", "daily"])
+    ap.add_argument("--resolution", default="hourly", choices=["5min", "15min", "hourly", "daily"])
     ap.add_argument("--no-weather", action="store_true")
+    ap.add_argument("--start", type=lambda s: datetime.strptime(s, "%Y-%m-%d").date(),
+                    default=None, help="clip series start YYYY-MM-DD (exclude pre-span data / holes)")
+    ap.add_argument("--end", type=lambda s: datetime.strptime(s, "%Y-%m-%d").date(),
+                    default=None, help="clip series end YYYY-MM-DD inclusive")
     args = ap.parse_args()
 
     print(f"\n{'#'*60}\n  Train state model: {args.state} ({args.resolution})\n{'#'*60}")
-    df = load_state_series(args.state, args.resolution)
+    df = load_state_series(args.state, args.resolution, start=args.start, end=args.end)
     if df.empty:
         logger.error(f"No data in state_demand for '{args.state}'. Backfill it first.")
         sys.exit(1)
@@ -182,7 +197,7 @@ def main():
     if not results:
         logger.error("No CV results."); sys.exit(1)
 
-    holdout = {"15min": 672, "hourly": 720, "daily": 30}[args.resolution]
+    holdout = {"5min": 2016, "15min": 672, "hourly": 720, "daily": 30}[args.resolution]
     pers = persistence_mape(df, holdout)
     champ = min(results, key=lambda k: results[k][0])
     champ_mape = results[champ][0]
