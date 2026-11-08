@@ -32,7 +32,7 @@ import requests
 from sqlalchemy import asc
 
 from src.data.db.session import get_session
-from src.data.db.models import StateDemandRecord
+from src.data.db.models import StateDemandRecord, StatePSPDaily
 from src.features.temporal import (
     add_lag_features, add_diff_features, add_cyclical_encoding,
     add_fourier_terms, add_time_features,
@@ -57,31 +57,55 @@ STATE_COORDS = {
     "uttar_pradesh": (26.8467, 80.9462),   # Lucknow
     "chhattisgarh": (21.2514, 81.6296),    # Raipur
     "himachal_pradesh": (31.1048, 77.1734),  # Shimla (state load centre)
+    "maharashtra": (19.0760, 72.8777),     # Mumbai
+    "gujarat": (23.0225, 72.5714),         # Ahmedabad
+    "tamil_nadu": (13.0827, 80.2707),      # Chennai
+    "west_bengal": (22.5726, 88.3639),     # Kolkata
+    "rajasthan": (26.9124, 75.7873),       # Jaipur
+    "andhra_pradesh": (16.5062, 80.6480),  # Vijayawada
+    "madhya_pradesh": (23.2599, 77.4126),  # Bhopal
+    "telangana": (17.3850, 78.4867),       # Hyderabad
 }
 _WX = ["temperature_2m", "relative_humidity_2m", "dew_point_2m", "precipitation",
        "cloud_cover", "wind_speed_10m", "shortwave_radiation"]
 
 
-def load_state_series(state: str, resolution: str, start=None, end=None) -> pd.DataFrame:
-    """Load a state's demand from state_demand onto a regular time grid.
+def load_state_series(state: str, resolution: str, start=None, end=None,
+                      source: str = "state_demand") -> pd.DataFrame:
+    """Load a state's demand onto a regular time grid.
+
+    source="state_demand": sub-daily SLDC series (hourly/15min/5min mean, daily peak).
+    source="psp": daily peak demand met from state_psp_daily (NLDC PSP) — implies daily.
 
     Optional ``start``/``end`` (datetime.date) clip the raw series BEFORE
     resampling. Use this to exclude a large server-side hole that would
     otherwise be bridged by ``interpolate`` into fabricated data (e.g. Bihar's
-    337-day BSPTCL HTTP-500 gap): train on the longest contiguous real span.
+    337-day BSPTCL HTTP-500 gap, or pre-2021 sparse PSP), training on the
+    longest contiguous real span.
     """
     with get_session() as s:
-        q = (s.query(StateDemandRecord.timestamp, StateDemandRecord.demand_mw)
-             .filter(StateDemandRecord.state_code == state,
-                     StateDemandRecord.demand_mw.isnot(None)))
-        if start is not None:
-            q = q.filter(StateDemandRecord.timestamp >= datetime(start.year, start.month, start.day))
-        if end is not None:
-            q = q.filter(StateDemandRecord.timestamp < datetime(end.year, end.month, end.day) + timedelta(days=1))
-        rows = q.order_by(asc(StateDemandRecord.timestamp)).all()
+        if source == "psp":
+            q = (s.query(StatePSPDaily.date, StatePSPDaily.peak_demand_met_mw)
+                 .filter(StatePSPDaily.state_code == state,
+                         StatePSPDaily.peak_demand_met_mw.isnot(None)))
+            if start is not None:
+                q = q.filter(StatePSPDaily.date >= start)
+            if end is not None:
+                q = q.filter(StatePSPDaily.date <= end)
+            rows = q.order_by(asc(StatePSPDaily.date)).all()
+        else:
+            q = (s.query(StateDemandRecord.timestamp, StateDemandRecord.demand_mw)
+                 .filter(StateDemandRecord.state_code == state,
+                         StateDemandRecord.demand_mw.isnot(None)))
+            if start is not None:
+                q = q.filter(StateDemandRecord.timestamp >= datetime(start.year, start.month, start.day))
+            if end is not None:
+                q = q.filter(StateDemandRecord.timestamp < datetime(end.year, end.month, end.day) + timedelta(days=1))
+            rows = q.order_by(asc(StateDemandRecord.timestamp)).all()
     if not rows:
         return pd.DataFrame()
     df = pd.DataFrame(rows, columns=["timestamp", TARGET])
+    df["timestamp"] = pd.to_datetime(df["timestamp"])   # PSP returns date objects
     df = df.set_index("timestamp").sort_index()
     df = df[~df.index.duplicated(keep="last")]
     freq = {"hourly": "1h", "daily": "1D", "5min": "5min", "15min": "15min"}[resolution]
@@ -159,12 +183,16 @@ def main():
                     default=None, help="clip series start YYYY-MM-DD (exclude pre-span data / holes)")
     ap.add_argument("--end", type=lambda s: datetime.strptime(s, "%Y-%m-%d").date(),
                     default=None, help="clip series end YYYY-MM-DD inclusive")
+    ap.add_argument("--source", default="state_demand", choices=["state_demand", "psp"],
+                    help="psp = daily peak from state_psp_daily (implies --resolution daily)")
     args = ap.parse_args()
+    if args.source == "psp":
+        args.resolution = "daily"
 
-    print(f"\n{'#'*60}\n  Train state model: {args.state} ({args.resolution})\n{'#'*60}")
-    df = load_state_series(args.state, args.resolution, start=args.start, end=args.end)
+    print(f"\n{'#'*60}\n  Train state model: {args.state} ({args.resolution}, {args.source})\n{'#'*60}")
+    df = load_state_series(args.state, args.resolution, start=args.start, end=args.end, source=args.source)
     if df.empty:
-        logger.error(f"No data in state_demand for '{args.state}'. Backfill it first.")
+        logger.error(f"No {args.source} data for '{args.state}'. Backfill it first.")
         sys.exit(1)
     print(f"  loaded {len(df):,} rows  {df.index.min()} .. {df.index.max()}  "
           f"(mean {df[TARGET].mean():.0f} MW)")
@@ -174,6 +202,9 @@ def main():
         lat, lon = STATE_COORDS[args.state]
         wx = fetch_weather(lat, lon, df.index.min(), df.index.max())
         if not wx.empty:
+            if args.resolution == "daily":   # day's mean (rain: total), not the midnight value
+                wx = wx.resample("1D").agg({c: ("sum" if c == "precipitation_mm" else "mean")
+                                            for c in wx.columns})
             df = df.join(wx.reindex(df.index, method="nearest"))
             for c in _WX:
                 col = {"precipitation": "precipitation_mm", "cloud_cover": "cloud_cover_pct"}.get(c, c)
@@ -242,6 +273,7 @@ def main():
         meta = save_dir / "served.json"
         try:
             meta.write_text(json.dumps({"state": args.state, "resolution": args.resolution,
+                                        "source": args.source,
                                         "served_model": served, "champion": champ,
                                         "champion_cv_mape": round(champ_mape, 3),
                                         "persistence_mape": round(pers, 3),

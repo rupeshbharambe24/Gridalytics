@@ -41,7 +41,7 @@ def _model_info(code: str) -> dict | None:
     if code == "delhi":
         return {"resolution": "multi", "served_model": "lightgbm/xgboost",
                 "note": "primary Delhi models (daily/hourly/5min)"}
-    for res in ("hourly", "daily", "5min"):
+    for res in ("hourly", "15min", "daily", "5min"):
         p = _MODELS / code / res / "served.json"
         if p.exists():
             try:

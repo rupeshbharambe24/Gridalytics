@@ -1,0 +1,10 @@
+{
+  "state": "uttar_pradesh",
+  "resolution": "daily",
+  "source": "psp",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 3.538,
+  "persistence_mape": 5.365,
+  "features": 96
+}

@@ -1,0 +1,10 @@
+{
+  "state": "andhra_pradesh",
+  "resolution": "daily",
+  "source": "psp",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 2.983,
+  "persistence_mape": 4.185,
+  "features": 96
+}

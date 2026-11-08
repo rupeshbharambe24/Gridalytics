@@ -1,0 +1,10 @@
+{
+  "state": "punjab",
+  "resolution": "daily",
+  "source": "psp",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 4.72,
+  "persistence_mape": 7.32,
+  "features": 96
+}

@@ -1,0 +1,10 @@
+{
+  "state": "tamil_nadu",
+  "resolution": "daily",
+  "source": "psp",
+  "served_model": "LightGBM",
+  "champion": "LightGBM",
+  "champion_cv_mape": 2.988,
+  "persistence_mape": 5.656,
+  "features": 96
+}
