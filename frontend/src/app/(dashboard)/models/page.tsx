@@ -4,7 +4,8 @@ import { motion } from "framer-motion";
 import { BarChart3, CheckCircle2, Cpu, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useFetch } from "@/lib/hooks";
-import { getModelPerformance, getAvailableModels } from "@/lib/api";
+import { getModelPerformance, getAvailableModels, getStates } from "@/lib/api";
+import { ModelCard } from "@/components/dashboard/model-card";
 
 // Known CV metrics per model. Gradient-boosting champions are from the full
 // training runs. The classical/alt challengers (SARIMAX, ARIMA, NeuralProphet)
@@ -27,6 +28,16 @@ const CHAMPIONS = new Set(["5min_lightgbm", "hourly_xgboost", "daily_lightgbm"])
 export default function ModelsPage() {
   const { data: perf, loading: perfLoading } = useFetch(getModelPerformance);
   const { data: available } = useFetch(getAvailableModels);
+  const { data: statesData } = useFetch(getStates, []);
+
+  const statesWithModels = (statesData?.states ?? [])
+    .filter((s) => s.has_model && s.code !== "delhi" && s.model)
+    .sort((a, b) => {
+      const ab = a.model?.beats_persistence ? 0 : 1;
+      const bb = b.model?.beats_persistence ? 0 : 1;
+      if (ab !== bb) return ab - bb;
+      return (a.model?.champion_cv_mape ?? 999) - (b.model?.champion_cv_mape ?? 999);
+    });
 
   const allModels = perf?.all_models || [];
   const trackedDays = perf?.champion?.tracked_days || 0;
@@ -128,6 +139,34 @@ export default function ModelsPage() {
               </div>
             </motion.div>
           ))}
+        </div>
+      )}
+
+      {/* State models — data-driven from each state's served.json */}
+      {statesWithModels.length > 0 && (
+        <div className="space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold">State models</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {statesWithModels.length} states with trained models — champion/challenger walk-forward CV, leak-free.
+              Open a state in the State-wise view for every resolution &amp; its feature list.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {statesWithModels.map((s, i) => (
+              <div key={s.code} className="space-y-1.5">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-sm font-semibold">{s.name}</span>
+                  {s.model_count && s.model_count > 1 ? (
+                    <span className="text-[10px] text-muted-foreground">
+                      +{s.model_count - 1} more resolution{s.model_count - 1 > 1 ? "s" : ""}
+                    </span>
+                  ) : null}
+                </div>
+                {s.model && <ModelCard m={s.model} delay={i * 0.03} />}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
