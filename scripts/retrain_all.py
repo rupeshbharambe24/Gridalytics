@@ -35,7 +35,9 @@ MANIFEST = [
     {"state": "bihar",            "resolution": "hourly", "start": "2023-06-01", "end": "2025-08-31"},
     # daily peak (NLDC PSP) — dense span from 2021-05, open end for fresh data
     {"state": "tamil_nadu",       "source": "psp", "start": "2021-05-09"},
-    {"state": "punjab",           "source": "psp", "start": "2021-05-09"},
+    # Punjab: the learned festival event-effect feature helps here (+0.18 pts);
+    # it learns e.g. Diwali ~ -10% peak demand. Marginal/negative elsewhere.
+    {"state": "punjab",           "source": "psp", "start": "2021-05-09", "event_effect": True},
     {"state": "uttar_pradesh",    "source": "psp", "start": "2021-05-09"},
     {"state": "andhra_pradesh",   "source": "psp", "start": "2021-05-09"},
     {"state": "maharashtra",      "source": "psp", "start": "2021-05-09"},
@@ -60,6 +62,8 @@ def build_cmd(m: dict) -> list[str]:
         cmd += ["--no-weather"]
     if m.get("no_lag365"):
         cmd += ["--no-lag365"]
+    if m.get("event_effect"):
+        cmd += ["--event-effect"]
     return cmd
 
 

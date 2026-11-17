@@ -710,6 +710,30 @@ def _get_state_weather_forecast(coords, start: date, end: date) -> pd.DataFrame:
         return pd.DataFrame()
 
 
+def _state_event_effect_for_date(session, history, target_date, overrides=None) -> float:
+    """Learned festival event-effect for `target_date`, estimated from the state's
+    OWN daily-peak history — the exact mirror of training's add_state_event_effect
+    (demand + events, no temp), so the served feature equals the trained one.
+
+    Leak-free: `history` is already limited to the forecast's as_of, and
+    causal_effect_feature only ever uses an event's strictly-prior occurrences. A
+    what-if override of is_holiday=0 zeroes it. Returns 0.0 on any error or on a
+    non-event day.
+    """
+    if overrides and "is_holiday" in overrides and int(overrides["is_holiday"]) == 0:
+        return 0.0
+    try:
+        from src.forecasting.event_effects import causal_effect_feature, load_events
+        daily = pd.DataFrame({"mw": history.resample("1D").max()}).dropna()
+        daily["dow"] = daily.index.dayofweek
+        events = load_events(session=session)
+        eff = causal_effect_feature(daily, events)
+        return float(eff.get(pd.Timestamp(target_date).normalize(), 0.0))
+    except Exception as exc:  # pragma: no cover
+        logger.warning(f"state event-effect unavailable ({exc}); using 0")
+        return 0.0
+
+
 def forecast_state_future(
     state_code: str,
     resolution: str,
@@ -747,6 +771,14 @@ def forecast_state_future(
         target_date = history.index[-1].date() + timedelta(days=1)
     logger.info(f"State forecast: {state_code} {resolution} for {target_date} (source={source})")
 
+    # Learned festival event-effect for the target day, from THIS state's own
+    # history — only if the served model uses it (models trained without the
+    # feature pay zero overhead and this stays 0.0).
+    state_event_effect = 0.0
+    if "expected_event_effect_pct" in expected_features:
+        state_event_effect = _state_event_effect_for_date(
+            session, history, target_date, overrides)
+
     if coords is None:
         coords = STATE_COORDS.get(state_code)
     weather_start = min(target_date, history.index[-1].date()) - timedelta(days=2)
@@ -769,7 +801,7 @@ def forecast_state_future(
             ts=ts, extended=extended, weather=weather, session=session,
             expected_features=expected_features, resolution=resolution,
             lags=lags, step=step, overrides=overrides,
-            event_effect=0.0, target_col="demand_mw", lag_fallback="seasonal",
+            event_effect=state_event_effect, target_col="demand_mw", lag_fallback="seasonal",
         )
         X = pd.DataFrame([row], columns=expected_features).fillna(0)
         try:

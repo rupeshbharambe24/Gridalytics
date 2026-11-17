@@ -4,19 +4,19 @@
   "source": "psp",
   "served_model": "LightGBM",
   "champion": "LightGBM",
-  "champion_cv_mape": 4.72,
+  "champion_cv_mape": 4.537,
   "persistence_mape": 7.32,
-  "features": 96,
+  "features": 97,
   "schema_version": 2,
   "beats_persistence": true,
-  "improvement_pts": 2.599,
-  "champion_cv_rmse": 686.8,
-  "champion_cv_r2": 0.6577,
+  "improvement_pts": 2.783,
+  "champion_cv_rmse": 668.8,
+  "champion_cv_r2": 0.6608,
   "cv_folds": 12,
   "holdout_rows": 30,
   "models_cv_mape": {
-    "LightGBM": 4.72,
-    "XGBoost": 4.96
+    "LightGBM": 4.537,
+    "XGBoost": 5.024
   },
   "data_rows_raw": 2000,
   "data_rows_usable": 1635,
@@ -78,6 +78,7 @@
     "days_since_last_holiday",
     "is_pre_holiday",
     "is_post_holiday",
+    "expected_event_effect_pct",
     "demand_mw_rmean_7d",
     "demand_mw_rstd_7d",
     "demand_mw_rmin_7d",
@@ -125,5 +126,5 @@
     "fourier_sin_365_3",
     "fourier_cos_365_3"
   ],
-  "trained_at": "2026-11-17T11:24:40"
+  "trained_at": "2026-11-17T15:15:48"
 }

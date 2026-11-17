@@ -43,6 +43,7 @@ from src.features.weather import (
     add_weather_categories, add_solar_features,
 )
 from src.features.calendar import add_holiday_features
+from src.forecasting.event_effects import causal_effect_feature, load_events
 from src.evaluation.cross_validation import walk_forward_cv
 from src.models.lightgbm_model import LightGBMForecaster
 from src.models.xgboost_model import XGBoostForecaster
@@ -141,8 +142,40 @@ def fetch_weather(lat: float, lon: float, start, end) -> pd.DataFrame:
         return pd.DataFrame()
 
 
+def add_state_event_effect(df: pd.DataFrame, resolution: str) -> pd.DataFrame:
+    """Add `expected_event_effect_pct` learned from *this state's own* demand.
+
+    Unlike the binary is_festival flag, this carries the signed magnitude of each
+    festival's historical demand impact (e.g. Diwali ~ -8%). It is learned from
+    the state's own daily-peak series, causally (expanding window, strictly-prior
+    occurrences only), so it is leakage-free inside walk-forward CV. Fails safe to
+    an all-zeros column if the estimator or events are unavailable.
+    """
+    try:
+        # demand + events only (no temp): the forecast engine computes the same
+        # feature at serve time from the state's own history, where full-history
+        # weather isn't available — so keeping both sides temp-free makes the
+        # trained feature and the served feature identical.
+        daily = pd.DataFrame({"mw": df[TARGET].resample("1D").max()}).dropna()
+        daily["dow"] = daily.index.dayofweek
+        with get_session() as s:
+            events = load_events(session=s)
+        eff = causal_effect_feature(daily, events)      # normalized day -> fraction
+        eff_map = {pd.Timestamp(k).normalize(): float(v) for k, v in eff.items()}
+        df["expected_event_effect_pct"] = [eff_map.get(t, 0.0)
+                                           for t in df.index.normalize()]
+        nz = int((df["expected_event_effect_pct"].abs() > 1e-9).sum())
+        logger.info(f"  event-effect feature set on {nz} rows "
+                    f"({len(eff_map)} learned event-days)")
+    except Exception as exc:
+        logger.warning(f"  event-effect feature unavailable ({exc}); using 0")
+        df["expected_event_effect_pct"] = 0.0
+    return df
+
+
 def build_features(df: pd.DataFrame, resolution: str, use_weather: bool,
-                   drop_lag365: bool = False) -> tuple[pd.DataFrame, list[str]]:
+                   drop_lag365: bool = False,
+                   event_effect: bool = False) -> tuple[pd.DataFrame, list[str]]:
     df = add_time_features(df)
     df = add_cyclical_encoding(df)
     has_wx = use_weather and "temperature_2m" in df.columns
@@ -154,6 +187,8 @@ def build_features(df: pd.DataFrame, resolution: str, use_weather: bool,
         df = add_solar_features(df)
     with get_session() as s:
         df = add_holiday_features(df, s)
+    if event_effect:
+        df = add_state_event_effect(df, resolution)
     df = add_rolling_stats(df, TARGET, resolution)      # leak-free (shift(1))
     if has_wx:
         df = add_rolling_weather_stats(df, resolution)
@@ -193,6 +228,8 @@ def main():
                     help="psp = daily peak from state_psp_daily (implies --resolution daily)")
     ap.add_argument("--no-lag365", action="store_true",
                     help="drop the 365-day lag (daily) to keep ~a year more training data")
+    ap.add_argument("--event-effect", action="store_true",
+                    help="add the learned festival event-effect magnitude feature")
     args = ap.parse_args()
     if args.source == "psp":
         args.resolution = "daily"
@@ -222,7 +259,9 @@ def main():
                     df[col] = df[col].ffill().bfill()
             print(f"  merged weather for {lat},{lon} ({wx.shape[1]} vars)")
 
-    df, feats = build_features(df, args.resolution, use_weather, drop_lag365=args.no_lag365)
+    df, feats = build_features(df, args.resolution, use_weather,
+                               drop_lag365=args.no_lag365,
+                               event_effect=args.event_effect)
     print(f"  features: {len(feats)}  | usable rows after lag warmup: {len(df):,}")
     n_usable = len(df)
 
