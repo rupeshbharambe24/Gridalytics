@@ -12,7 +12,7 @@ status + history + model metrics, which is what the state-wise UI needs today.
 
 import json
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -22,6 +22,7 @@ from sqlalchemy import func
 from src.data.db.session import get_db
 from src.data.db.models import StateDemandRecord, StatePSPDaily, DemandRecord
 from src.data.scrapers.states import INDIAN_STATES, STATES_BY_CODE
+from src.forecasting.future import forecast_state_future
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -75,6 +76,20 @@ def _trim(m: dict | None) -> dict | None:
     return {k: v for k, v in m.items() if k != "feature_list"}
 
 
+_FORECASTERS: dict = {}  # (code, resolution) -> loaded forecaster, cached
+
+
+def _load_state_forecaster(code: str, resolution: str, meta: dict):
+    """Load (and cache) the served forecaster for a state/resolution."""
+    key = (code, resolution)
+    if key not in _FORECASTERS:
+        from src.models.lightgbm_model import LightGBMForecaster
+        from src.models.xgboost_model import XGBoostForecaster
+        cls = XGBoostForecaster if meta.get("served_model") == "XGBoost" else LightGBMForecaster
+        _FORECASTERS[key] = cls.load(_MODELS / code / resolution)
+    return _FORECASTERS[key]
+
+
 def _state_dict(db: Session, st, detail: bool = False) -> dict:
     n = _row_count(db, st.code)
     models = _all_models(st.code)
@@ -121,6 +136,50 @@ def state_detail(code: str, db: Session = Depends(get_db)):
     if not st:
         raise HTTPException(status_code=404, detail=f"Unknown state '{code}'")
     return _state_dict(db, st, detail=True)
+
+
+@router.get("/{code}/forecast")
+def state_forecast(
+    code: str,
+    resolution: str | None = Query(None, description="model resolution; default = headline model"),
+    target: str | None = Query(None, description="forecast date YYYY-MM-DD; default = day after last data"),
+    db: Session = Depends(get_db),
+):
+    """Day-ahead demand forecast for a state, via the recursive engine over its
+    own trained model. Returns timestamps + predicted/lower/upper MW."""
+    models = _all_models(code)   # also covers all_india (a model, not a registered state)
+    if not models:
+        raise HTTPException(status_code=404, detail=f"No trained model for '{code}'")
+    if resolution:
+        meta = next((m for m in models if m.get("resolution") == resolution), None)
+        if not meta:
+            have = [m.get("resolution") for m in models]
+            raise HTTPException(status_code=404,
+                                detail=f"No '{resolution}' model for '{code}' (have {have})")
+    else:
+        meta = _model_info(code)
+    res = meta["resolution"]
+
+    tdate = None
+    if target:
+        try:
+            tdate = datetime.strptime(target, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="target must be YYYY-MM-DD")
+
+    try:
+        forecaster = _load_state_forecaster(code, res, meta)
+        out = forecast_state_future(code, res, tdate, forecaster, db,
+                                    source=meta.get("source", "state_demand"))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:  # pragma: no cover
+        logger.exception("state forecast failed")
+        raise HTTPException(status_code=500, detail=f"forecast failed: {e}")
+
+    out["served_model"] = meta.get("served_model")
+    out["champion_cv_mape"] = meta.get("champion_cv_mape")
+    return out
 
 
 @router.get("/{code}/demand")
