@@ -34,7 +34,9 @@ import pandas as pd
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from src.data.db.models import DemandRecord, WeatherRecord, HolidayRecord
+from src.data.db.models import (
+    DemandRecord, StateDemandRecord, StatePSPDaily, WeatherRecord, HolidayRecord,
+)
 from src.data.scrapers.open_meteo import OpenMeteoScraper
 from src.features.temporal import LAG_CONFIGS
 from src.features.rolling import WINDOW_CONFIGS
@@ -179,6 +181,8 @@ def _step_delta(resolution: str) -> timedelta:
         return timedelta(hours=1)
     if resolution == "daily":
         return timedelta(days=1)
+    if resolution == "15min":
+        return timedelta(minutes=15)
     return timedelta(minutes=5)
 
 
@@ -187,6 +191,8 @@ def _target_timestamps(resolution: str, target_date: date) -> pd.DatetimeIndex:
         return pd.date_range(f"{target_date} 00:00", f"{target_date} 23:00", freq="h")
     if resolution == "daily":
         return pd.DatetimeIndex([datetime.combine(target_date, datetime.min.time())])
+    if resolution == "15min":
+        return pd.date_range(f"{target_date} 00:00", f"{target_date} 23:45", freq="15min")
     return pd.date_range(f"{target_date} 00:00", f"{target_date} 23:55", freq="5min")
 
 
@@ -201,6 +207,22 @@ def _lookup_at(series: pd.Series, ts: pd.Timestamp) -> float | None:
     if ts in series.index:
         val = series.loc[ts]
         return float(val) if pd.notna(val) else None
+    return None
+
+
+def _seasonal_lookup(series: pd.Series, ts: pd.Timestamp) -> float | None:
+    """Most recent value at the SAME time-of-day at/before ts (seasonal-naive).
+
+    Used as a fallback for a missing short lag so a sub-daily forecast keeps its
+    diurnal shape (same 15-min/hour slot as a recent real day) instead of
+    flat-lining on the single last value. Walks back up to two weeks of days.
+    """
+    t = ts
+    for _ in range(14):
+        v = _lookup_at(series, t)
+        if v is not None:
+            return v
+        t = t - timedelta(days=1)
     return None
 
 
@@ -363,8 +385,14 @@ def _build_row(
     step: timedelta,
     overrides: dict | None,
     event_effect: float = 0.0,
+    target_col: str = "delhi_mw",
+    lag_fallback: str = "last_real",
 ) -> dict:
     """Compute the model's expected feature vector for a single timestep.
+
+    ``target_col`` is the demand column the model was trained on — "delhi_mw"
+    for the Delhi pipeline, "demand_mw" for the state pipeline. It only renames
+    the lag/diff/rolling feature prefixes; every other feature is identical.
 
     All lag/rolling lookups run against `extended`, which is history at the
     same resolution the model was trained on, extended forward with any
@@ -375,23 +403,25 @@ def _build_row(
 
     # ── lag features ────────────────────────────────────────────────────
     for lag in lags:
-        col = f"delhi_mw_lag_{lag}"
+        col = f"{target_col}_lag_{lag}"
         if col not in expected_features:
             continue
         lag_ts = ts - step * lag
         val = _lookup_at(extended, lag_ts)
+        if val is None and lag_fallback == "seasonal":
+            val = _seasonal_lookup(extended, lag_ts)
         row[col] = val if val is not None else last_real
 
     # ── diff features ───────────────────────────────────────────────────
     for col in expected_features:
-        if not col.startswith("delhi_mw_diff_"):
+        if not col.startswith(f"{target_col}_diff_"):
             continue
         try:
             lag_n = int(col.split("_")[-1])
         except ValueError:
             continue
-        lag_col = f"delhi_mw_lag_{lag_n}"
-        current_est = row.get(f"delhi_mw_lag_1", last_real)  # best guess for "current"
+        lag_col = f"{target_col}_lag_{lag_n}"
+        current_est = row.get(f"{target_col}_lag_1", last_real)  # best guess for "current"
         lag_val = row.get(lag_col, last_real)
         row[col] = current_est - lag_val
 
@@ -407,10 +437,10 @@ def _build_row(
         wmin = float(window.min())
         wmax = float(window.max())
         for feat, val in (
-            (f"delhi_mw_rmean_{name}", wmean),
-            (f"delhi_mw_rstd_{name}", wstd),
-            (f"delhi_mw_rmin_{name}", wmin),
-            (f"delhi_mw_rmax_{name}", wmax),
+            (f"{target_col}_rmean_{name}", wmean),
+            (f"{target_col}_rstd_{name}", wstd),
+            (f"{target_col}_rmin_{name}", wmin),
+            (f"{target_col}_rmax_{name}", wmax),
         ):
             if feat in expected_features:
                 row[feat] = val
@@ -582,3 +612,181 @@ def _build_row(
             row[f] = 0
 
     return row
+
+
+# ---------------------------------------------------------------------------
+# State forecasting — the Delhi engine generalized to any state's demand_mw.
+# Reuses _build_row/_lookup_at/_target_timestamps/_step_delta unchanged; only
+# the data source (state_demand), the target column, and the weather point differ.
+# ---------------------------------------------------------------------------
+
+# Load-centre coords per state (mirror of scripts/train_state.STATE_COORDS), used
+# to fetch forecast-time weather at the same point the model trained on.
+STATE_COORDS = {
+    "karnataka": (12.9716, 77.5946), "bihar": (25.5941, 85.1376),
+    "punjab": (30.9010, 75.8573), "uttar_pradesh": (26.8467, 80.9462),
+    "chhattisgarh": (21.2514, 81.6296), "himachal_pradesh": (31.1048, 77.1734),
+    "maharashtra": (19.0760, 72.8777), "gujarat": (23.0225, 72.5714),
+    "tamil_nadu": (13.0827, 80.2707), "west_bengal": (22.5726, 88.3639),
+    "rajasthan": (26.9124, 75.7873), "andhra_pradesh": (16.5062, 80.6480),
+    "madhya_pradesh": (23.2599, 77.4126), "telangana": (17.3850, 78.4867),
+    "all_india": (21.1458, 79.0882),
+}
+
+_STATE_HISTORY_ROWS = 80_000  # comfortably covers the longest lag (15min lag_672 = 7d)
+
+
+def _get_state_history_at_resolution(
+    session: Session, state_code: str, resolution: str, as_of: date | None = None
+) -> pd.Series:
+    """State demand (demand_mw) as a Series at the model's native resolution."""
+    q = (session.query(StateDemandRecord.timestamp, StateDemandRecord.demand_mw)
+         .filter(StateDemandRecord.state_code == state_code,
+                 StateDemandRecord.demand_mw.isnot(None)))
+    if as_of is not None:
+        q = q.filter(StateDemandRecord.timestamp < datetime.combine(as_of, datetime.min.time()))
+    rows = q.order_by(StateDemandRecord.timestamp.desc()).limit(_STATE_HISTORY_ROWS).all()
+    if not rows:
+        return pd.Series(dtype=float, name="demand_mw")
+    df = pd.DataFrame([(r.timestamp, r.demand_mw) for r in reversed(rows)],
+                      columns=["timestamp", "demand_mw"])
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    s = df.set_index("timestamp").sort_index()["demand_mw"].dropna()
+    s = s[~s.index.duplicated(keep="last")]
+    freq = {"hourly": "1h", "daily": "1D", "15min": "15min", "5min": "5min"}.get(resolution, "1h")
+    agg = "max" if resolution == "daily" else "mean"   # daily target = peak, matching training
+    return s.resample(freq).agg(agg).dropna()
+
+
+def _get_state_psp_history(
+    session: Session, state_code: str, as_of: date | None = None
+) -> pd.Series:
+    """Daily peak-demand history (demand_mw) from state_psp_daily — for the PSP
+    daily models, which train on peak_demand_met_mw, not the sub-daily series."""
+    q = (session.query(StatePSPDaily.date, StatePSPDaily.peak_demand_met_mw)
+         .filter(StatePSPDaily.state_code == state_code,
+                 StatePSPDaily.peak_demand_met_mw.isnot(None)))
+    if as_of is not None:
+        q = q.filter(StatePSPDaily.date < as_of)
+    rows = q.order_by(StatePSPDaily.date.desc()).limit(3000).all()
+    if not rows:
+        return pd.Series(dtype=float, name="demand_mw")
+    df = pd.DataFrame([(r[0], r[1]) for r in reversed(rows)], columns=["timestamp", "demand_mw"])
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    s = df.set_index("timestamp").sort_index()["demand_mw"].dropna()
+    s = s[~s.index.duplicated(keep="last")]
+    return s.resample("1D").max().dropna()
+
+
+def _get_state_weather_forecast(coords, start: date, end: date) -> pd.DataFrame:
+    """Open-Meteo weather at a state's load centre over [start, end], hourly.
+
+    Forecast API for future dates, archive API for past (backtest). Returns the
+    column shape _build_row expects; empty DataFrame on any failure (the forecast
+    then degrades gracefully to zero-weather rather than crashing).
+    """
+    if not coords:
+        return pd.DataFrame()
+    import requests
+    lat, lon = coords
+    _vars = ["temperature_2m", "relative_humidity_2m", "dew_point_2m", "precipitation",
+             "cloud_cover", "wind_speed_10m", "shortwave_radiation"]
+    try:
+        if end >= date.today():
+            url = "https://api.open-meteo.com/v1/forecast"
+            params = {"latitude": lat, "longitude": lon, "hourly": ",".join(_vars),
+                      "timezone": "Asia/Kolkata", "past_days": 3, "forecast_days": 16}
+        else:
+            url = "https://archive-api.open-meteo.com/v1/archive"
+            params = {"latitude": lat, "longitude": lon, "hourly": ",".join(_vars),
+                      "timezone": "Asia/Kolkata", "start_date": str(start), "end_date": str(end)}
+        j = requests.get(url, params=params, timeout=30).json()["hourly"]
+        wx = pd.DataFrame(j)
+        wx["time"] = pd.to_datetime(wx["time"])
+        return wx.set_index("time").rename(
+            columns={"precipitation": "precipitation_mm", "cloud_cover": "cloud_cover_pct"})
+    except Exception as e:
+        logger.warning(f"state weather fetch failed ({e}); forecasting without weather")
+        return pd.DataFrame()
+
+
+def forecast_state_future(
+    state_code: str,
+    resolution: str,
+    target_date: date | None,
+    model,
+    session: Session,
+    coords: tuple | None = None,
+    overrides: dict | None = None,
+    as_of: date | None = None,
+    source: str = "state_demand",
+) -> dict:
+    """Day-ahead forecast for a non-Delhi state.
+
+    Mirrors ``forecast_future`` but runs on the state's ``demand_mw`` series and
+    its own load-centre weather. Same per-timestep, non-chained-lag discipline
+    (long lags resolve to real history; short lags fall back to the last real
+    value so the diurnal cycle comes from the time features). Returns
+    ``{state, resolution, timestamps, predicted_mw, lower_bound_mw, upper_bound_mw}``.
+    """
+    if not getattr(model, "feature_names", None):
+        raise ValueError("Model does not expose feature_names")
+    expected_features = model.feature_names
+
+    if source == "psp":
+        history = _get_state_psp_history(session, state_code, as_of)
+    else:
+        history = _get_state_history_at_resolution(session, state_code, resolution, as_of)
+    if history.empty:
+        raise ValueError(f"No demand history for state '{state_code}' (source={source})")
+
+    # Default to a true day-ahead: the day after the last observation, so the lag
+    # lookups land on real history rather than a stale gap (states collect at
+    # different freshnesses). Callers can still pass an explicit target_date.
+    if target_date is None:
+        target_date = history.index[-1].date() + timedelta(days=1)
+    logger.info(f"State forecast: {state_code} {resolution} for {target_date} (source={source})")
+
+    if coords is None:
+        coords = STATE_COORDS.get(state_code)
+    weather_start = min(target_date, history.index[-1].date()) - timedelta(days=2)
+    weather = _get_state_weather_forecast(coords, weather_start, target_date)
+
+    timestamps = _target_timestamps(resolution, target_date)
+    lags = LAG_CONFIGS.get(resolution, LAG_CONFIGS["hourly"])
+    step = _step_delta(resolution)
+    extended = history.copy()
+
+    # data-driven sanity clamp from the state's own observed range
+    hmin, hmax = float(history.min()), float(history.max())
+    lo_clamp, hi_clamp = max(0.0, 0.3 * hmin), 2.5 * hmax
+
+    preds: list[float] = []
+    lows: list[float] = []
+    highs: list[float] = []
+    for ts in timestamps:
+        row = _build_row(
+            ts=ts, extended=extended, weather=weather, session=session,
+            expected_features=expected_features, resolution=resolution,
+            lags=lags, step=step, overrides=overrides,
+            event_effect=0.0, target_col="demand_mw", lag_fallback="seasonal",
+        )
+        X = pd.DataFrame([row], columns=expected_features).fillna(0)
+        try:
+            point, lower, upper = model.predict_interval(X)
+            pred, lo, hi = float(point[0]), float(lower[0]), float(upper[0])
+        except Exception:
+            pred = float(model.predict(X)[0])
+            lo, hi = pred * 0.92, pred * 1.08
+        pred = float(np.clip(pred, lo_clamp, hi_clamp))
+        lo = float(np.clip(lo, lo_clamp, hi_clamp))
+        hi = float(np.clip(hi, lo_clamp, hi_clamp))
+        preds.append(round(pred, 1))
+        lows.append(round(lo, 1))
+        highs.append(round(hi, 1))
+
+    return {
+        "state": state_code, "resolution": resolution,
+        "timestamps": [str(t) for t in timestamps],
+        "predicted_mw": preds, "lower_bound_mw": lows, "upper_bound_mw": highs,
+    }
