@@ -174,6 +174,21 @@ section.band>.wrap>p.sub{color:var(--muted);max-width:62ch;margin:8px 0 22px}
 .mcard b{display:block;font-size:.98rem;font-weight:600;margin:3px 0 4px}
 .mcard p{margin:0;font-size:.78rem;color:var(--muted)}
 
+/* state fleet */
+.sfleet{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:11px}
+.scard{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px 14px;box-shadow:var(--shadow);min-width:0}
+.scard .top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.scard .nm{font-size:.96rem;font-weight:600}
+.scard .rg{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.scard .meta{font-family:var(--font-mono);font-size:.68rem;color:var(--muted);margin-top:2px}
+.scard .mape{display:flex;align-items:baseline;gap:6px;margin:9px 0 7px}
+.scard .mape b{font-size:1.45rem;font-weight:700;color:var(--accent);line-height:1}
+.scard .mape span{font-size:.72rem;color:var(--muted)}
+.scard .sbar{position:relative;height:6px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+.scard .sbar i{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:4px;transition:width 1.1s cubic-bezier(.22,.61,.36,1);background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 65%,#fff))}
+.scard .gain{font-family:var(--font-mono);font-size:.68rem;color:var(--accent-2);margin-top:7px;display:flex;justify-content:space-between;gap:8px}
+.scard .tag{font-family:var(--font-mono);font-size:.58rem;padding:1px 6px;border-radius:5px;border:1px solid color-mix(in srgb,var(--accent) 40%,var(--border));color:var(--accent)}
+
 /* outcome grid */
 .out{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
 .ocard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:15px 16px;box-shadow:var(--shadow)}
@@ -231,9 +246,12 @@ footer .mono{color:var(--fg)}
 <section class="band" id="models"><div class="wrap">
   <span class="eyebrow">Champion / challenger</span>
   <h2>Models race on walk-forward CV</h2>
-  <p class="sub">Every retrain runs the same back-tested contest per resolution; the lowest-MAPE model becomes champion. Bars show mean cross-validated error (shorter is better) against the persistence baseline a forecast must beat. The first three are Delhi; the last is <strong>Karnataka</strong> — the same pipeline, first state beyond Delhi.</p>
+  <p class="sub">Every retrain runs the same back-tested contest per resolution; the lowest-MAPE model becomes champion. Bars show mean cross-validated error (shorter is better) against the persistence baseline a forecast must beat. The first three are Delhi; the fourth is a single <strong>all-India</strong> 15-minute model — the same pipeline, national scale.</p>
   <div class="board" id="board"></div>
-  <h3 style="font-size:1.05rem;font-weight:600;margin:26px 0 10px">The roster</h3>
+  <h3 style="font-size:1.05rem;font-weight:600;margin:28px 0 4px">The state fleet</h3>
+  <p class="sub" style="margin-bottom:14px"><strong>11 state &amp; national models</strong>, every one beating persistence — from a 15-minute national series down to daily peak demand per state. Each is the champion of its own walk-forward contest.</p>
+  <div class="sfleet" id="sfleet"></div>
+  <h3 style="font-size:1.05rem;font-weight:600;margin:28px 0 10px">The roster</h3>
   <div class="roster" id="roster"></div>
 </div></section>
 
@@ -253,7 +271,7 @@ footer .mono{color:var(--fg)}
 
 <footer><div class="wrap">
   <span>Gridalytics · open pipeline for Indian grid-demand forecasting</span>
-  <span class="mono">main · 5-min · hourly · daily · $0/mo infra</span>
+  <span class="mono">main · 5-min · 15-min · hourly · daily · $0/mo infra</span>
 </div></footer>
 
 <script>
@@ -270,8 +288,8 @@ footer .mono{color:var(--fg)}
 })();
 
 /* ---- hero stats ---- */
-var STATS=[['36','states & UTs mapped'],['6','direct scrapers live'],['~93','engineered features'],
-  ['3','forecast resolutions'],['3.92%','daily champion MAPE'],['$0','monthly infra cost']];
+var STATS=[['36','states & UTs mapped'],['11','state &amp; national models'],['0.28%','all-India 15-min MAPE'],
+  ['4','forecast resolutions'],['100%','models beating persistence'],['$0','monthly infra cost']];
 document.getElementById('stats').innerHTML=STATS.map(function(s){
   return '<div class="stat"><b>'+s[0]+'</b><span>'+s[1]+'</span></div>';}).join('');
 
@@ -422,10 +440,10 @@ var BOARD=[
    {n:'XGBoost',cls:'champ',v:0.45,champ:1},{n:'LightGBM',cls:'chall',v:0.46},
    {n:'Persistence',cls:'base',v:0.68,base:1}],max:1.0,
    foot:'Leak-free (R² ≈ 0.997). Aggregate load barely moves in 5 min, so persistence (0.68%) is already low — the champion still beats it. Down from an inflated 0.18%.'},
- {res:'Karnataka · hourly',unit:'first state beyond Delhi · leak-free CV',rows:[
-   {n:'XGBoost',cls:'champ',v:2.46,champ:1},{n:'LightGBM',cls:'chall',v:2.47},
-   {n:'Persistence',cls:'base',v:4.70,base:1}],max:6,
-   foot:'Same pipeline, new state: ~200 days of KPTCL hourly load (R² ≈ 0.97) + Bengaluru weather, 90 features. Beats persistence by 2.2 pts — the state→model path works beyond Delhi.'},
+ {res:'All-India · 15-minute',unit:'national model · leak-free CV',rows:[
+   {n:'XGBoost',cls:'champ',v:0.28,champ:1},{n:'LightGBM',cls:'chall',v:0.29},
+   {n:'Persistence',cls:'base',v:0.72,base:1}],max:1.0,
+   foot:'One model for the whole-country 15-minute series: 68,736 rows (Nov 2024→, R² ≈ 0.994). Champion XGBoost (0.28%); LightGBM is served (0.29%) because xgboost 2.1.4 / sklearn 1.9 can’t pickle the booster. Beats persistence by 61%.'},
 ];
 document.getElementById('board').innerHTML=BOARD.map(function(b){
  var rows=b.rows.map(function(r){
@@ -447,6 +465,34 @@ requestAnimationFrame(function(){requestAnimationFrame(function(){
  });
 })});
 
+/* ---- state fleet ---- */
+var SF=[
+ {n:'All-India',rg:'National',res:'15-min · whole-country series',champ:0.28,pers:0.72,g:61},
+ {n:'Himachal Pradesh',rg:'Northern',res:'15-min · HPSLDC',champ:0.92,pers:1.91,g:52},
+ {n:'Karnataka',rg:'Southern',res:'hourly · KPTCL',champ:2.38,pers:4.71,g:50,tag:'2011→now'},
+ {n:'Tamil Nadu',rg:'Southern',res:'daily peak · PSP',champ:2.99,pers:5.66,g:47},
+ {n:'Bihar',rg:'Eastern',res:'hourly · BSPTCL',champ:1.56,pers:2.72,g:43},
+ {n:'Punjab',rg:'Northern',res:'daily peak · PSP',champ:4.54,pers:7.32,g:38,tag:'festival-aware'},
+ {n:'Uttar Pradesh',rg:'Northern',res:'daily peak · PSP',champ:3.54,pers:5.37,g:34},
+ {n:'Andhra Pradesh',rg:'Southern',res:'daily peak · PSP',champ:2.98,pers:4.19,g:29},
+ {n:'Maharashtra',rg:'Western',res:'daily peak · PSP',champ:2.62,pers:3.71,g:29},
+ {n:'West Bengal',rg:'Eastern',res:'daily peak · PSP',champ:3.12,pers:3.64,g:14},
+ {n:'Odisha',rg:'Eastern',res:'daily peak · PSP',champ:3.98,pers:4.12,g:3},
+];
+document.getElementById('sfleet').innerHTML=SF.map(function(s){
+ return '<div class="scard"><div class="top"><span class="nm">'+s.n+'</span>'+
+   (s.tag?'<span class="tag">'+s.tag+'</span>':'<span class="rg">'+s.rg+'</span>')+'</div>'+
+   '<div class="meta">'+s.res+'</div>'+
+   '<div class="mape"><b>'+s.champ.toFixed(2)+'%</b><span>MAPE · LightGBM</span></div>'+
+   '<div class="sbar"><i data-w="'+s.g+'"></i></div>'+
+   '<div class="gain"><span>vs '+s.pers.toFixed(2)+'% persistence</span><span>−'+s.g+'%</span></div></div>';
+}).join('');
+requestAnimationFrame(function(){requestAnimationFrame(function(){
+ Array.prototype.forEach.call(document.querySelectorAll('.scard .sbar i'),function(b){
+   b.style.width=b.getAttribute('data-w')+'%';
+ });
+})});
+
 /* ---- roster ---- */
 var MODELS=[
  {role:'Champion',cls:'ch',n:'LightGBM',p:'Champion at daily & hourly; gradient-boosted trees on the full feature set.'},
@@ -460,7 +506,8 @@ document.getElementById('roster').innerHTML=MODELS.map(function(m){
 
 /* ---- outcome ---- */
 var OUT=[
- ['Multi-horizon forecasts','Day-ahead to 90 days, at 5-min, hourly and daily resolution.'],
+ ['Multi-horizon forecasts','Day-ahead to 90 days, at 5-min, 15-min, hourly and daily resolution.'],
+ ['Per-state day-ahead','Every state with a champion model serves its own recursive forecast via one API — festival-aware where it helps.'],
  ['DISCOM breakdown','Sub-regional demand for Delhi, Bihar and Karnataka.'],
  ['What-if explorer','Re-forecast under changed temperature, humidity, AQI or holidays.'],
  ['Accuracy tracker','Predicted-vs-actual with rolling MAPE and drift alerts.'],
