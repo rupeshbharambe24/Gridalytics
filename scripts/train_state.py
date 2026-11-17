@@ -141,7 +141,8 @@ def fetch_weather(lat: float, lon: float, start, end) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def build_features(df: pd.DataFrame, resolution: str, use_weather: bool) -> tuple[pd.DataFrame, list[str]]:
+def build_features(df: pd.DataFrame, resolution: str, use_weather: bool,
+                   drop_lag365: bool = False) -> tuple[pd.DataFrame, list[str]]:
     df = add_time_features(df)
     df = add_cyclical_encoding(df)
     has_wx = use_weather and "temperature_2m" in df.columns
@@ -160,6 +161,10 @@ def build_features(df: pd.DataFrame, resolution: str, use_weather: bool) -> tupl
     df = add_diff_features(df, TARGET, resolution)       # leak-free (ends at t-1)
     df = add_fourier_terms(df, resolution)
     df = df.drop(columns=[c for c in df.columns if df[c].dtype == object], errors="ignore")
+    if drop_lag365:
+        # recover ~a year of training rows the 365-lag would otherwise drop via
+        # dropna; the yearly signal stays in fourier_365 + month/doy cyclicals.
+        df = df.drop(columns=[c for c in df.columns if c.endswith("_lag_365")], errors="ignore")
     df = df.dropna(subset=[c for c in df.columns if "_lag_" in c])
     feats = [c for c in df.columns if c != TARGET and
              (np.issubdtype(df[c].dtype, np.number) or df[c].dtype == bool)]
@@ -186,6 +191,8 @@ def main():
                     default=None, help="clip series end YYYY-MM-DD inclusive")
     ap.add_argument("--source", default="state_demand", choices=["state_demand", "psp"],
                     help="psp = daily peak from state_psp_daily (implies --resolution daily)")
+    ap.add_argument("--no-lag365", action="store_true",
+                    help="drop the 365-day lag (daily) to keep ~a year more training data")
     args = ap.parse_args()
     if args.source == "psp":
         args.resolution = "daily"
@@ -215,7 +222,7 @@ def main():
                     df[col] = df[col].ffill().bfill()
             print(f"  merged weather for {lat},{lon} ({wx.shape[1]} vars)")
 
-    df, feats = build_features(df, args.resolution, use_weather)
+    df, feats = build_features(df, args.resolution, use_weather, drop_lag365=args.no_lag365)
     print(f"  features: {len(feats)}  | usable rows after lag warmup: {len(df):,}")
     n_usable = len(df)
 
