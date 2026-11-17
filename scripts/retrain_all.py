@@ -40,6 +40,9 @@ MANIFEST = [
     {"state": "andhra_pradesh",   "source": "psp", "start": "2021-05-09"},
     {"state": "maharashtra",      "source": "psp", "start": "2021-05-09"},
     {"state": "west_bengal",      "source": "psp", "start": "2021-05-09"},
+    # Odisha only beats persistence once the yearly (lag_365) features are dropped
+    # — they add noise on its short, drift-heavy PSP series. See --no-lag365.
+    {"state": "odisha",           "source": "psp", "start": "2021-05-09", "no_lag365": True},
 ]
 
 
@@ -55,6 +58,8 @@ def build_cmd(m: dict) -> list[str]:
         cmd += ["--end", m["end"]]
     if m.get("no_weather"):
         cmd += ["--no-weather"]
+    if m.get("no_lag365"):
+        cmd += ["--no-lag365"]
     return cmd
 
 
