@@ -3,13 +3,14 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  AreaChart, Area, BarChart, Bar, ComposedChart, Line, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import {
   Database, Cpu, Layers, CheckCircle2, CircleDashed, Activity, MapPin,
 } from "lucide-react";
 import { useFetch } from "@/lib/hooks";
-import { getStates, getStateDemand, getStateDetail, StateInfo } from "@/lib/api";
+import { getStates, getStateDemand, getStateDetail, getStateForecast, StateInfo, StateForecast } from "@/lib/api";
 import { ModelCard } from "@/components/dashboard/model-card";
 import { cn } from "@/lib/utils";
 
@@ -73,6 +74,32 @@ export default function StatesPage() {
       : selected?.model
       ? [selected.model]
       : [];
+
+  // Day-ahead forecast for the selected state (only when it has a model).
+  const { data: forecast } = useFetch<StateForecast | null>(
+    () => (selected?.has_model ? getStateForecast(selCode) : Promise.resolve(null)),
+    [selCode, selected?.has_model],
+  );
+  const fcData = useMemo(() => {
+    const f = forecast;
+    if (!f?.predicted_mw?.length || f.state !== selCode) return null;
+    const pts = f.timestamps.map((t, i) => ({
+      t: fmtTime(t),
+      pred: f.predicted_mw[i],
+      base: f.lower_bound_mw[i],
+      band: Math.max(0, f.upper_bound_mw[i] - f.lower_bound_mw[i]),
+    }));
+    const lo = Math.min(...f.lower_bound_mw);
+    const hi = Math.max(...f.upper_bound_mw);
+    const pad = (hi - lo) * 0.1 || hi * 0.05;
+    return {
+      pts,
+      domain: [Math.max(0, lo - pad), hi + pad] as [number, number],
+      res: f.resolution,
+      model: f.served_model,
+      date: f.timestamps[0]?.slice(0, 10),
+    };
+  }, [forecast, selCode]);
 
   const byRegion = useMemo(() => {
     const m: Record<string, StateInfo[]> = {};
@@ -209,6 +236,46 @@ export default function StatesPage() {
               ) : (
                 <div className="text-xs text-muted-foreground bg-muted/30 border border-border rounded-lg p-3">
                   No data collected yet{selected.tier === "deferred" ? " (source access-gated)." : selected.tier === "fallback" ? " — covered by the Grid-India PSP fallback once it runs." : "."}
+                </div>
+              )}
+
+              {/* day-ahead forecast */}
+              {fcData && (
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Day-ahead forecast{fcData.date ? ` · ${fcData.date}` : ""}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      {fcData.model} · {fcData.res}
+                    </span>
+                  </div>
+                  {fcData.pts.length > 1 ? (
+                    <div className="h-40">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={fcData.pts} margin={{ top: 4, right: 6, left: -18, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-border" vertical={false} />
+                          <XAxis dataKey="t" tick={{ fontSize: 9 }} interval="preserveStartEnd" minTickGap={40} stroke="currentColor" className="text-muted-foreground" />
+                          <YAxis tick={{ fontSize: 9 }} width={44} stroke="currentColor" className="text-muted-foreground" domain={fcData.domain} />
+                          <Tooltip
+                            contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                            formatter={(v: any, n: any) => [`${Number(v).toLocaleString("en-IN")} MW`, n === "pred" ? "forecast" : n]}
+                          />
+                          <Area stackId="ci" dataKey="base" stroke="none" fill="transparent" isAnimationActive={false} />
+                          <Area stackId="ci" dataKey="band" stroke="none" fill="#a855f7" fillOpacity={0.15} isAnimationActive={false} />
+                          <Line type="monotone" dataKey="pred" stroke="#a855f7" strokeWidth={1.8} dot={false} />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="bg-violet-500/10 border border-violet-500/30 rounded-lg p-3 flex items-baseline gap-2 flex-wrap">
+                      <span className="text-2xl font-semibold tabular-nums">{Math.round(fcData.pts[0].pred).toLocaleString("en-IN")}</span>
+                      <span className="text-sm text-muted-foreground">MW predicted peak</span>
+                      <span className="text-[10px] text-muted-foreground ml-auto">
+                        {Math.round(fcData.pts[0].base).toLocaleString("en-IN")}–{Math.round(fcData.pts[0].base + fcData.pts[0].band).toLocaleString("en-IN")} MW
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 

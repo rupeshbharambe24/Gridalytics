@@ -221,6 +221,22 @@ export const getStates = () => fetcher<StatesResponse>("/api/v1/states");
 export const getStateDetail = (code: string) =>
   fetcher<StateInfo>(`/api/v1/states/${code}`);
 
+export interface StateForecast {
+  state: string;
+  resolution: string;
+  timestamps: string[];
+  predicted_mw: number[];
+  lower_bound_mw: number[];
+  upper_bound_mw: number[];
+  served_model?: string;
+  champion_cv_mape?: number;
+}
+// Day-ahead forecast for a state (recursive engine over its trained model).
+export const getStateForecast = (code: string, resolution?: string) =>
+  fetcher<StateForecast>(
+    `/api/v1/states/${code}/forecast${resolution ? `?resolution=${resolution}` : ""}`,
+  );
+
 export const getStateDemand = (code: string, days: number = 14) =>
   fetcher<{ code: string; name: string; latest?: string; n: number; series: { t: string; mw: number }[] }>(
     `/api/v1/states/${code}/demand?days=${days}`
