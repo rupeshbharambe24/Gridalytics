@@ -27,6 +27,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _MODELS = Path("models") / "states"
+_RES_ORDER = ("5min", "15min", "hourly", "daily")       # finest -> coarsest
+_PRIMARY_ORDER = ("hourly", "15min", "daily", "5min")   # which model headlines a state
 
 
 def _row_count(db: Session, code: str) -> int:
@@ -36,35 +38,64 @@ def _row_count(db: Session, code: str) -> int:
             .filter(StateDemandRecord.state_code == code).scalar() or 0)
 
 
+def _all_models(code: str) -> list[dict]:
+    """Every trained model for a state — one enriched served.json per resolution."""
+    if code == "delhi":
+        return []   # Delhi models are served via the Delhi pipeline, not models/states/
+    out: list[dict] = []
+    base = _MODELS / code
+    for res in _RES_ORDER:
+        p = base / res / "served.json"
+        if p.exists():
+            try:
+                meta = json.loads(p.read_text())
+            except Exception:
+                meta = {}
+            meta.setdefault("resolution", res)
+            out.append(meta)
+    return out
+
+
 def _model_info(code: str) -> dict | None:
-    """Return served-model metadata if a model was trained for this state."""
+    """The single headline model for a state (back-compat for the list view)."""
     if code == "delhi":
         return {"resolution": "multi", "served_model": "lightgbm/xgboost",
                 "note": "primary Delhi models (daily/hourly/5min)"}
-    for res in ("hourly", "15min", "daily", "5min"):
-        p = _MODELS / code / res / "served.json"
-        if p.exists():
-            try:
-                return {"resolution": res, **json.loads(p.read_text())}
-            except Exception:
-                return {"resolution": res}
+    by_res = {m.get("resolution"): m for m in _all_models(code)}
+    for res in _PRIMARY_ORDER:
+        if res in by_res:
+            return by_res[res]
     return None
+
+
+def _trim(m: dict | None) -> dict | None:
+    """Drop the heavy feature_list so the list endpoint stays lean."""
+    if not m:
+        return m
+    return {k: v for k, v in m.items() if k != "feature_list"}
 
 
 def _state_dict(db: Session, st, detail: bool = False) -> dict:
     n = _row_count(db, st.code)
+    models = _all_models(st.code)
     mi = _model_info(st.code)
     d = {
         "code": st.code, "name": st.name, "region": st.region.value,
         "tier": st.tier.value, "method": st.method.value, "scraper": st.scraper,
         "discoms": list(st.discoms), "discom_level": st.discom_level,
-        "rows_stored": int(n), "has_data": n > 0, "has_model": mi is not None,
+        "rows_stored": int(n), "has_data": n > 0,
+        "has_model": bool(models) or (st.code == "delhi" and mi is not None),
+        "model_count": len(models),
     }
-    if mi:
-        d["model"] = mi
     if detail:
+        if mi:
+            d["model"] = mi
+        d["models"] = models                 # full, with feature_list
         d["source_url"] = st.source_url
         d["notes"] = st.notes
+    else:
+        if mi:
+            d["model"] = _trim(mi)            # headline only, no feature_list
     return d
 
 
