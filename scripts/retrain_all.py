@@ -29,6 +29,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 MANIFEST = [
     # sub-daily SLDC models
+    {"state": "all_india",        "resolution": "15min", "no_weather": True},
     {"state": "himachal_pradesh", "resolution": "15min"},
     {"state": "karnataka",        "resolution": "hourly"},
     {"state": "bihar",            "resolution": "hourly", "start": "2023-06-01", "end": "2025-08-31"},
