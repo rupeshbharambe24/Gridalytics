@@ -65,6 +65,7 @@ STATE_COORDS = {
     "andhra_pradesh": (16.5062, 80.6480),  # Vijayawada
     "madhya_pradesh": (23.2599, 77.4126),  # Bhopal
     "telangana": (17.3850, 78.4867),       # Hyderabad
+    "all_india": (21.1458, 79.0882),       # Nagpur ~ national geographic centre (rough proxy)
 }
 _WX = ["temperature_2m", "relative_humidity_2m", "dew_point_2m", "precipitation",
        "cloud_cover", "wind_speed_10m", "shortwave_radiation"]
@@ -196,6 +197,8 @@ def main():
         sys.exit(1)
     print(f"  loaded {len(df):,} rows  {df.index.min()} .. {df.index.max()}  "
           f"(mean {df[TARGET].mean():.0f} MW)")
+    n_raw = len(df)
+    raw_start, raw_end, mean_mw = df.index.min(), df.index.max(), float(df[TARGET].mean())
 
     use_weather = not args.no_weather and args.state in STATE_COORDS
     if use_weather:
@@ -214,6 +217,7 @@ def main():
 
     df, feats = build_features(df, args.resolution, use_weather)
     print(f"  features: {len(feats)}  | usable rows after lag warmup: {len(df):,}")
+    n_usable = len(df)
 
     results = {}
     for name, cls in (("LightGBM", LightGBMForecaster), ("XGBoost", XGBoostForecaster)):
@@ -233,6 +237,8 @@ def main():
     champ = min(results, key=lambda k: results[k][0])
     champ_mape = results[champ][0]
     champ_cls = {"LightGBM": LightGBMForecaster, "XGBoost": XGBoostForecaster}[champ]
+    _champ_res = results[champ][1]
+    champ_rmse, champ_r2, n_folds = float(_champ_res["rmse"].mean()), float(_champ_res["r2"].mean()), int(len(_champ_res))
 
     print(f"\n{'='*60}")
     print(f"  {args.state} / {args.resolution}")
@@ -269,15 +275,48 @@ def main():
                 logger.warning(f"fallback save also failed ({e2}); no artifact persisted")
     if served:
         # record which model is actually served (champion may differ if save fell back)
+        # + rich model-card metadata (schema v2): data provenance/size/period, every
+        # model's CV score, R2/RMSE, feature list, trained-at. A SUPERSET of the old
+        # flat keys so existing readers keep working.
         import json
+        try:
+            with get_session() as s:
+                if args.source == "psp":
+                    _q = s.query(StatePSPDaily.source).filter(StatePSPDaily.state_code == args.state)
+                    if args.start is not None: _q = _q.filter(StatePSPDaily.date >= args.start)
+                    if args.end is not None: _q = _q.filter(StatePSPDaily.date <= args.end)
+                else:
+                    _q = s.query(StateDemandRecord.source).filter(StateDemandRecord.state_code == args.state)
+                    if args.start is not None:
+                        _q = _q.filter(StateDemandRecord.timestamp >= datetime(args.start.year, args.start.month, args.start.day))
+                    if args.end is not None:
+                        _q = _q.filter(StateDemandRecord.timestamp < datetime(args.end.year, args.end.month, args.end.day) + timedelta(days=1))
+                db_source = sorted({r[0] for r in _q.distinct() if r[0]})
+        except Exception:
+            db_source = []
         meta = save_dir / "served.json"
         try:
-            meta.write_text(json.dumps({"state": args.state, "resolution": args.resolution,
-                                        "source": args.source,
-                                        "served_model": served, "champion": champ,
-                                        "champion_cv_mape": round(champ_mape, 3),
-                                        "persistence_mape": round(pers, 3),
-                                        "features": len(feats)}, indent=2))
+            meta.write_text(json.dumps({
+                "state": args.state, "resolution": args.resolution, "source": args.source,
+                "served_model": served, "champion": champ,
+                "champion_cv_mape": round(champ_mape, 3),
+                "persistence_mape": round(pers, 3),
+                "features": len(feats),
+                "schema_version": 2,
+                "beats_persistence": bool(champ_mape < pers),
+                "improvement_pts": round(pers - champ_mape, 3),
+                "champion_cv_rmse": round(champ_rmse, 1),
+                "champion_cv_r2": round(champ_r2, 4),
+                "cv_folds": n_folds, "holdout_rows": holdout,
+                "models_cv_mape": {k: round(v[0], 3) for k, v in results.items()},
+                "data_rows_raw": n_raw, "data_rows_usable": n_usable,
+                "data_period_start": str(pd.Timestamp(raw_start).date()),
+                "data_period_end": str(pd.Timestamp(raw_end).date()),
+                "data_mean_mw": round(mean_mw, 1),
+                "db_source": db_source, "weather": bool(use_weather),
+                "feature_list": feats,
+                "trained_at": datetime.now().isoformat(timespec="seconds"),
+            }, indent=2))
         except Exception:
             pass
         print(f"  saved served model '{served}' -> {save_dir}")
