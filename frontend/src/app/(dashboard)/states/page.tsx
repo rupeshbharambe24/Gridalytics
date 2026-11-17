@@ -9,7 +9,8 @@ import {
   Database, Cpu, Layers, CheckCircle2, CircleDashed, Activity, MapPin,
 } from "lucide-react";
 import { useFetch } from "@/lib/hooks";
-import { getStates, getStateDemand, StateInfo } from "@/lib/api";
+import { getStates, getStateDemand, getStateDetail, StateInfo } from "@/lib/api";
+import { ModelCard } from "@/components/dashboard/model-card";
 import { cn } from "@/lib/utils";
 
 const REGION_ORDER = ["Northern", "Western", "Southern", "Eastern", "North-Eastern"];
@@ -63,6 +64,15 @@ export default function StatesPage() {
     () => getStateDemand(selCode, 14),
     [selCode],
   );
+
+  // Full detail (all resolutions' models with metadata) for the selected state.
+  const { data: detail } = useFetch(() => getStateDetail(selCode), [selCode]);
+  const models =
+    detail?.code === selCode && detail.models?.length
+      ? detail.models
+      : selected?.model
+      ? [selected.model]
+      : [];
 
   const byRegion = useMemo(() => {
     const m: Record<string, StateInfo[]> = {};
@@ -180,23 +190,17 @@ export default function StatesPage() {
                 <dt className="text-muted-foreground">Rows stored</dt><dd className="tabular-nums self-center">{selected.rows_stored.toLocaleString("en-IN")}</dd>
               </dl>
 
-              {/* model metrics */}
-              {selected.model ? (
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
-                    <div className="text-[10px] uppercase tracking-wide text-emerald-400/90">Champion MAPE</div>
-                    <div className="text-xl font-semibold tabular-nums">
-                      {selected.model.champion_cv_mape != null ? `${selected.model.champion_cv_mape}%` : "—"}
+              {/* model cards — one per trained resolution */}
+              {models.length ? (
+                <div className="space-y-2">
+                  {models.length > 1 && (
+                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                      {models.length} models trained
                     </div>
-                    <div className="text-[10px] text-muted-foreground">{selected.model.champion ?? selected.model.served_model ?? "model"} · {selected.model.resolution}</div>
-                  </div>
-                  <div className="bg-muted/40 border border-border rounded-lg p-3">
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Persistence</div>
-                    <div className="text-xl font-semibold tabular-nums">
-                      {selected.model.persistence_mape != null ? `${selected.model.persistence_mape}%` : "—"}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground">baseline to beat</div>
-                  </div>
+                  )}
+                  {models.map((mdl, i) => (
+                    <ModelCard key={mdl.resolution} m={mdl} delay={i * 0.05} />
+                  ))}
                 </div>
               ) : selected.has_data ? (
                 <div className="text-xs text-muted-foreground bg-muted/30 border border-border rounded-lg p-3">

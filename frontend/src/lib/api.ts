@@ -172,6 +172,25 @@ export interface StateModelInfo {
   persistence_mape?: number;
   features?: number;
   note?: string;
+  // schema v2 — enriched model-card metadata (served.json superset)
+  source?: string;
+  schema_version?: number;
+  beats_persistence?: boolean;
+  improvement_pts?: number;
+  champion_cv_rmse?: number;
+  champion_cv_r2?: number;
+  cv_folds?: number;
+  holdout_rows?: number;
+  models_cv_mape?: Record<string, number>;
+  data_rows_raw?: number;
+  data_rows_usable?: number;
+  data_period_start?: string;
+  data_period_end?: string;
+  data_mean_mw?: number;
+  db_source?: string[];
+  weather?: boolean;
+  feature_list?: string[];
+  trained_at?: string;
 }
 export interface StateInfo {
   code: string;
@@ -185,7 +204,9 @@ export interface StateInfo {
   rows_stored: number;
   has_data: boolean;
   has_model: boolean;
-  model?: StateModelInfo;
+  model_count?: number;
+  model?: StateModelInfo;         // headline (list view, trimmed)
+  models?: StateModelInfo[];      // all resolutions, full metadata (detail view)
   source_url?: string;
   notes?: string;
 }
@@ -195,6 +216,10 @@ export interface StatesResponse {
 }
 
 export const getStates = () => fetcher<StatesResponse>("/api/v1/states");
+
+// Full per-state detail incl. every resolution's model (with feature lists).
+export const getStateDetail = (code: string) =>
+  fetcher<StateInfo>(`/api/v1/states/${code}`);
 
 export const getStateDemand = (code: string, days: number = 14) =>
   fetcher<{ code: string; name: string; latest?: string; n: number; series: { t: string; mw: number }[] }>(
