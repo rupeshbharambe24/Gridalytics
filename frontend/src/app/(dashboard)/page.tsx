@@ -86,7 +86,7 @@ export default function DashboardPage() {
               {stats.season} Season
             </Badge>
           )}
-          <button onClick={refetchLive}
+          <button onClick={refetchLive} aria-label="Refresh live data" title="Refresh"
             className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
             <RefreshCw className={`w-4 h-4 ${liveLoading ? "animate-spin" : ""}`} />
           </button>
@@ -145,7 +145,7 @@ export default function DashboardPage() {
               <button
                 onClick={() => downloadCSV(chartData, "gridalytics_demand_7d.csv")}
                 className="absolute top-5 right-5 z-10 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                title="Export CSV"
+                title="Export CSV" aria-label="Export demand data as CSV"
               ><Download className="w-3.5 h-3.5" /></button>
               <DemandChart data={chartData} title="Demand — Last 7 Days (Hourly)" showTemp />
             </div>

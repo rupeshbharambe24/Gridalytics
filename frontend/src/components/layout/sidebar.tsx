@@ -47,9 +47,8 @@ const navSections: NavSection[] = [
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCollapsed: (v: boolean) => void }) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isDark, setIsDark] = useState(true);

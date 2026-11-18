@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { DemandChart } from "@/components/charts/demand-chart";
 import { PageHeader } from "@/components/layout/page-header";
 import { getForecast, getWhatIf } from "@/lib/api";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ReferenceLine } from "recharts";
 
 export default function WhatIfPage() {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -311,6 +312,33 @@ export default function WhatIfPage() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
           className="rounded-xl border border-border bg-card shadow-card p-5">
           <h3 className="text-sm font-semibold text-foreground mb-3">Saved scenarios ({savedScenarios.length}/10)</h3>
+
+          {savedScenarios.length >= 2 && (
+            <div className="mb-5">
+              <p className="text-xs text-muted-foreground mb-2">Average-demand impact across saved scenarios (vs each one&apos;s baseline)</p>
+              <ResponsiveContainer width="100%" height={Math.max(120, savedScenarios.length * 32)}>
+                <BarChart
+                  layout="vertical"
+                  data={[...savedScenarios].reverse().map((s) => ({ name: `${s.date} · ${s.temp}°C · AQI ${s.aqi}`, diff: s.diffPct }))}
+                  margin={{ left: 8, right: 20, top: 4, bottom: 4 }}
+                >
+                  <XAxis type="number" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} unit="%" tickLine={false} axisLine={false} />
+                  <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                  <ReferenceLine x={0} stroke="hsl(var(--border))" />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                    formatter={(v: any) => [`${v > 0 ? "+" : ""}${v}%`, "avg impact"]}
+                  />
+                  <Bar dataKey="diff" radius={[0, 4, 4, 0]}>
+                    {[...savedScenarios].reverse().map((s, i) => (
+                      <Cell key={i} fill={s.diffPct > 0 ? "hsl(var(--chart-peak))" : "hsl(var(--chart-demand))"} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {savedScenarios.map((s) => (
               <div key={s.id} className="rounded-lg border border-border bg-accent/20 p-3 text-xs space-y-1 group relative hover:border-brand/30 transition-colors">

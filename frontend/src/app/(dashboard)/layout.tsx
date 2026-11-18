@@ -1,12 +1,28 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem("gridalytics-sidebar") === "collapsed");
+    } catch {}
+  }, []);
+
+  const handleCollapsed = (v: boolean) => {
+    setCollapsed(v);
+    try {
+      localStorage.setItem("gridalytics-sidebar", v ? "collapsed" : "expanded");
+    } catch {}
+  };
+
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar />
-      <main className="flex-1 lg:ml-[240px] transition-all duration-200">
+      <Sidebar collapsed={collapsed} setCollapsed={handleCollapsed} />
+      <main className={`flex-1 transition-all duration-200 ${collapsed ? "lg:ml-[72px]" : "lg:ml-[240px]"}`}>
         <div className="p-4 lg:p-6 max-w-[1400px] mx-auto pb-20 pt-16 lg:pt-6">
           {children}
         </div>
