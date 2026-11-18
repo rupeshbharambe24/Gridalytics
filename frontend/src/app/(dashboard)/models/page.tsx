@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useFetch } from "@/lib/hooks";
 import { getModelPerformance, getAvailableModels, getStates } from "@/lib/api";
 import { ModelCard } from "@/components/dashboard/model-card";
+import { PageHeader } from "@/components/layout/page-header";
 
 // Known CV metrics per model. Gradient-boosting champions are from the full
 // training runs. The classical/alt challengers (SARIMAX, ARIMA, NeuralProphet)
@@ -74,14 +75,18 @@ export default function ModelsPage() {
 
   return (
     <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-bold tracking-tight">Model Performance</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          {allModels.length} trained models across {new Set(allModels.map((m: any) => m.resolution)).size} resolutions
-          {trackedDays > 0 && ` | ${trackedDays} days of live tracking`}
-          {rollingMape && ` | Rolling MAPE: ${rollingMape}%`}
-        </p>
-      </motion.div>
+      <PageHeader
+        eyebrow="Performance"
+        title="Model Performance"
+        icon={BarChart3}
+        subtitle={
+          <>
+            {allModels.length} trained models across {new Set(allModels.map((m: any) => m.resolution)).size} resolutions
+            {trackedDays > 0 && ` · ${trackedDays} days of live tracking`}
+            {rollingMape && ` · rolling MAPE ${rollingMape}%`}
+          </>
+        }
+      />
 
       {/* Loading */}
       {perfLoading && (
@@ -99,17 +104,14 @@ export default function ModelsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.07 }}
-              className="rounded-xl border border-border bg-card p-5 space-y-4 hover:border-blue-500/30 transition-colors"
+              className="rounded-xl border border-border bg-card shadow-card p-5 space-y-4 hover:border-brand/30 hover:shadow-brand transition-all"
             >
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-semibold text-foreground">{m.name}</h3>
-                  <p className="text-xs text-muted-foreground">{m.resolution} resolution | {m.type}</p>
+                  <p className="text-xs text-muted-foreground">{m.resolution} resolution · {m.type}</p>
                 </div>
-                <Badge
-                  variant={m.isChampion ? "default" : "outline"}
-                  className={m.isChampion ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : ""}
-                >
+                <Badge variant={m.isChampion ? "success" : "outline"}>
                   {m.isChampion ? (
                     <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Champion</span>
                   ) : "Challenger"}
@@ -125,7 +127,7 @@ export default function ModelsPage() {
                 ].map((metric) => (
                   <div key={metric.label} className="rounded-lg bg-accent/30 p-2.5">
                     <p className="text-[10px] text-muted-foreground uppercase">{metric.label}</p>
-                    <p className={`text-sm font-bold font-mono mt-0.5 ${metric.highlight ? "text-blue-400" : "text-foreground"}`}>
+                    <p className={`text-sm font-bold font-mono mt-0.5 ${metric.highlight ? "text-brand" : "text-foreground"}`}>
                       {metric.value}
                     </p>
                   </div>
@@ -205,7 +207,7 @@ export default function ModelsPage() {
                 <tr key={row.metric} className="border-b border-border/50 hover:bg-accent/20 transition-colors">
                   <td className="p-4 font-medium">{row.metric}</td>
                   <td className="p-4 text-center font-mono text-rose-400">{row.old}</td>
-                  <td className="p-4 text-center font-mono text-blue-400 font-bold">{row.new5}</td>
+                  <td className="p-4 text-center font-mono text-brand font-bold">{row.new5}</td>
                   <td className="p-4 text-center font-mono text-emerald-400">{row.newH}</td>
                   <td className="p-4 text-center font-mono text-emerald-400">{row.newD}</td>
                   <td className="p-4 text-center">

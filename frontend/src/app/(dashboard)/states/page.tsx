@@ -12,6 +12,7 @@ import {
 import { useFetch } from "@/lib/hooks";
 import { getStates, getStateDemand, getStateDetail, getStateForecast, StateInfo, StateForecast } from "@/lib/api";
 import { ModelCard } from "@/components/dashboard/model-card";
+import { PageHeader } from "@/components/layout/page-header";
 import { cn } from "@/lib/utils";
 
 const REGION_ORDER = ["Northern", "Western", "Southern", "Eastern", "North-Eastern"];
@@ -37,8 +38,8 @@ function fmtTime(t: string) {
 function SummaryCard({ icon: Icon, label, value, sub }: { icon: any; label: string; value: string | number; sub?: string }) {
   return (
     <div className="bg-card border border-border rounded-xl p-4 flex items-start gap-3 min-w-0">
-      <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-        <Icon className="w-5 h-5 text-blue-400" />
+      <div className="w-9 h-9 rounded-lg bg-brand/10 flex items-center justify-center shrink-0">
+        <Icon className="w-5 h-5 text-brand" />
       </div>
       <div className="min-w-0">
         <div className="text-2xl font-semibold tabular-nums leading-none">{value}</div>
@@ -131,14 +132,12 @@ export default function StatesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <MapPin className="w-6 h-6 text-blue-400" /> State-wise Grid
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          The all-India rollout. Every state&apos;s data source, scraper and collection status — scaling the Delhi pipeline nationwide.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="All-India rollout"
+        title="State-wise Grid"
+        icon={MapPin}
+        subtitle="Every state's data source, scraper and collection status — scaling the Delhi pipeline nationwide, with a day-ahead forecast per trained model."
+      />
 
       {/* summary */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -173,11 +172,11 @@ export default function StatesPage() {
                         : s.tier === "deferred"
                         ? "border-dashed border-border text-muted-foreground"
                         : "bg-card border-border text-foreground",
-                      selCode === s.code && "ring-2 ring-blue-500",
+                      selCode === s.code && "ring-2 ring-brand",
                     )}
                   >
                     {s.name}
-                    {s.discom_level && <span className="text-blue-400" title="DISCOM-level">◆</span>}
+                    {s.discom_level && <span className="text-brand" title="DISCOM-level">◆</span>}
                     {s.has_model && <Cpu className="w-3 h-3 text-emerald-400" aria-label="model trained" />}
                     {s.has_data && !s.has_model && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" title="collecting" />}
                   </motion.button>
@@ -190,7 +189,7 @@ export default function StatesPage() {
             <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-card border border-border" /> National fallback</span>
             <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded border border-dashed border-border" /> Deferred</span>
             <span className="flex items-center gap-1.5"><Cpu className="w-3 h-3 text-emerald-400" /> model trained</span>
-            <span className="flex items-center gap-1.5"><span className="text-blue-400">◆</span> DISCOM-level</span>
+            <span className="flex items-center gap-1.5"><span className="text-brand">◆</span> DISCOM-level</span>
           </div>
         </div>
 
@@ -262,14 +261,14 @@ export default function StatesPage() {
                             formatter={(v: any, n: any) => [`${Number(v).toLocaleString("en-IN")} MW`, n === "pred" ? "forecast" : n]}
                           />
                           <Area stackId="ci" dataKey="base" stroke="none" fill="transparent" isAnimationActive={false} />
-                          <Area stackId="ci" dataKey="band" stroke="none" fill="#a855f7" fillOpacity={0.15} isAnimationActive={false} />
-                          <Line type="monotone" dataKey="pred" stroke="#a855f7" strokeWidth={1.8} dot={false} />
+                          <Area stackId="ci" dataKey="band" stroke="none" fill="hsl(var(--chart-forecast))" fillOpacity={0.15} isAnimationActive={false} />
+                          <Line type="monotone" dataKey="pred" stroke="hsl(var(--chart-forecast))" strokeWidth={1.8} dot={false} />
                         </ComposedChart>
                       </ResponsiveContainer>
                     </div>
                   ) : (
-                    <div className="bg-violet-500/10 border border-violet-500/30 rounded-lg p-3 flex items-baseline gap-2 flex-wrap">
-                      <span className="text-2xl font-semibold tabular-nums">{Math.round(fcData.pts[0].pred).toLocaleString("en-IN")}</span>
+                    <div className="bg-brand/10 border border-brand/30 rounded-lg p-3 flex items-baseline gap-2 flex-wrap">
+                      <span className="text-2xl font-semibold tabular-nums text-brand">{Math.round(fcData.pts[0].pred).toLocaleString("en-IN")}</span>
                       <span className="text-sm text-muted-foreground">MW predicted peak</span>
                       <span className="text-[10px] text-muted-foreground ml-auto">
                         {Math.round(fcData.pts[0].base).toLocaleString("en-IN")}–{Math.round(fcData.pts[0].base + fcData.pts[0].band).toLocaleString("en-IN")} MW
@@ -302,7 +301,7 @@ export default function StatesPage() {
                             formatter={(v: any) => [`${Number(v).toLocaleString("en-IN")} MW`, "avg"]}
                             labelFormatter={(l) => `${l}:00`}
                           />
-                          <Bar dataKey="mw" fill="#3b82f6" radius={[2, 2, 0, 0]} />
+                          <Bar dataKey="mw" fill="hsl(var(--chart-demand))" radius={[2, 2, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -324,8 +323,8 @@ export default function StatesPage() {
                       <AreaChart data={chartData} margin={{ top: 4, right: 6, left: -18, bottom: 0 }}>
                         <defs>
                           <linearGradient id="demandFill" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.4} />
-                            <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
+                            <stop offset="0%" stopColor="hsl(var(--chart-demand))" stopOpacity={0.4} />
+                            <stop offset="100%" stopColor="hsl(var(--chart-demand))" stopOpacity={0} />
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-border" vertical={false} />
@@ -335,7 +334,7 @@ export default function StatesPage() {
                           contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
                           formatter={(v: any) => [`${Number(v).toLocaleString("en-IN")} MW`, "demand"]}
                         />
-                        <Area type="monotone" dataKey="mw" stroke="#3b82f6" strokeWidth={1.5} fill="url(#demandFill)" />
+                        <Area type="monotone" dataKey="mw" stroke="hsl(var(--chart-demand))" strokeWidth={1.5} fill="url(#demandFill)" />
                       </AreaChart>
                     </ResponsiveContainer>
                   ) : (
