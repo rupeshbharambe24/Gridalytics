@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/page-header";
 import { useFetch } from "@/lib/hooks";
 import {
   getAdminModels,
@@ -38,7 +39,7 @@ function statusIcon(status: string) {
     case "idle":
       return <Clock className="w-4 h-4 text-muted-foreground" />;
     case "training":
-      return <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />;
+      return <Loader2 className="w-4 h-4 text-brand animate-spin" />;
     case "complete":
       return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
     case "error":
@@ -166,30 +167,18 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-        className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <Settings className="w-5 h-5 text-muted-foreground" />
-            <h1 className="text-2xl font-bold tracking-tight">Admin Panel</h1>
-          </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Model management, retraining, and pipeline monitoring
-          </p>
-        </div>
-        <Button
-          onClick={handleTriggerPipeline}
-          disabled={pipelineLoading}
-          size="sm"
-          className="gap-2 shrink-0"
-        >
-          {pipelineLoading
-            ? <Loader2 className="w-4 h-4 animate-spin" />
-            : <Play className="w-4 h-4" />}
-          Run Daily Pipeline
-        </Button>
-      </motion.div>
+      <PageHeader
+        eyebrow="Operations"
+        title="Admin Panel"
+        icon={Settings}
+        subtitle="Model management, retraining, and pipeline monitoring."
+        actions={
+          <Button onClick={handleTriggerPipeline} disabled={pipelineLoading} size="sm" className="gap-2 shrink-0">
+            {pipelineLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            Run Daily Pipeline
+          </Button>
+        }
+      />
 
       {/* ----------------------------------------------------------------- */}
       {/* Section 1: Trained Models                                         */}
@@ -212,7 +201,7 @@ export default function AdminPage() {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.08 }}
-                className="rounded-xl border border-border bg-card p-5 space-y-3 hover:border-blue-500/30 transition-colors"
+                className="rounded-xl border border-border bg-card shadow-card p-5 space-y-3 hover:border-brand/30 transition-colors"
               >
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-foreground">{m.name ?? "Unknown"}</h3>
