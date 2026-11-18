@@ -1,0 +1,87 @@
+# Paper: Festivals as Demand Shocks (Delhi daily peak)
+
+LaTeX source for the festival-effects manuscript. Primary source for all numbers:
+[`../paper_festival_effects.md`](../paper_festival_effects.md) (feasibility run
+2026-10-29). The public research note is [`../festival_effects.html`](../festival_effects.html).
+
+## Files
+
+- `festival_shocks.tex` — complete single-file manuscript (article, 11pt).
+- `references.bib` — BibTeX for the §8 verified references.
+- `figures/` — **empty**; figures are placeholders until regenerated (see below).
+
+## Build
+
+```bash
+cd docs/paper
+pdflatex festival_shocks
+bibtex   festival_shocks
+pdflatex festival_shocks
+pdflatex festival_shocks
+```
+
+Needs `natbib`, `booktabs`, `siunitx`, `graphicx`, `hyperref`, `amsmath` (all in
+a standard TeX Live). The manuscript **compiles with no figure files present**:
+`\placeholderfig` draws a labelled box whenever a `figures/<name>.pdf` (or `.png`)
+is missing, so `pdflatex` never errors on a missing `\includegraphics`. Drop the
+real plots into `figures/` with the matching basenames to replace the boxes.
+
+## Figures to generate (basenames expected in `figures/`)
+
+All from `scripts/paper/festival_eventstudy.py` unless noted. **Do not fabricate
+figure data** — regenerate from the scripts with the final weather series.
+
+- `festival_effects_forest.{pdf,png}` — diverging forest plot of Table 1.
+- `peryear_stability.{pdf,png}` — per-year Holi/Diwali deviations.
+- `event_windows.{pdf,png}` — Diwali (d−3..d+3) and Holi (d−2..d+2) windows.
+- (optional) an ablation bar chart from `scripts/paper/festival_forecast_ablation.py`.
+
+The two tables that hold real numbers (Table 1 effects, and the forecast ablation)
+are typeset directly from the plan's values with `booktabs`; regenerate and
+reconcile them against a fresh script run before submission.
+
+## Pre-submission checklist (from plan §5 and §7)
+
+Numbers in the draft are feasibility estimates and are marked as such. Before
+submitting:
+
+- [ ] **Regenerate all tables/figures** from `scripts/paper/*.py` against the DB
+      with corrected dates and the final ERA5 weather pull; reconcile every value
+      in Table 1 and the ablation table with the script output.
+- [ ] **Make the ablation fully causal.** The magnitude feature's counterfactual
+      currently uses full-sample weather coefficients (its event deviations are
+      already prior-years-only). Refit the counterfactual on pre-test-year data
+      only so the backtest is strictly out-of-sample. (§5.2)
+- [ ] **Replace oracle weather** with archived *forecasts* (Open-Meteo
+      historical-forecast API, 2022+) or a noise-injection sensitivity check. (§5.3)
+- [ ] **Add Diebold–Mariano tests and ≥5 seeds** to the forecast comparison. (§5.3)
+- [ ] **Move inference off HAC** to placebo-randomisation / block-bootstrap
+      intervals throughout (HAC(7) is anti-conservative: 22% of placebo shifts hit
+      p<0.05). Top-seven effects already survive. (§4 placebo)
+- [ ] **Robustness grid** (§5.4): alternative counterfactuals (±21-day same-DOW,
+      this regression, an ML counterfactual); drop 2020–21 COVID years; peak vs
+      energy (re-scrape PSP energy for legacy rows, `delhi_energy_met_mu` is null);
+      full d−1..d+3 window.
+- [ ] **Explain or label** the positive Christmas (+4.1%) and Maha Shivaratri
+      (+6.0%) effects — confounds flagged (winter/New-Year; Feb–Mar transition). (§5.6)
+- [ ] **Intraday-shape section (optional, strong figure):** with corrected 5-min
+      dates, show the Diwali evening profile vs a normal-day counterfactual. (§5.5)
+- [ ] **Confirm the psp break date** and read Grid-India *Demand Pattern Analysis
+      2023* **Vol. II** (state-level) for any Delhi festival magnitudes — the last
+      scoop risk before claiming "first". (§5.7)
+- [ ] **Fill `references.bib`** `% incomplete` fields (titles / given names) from
+      the DOIs/URLs; cite PR #5 as the author's own prior disclosure. (§8)
+
+## Target venues (plan §7; confirm 2026 APC terms)
+
+1. arXiv (stat.AP / eess.SY) first.
+2. Then **Sadhana** or **Current Science** (Indian, no APC), or **MPCE** (power
+   systems).
+3. *Energy for Sustainable Development* (Elsevier) via the subscription route
+   (no APC) — good topical fit.
+
+## Scope guardrails (plan §1)
+
+Keep the narrowest honest version: no "first for India" (state tables unchecked),
+no new-method claim, no sub-daily/hourly accuracy headline. The study is Delhi
+**daily peak** demand, 2015–2024.

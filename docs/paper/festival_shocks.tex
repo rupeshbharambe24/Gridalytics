@@ -1,0 +1,630 @@
+%% festival_shocks.tex
+%% Festivals as Demand Shocks: a decade of weather-adjusted estimates for
+%% Delhi's peak electricity demand, and their value for day-ahead forecasting.
+%%
+%% Single-file manuscript. Compile with:
+%%     pdflatex festival_shocks
+%%     bibtex   festival_shocks
+%%     pdflatex festival_shocks
+%%     pdflatex festival_shocks
+%%
+%% All numbers in this draft are the feasibility estimates recorded in
+%% docs/paper_festival_effects.md (run 2026-10-29). Figures referenced below
+%% must be regenerated from scripts/paper/*.py before submission; until then the
+%% \placeholderfig macro draws a labelled box so the document still compiles.
+%% See docs/paper/README.md for the pre-submission checklist.
+
+\documentclass[11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage{siunitx}
+\usepackage{xcolor}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{figures/}}
+
+% siunitx: treat percentages cleanly, keep tabular numbers aligned
+\sisetup{detect-weight=true, detect-family=true}
+
+% --- placeholder-figure macro --------------------------------------------
+% If the real figure file exists it is included; otherwise a labelled box is
+% drawn so the manuscript compiles before the plots are regenerated.
+\newcommand{\placeholderfig}[2]{%
+  % #1 = file basename (no extension), resolved under figures/; #2 = height.
+  % \IfFileExists ignores \graphicspath, so probe the figures/ path explicitly;
+  % \includegraphics still resolves #1 via \graphicspath once the file exists.
+  \IfFileExists{figures/#1.pdf}{\includegraphics[width=\linewidth]{#1}}{%
+    \IfFileExists{figures/#1.png}{\includegraphics[width=\linewidth]{#1}}{%
+      \setlength{\fboxsep}{0pt}%
+      \fbox{\parbox[c][#2][c]{\dimexpr\linewidth-2\fboxrule\relax}{%
+        \centering\ttfamily\small
+        [\,figure placeholder: \detokenize{#1}\,]\\[2pt]
+        \normalfont\itshape\footnotesize
+        TODO: regenerate from scripts/paper/ (see README)%
+      }}%
+    }%
+  }%
+}
+
+\newcommand{\pct}{\%}
+
+\title{\textbf{Festivals as Demand Shocks:\\[2pt]
+A Decade of Weather-Adjusted Estimates for Delhi's Peak\\
+Electricity Demand, and Why Binary Holiday Flags\\
+Under-serve Gradient-Boosted Forecasters}}
+
+\author{Rupesh Bharambe\\
+  \small Gridalytics\\
+  \small \texttt{rupeshbharambe2004@gmail.com}}
+
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+Festivals are large, recurring, culturally-timed shocks to electricity demand,
+yet published Indian work describes them only qualitatively. We give, to our
+knowledge, the first multi-year (2015--2024) per-festival estimates of holiday
+effects on Delhi's daily \emph{peak} demand. Each estimate is a weather-adjusted
+counterfactual from an event-study regression with Newey--West HAC(7) standard
+errors, validated by placebo-randomisation inference. The effects are large and
+stable year to year: Holi suppresses the daily peak by about $31\pct$, Diwali by
+about $17\pct$, and Republic Day by about $14\pct$, while a few festivals
+(Christmas, Maha Shivaratri) raise it. The Diwali dip is a three-day structure
+(Diwali, Govardhan Puja, Bhai Duj) and Holi carries a day-after effect, neither
+of which a single binary holiday flag can represent. In a rolling-origin
+day-ahead backtest (test years 2019--2024, LightGBM), encoding the festival as a
+signed effect-size prior cuts festival-day MAPE from $6.6\pct$ to $5.6\pct$ at
+horizon~1 and from $9.5\pct$ to $7.1\pct$ at horizon~7, whereas a binary flag or
+a categorical festival identity do not: with roughly one occurrence per year, a
+gradient-boosted tree cannot isolate a rare event from a dummy. We frame this as
+a rare-event encoding result, not a new estimator. Finally, we present a
+data-integrity case study: three silent pipeline defects each biased earlier
+conclusions toward ``festivals don't matter,'' and a fourth---a target leak in
+differenced/rolling features---flattered cross-validated accuracy; we give cheap
+detection tests and report leak-free results after the fixes. The quantification
+is robust and operationally relevant for load-dispatch scheduling and power
+purchase; the forecasting lever is real but narrow, and we are deliberate about
+where it is worth carrying.
+\end{abstract}
+
+\vspace{0.5em}
+\noindent\textbf{Keywords:} electricity demand; peak load; festivals; holiday
+effects; counterfactual estimation; event study; load forecasting; gradient
+boosting; data integrity; India.
+
+% =========================================================================
+\section{Introduction}
+\label{sec:intro}
+
+Electricity demand in India swings sharply around festivals. Offices, markets and
+industry close; domestic routines shift; and the diurnal load profile is
+redrawn. These are among the largest short-horizon, non-weather deviations a load
+forecaster faces, and they recur on culturally-timed dates---many of them lunar,
+so they move through the Gregorian calendar from year to year. For a State Load
+Dispatch Centre (SLDC) scheduling generation a day ahead, and for a distribution
+company (DISCOM) sizing its day-ahead power purchase, mis-sizing a festival is a
+concrete operational cost.
+
+Despite this, the published Indian literature characterises festival effects only
+\emph{qualitatively}. \citet{gaur2016} note an ``abrupt fall'' around festivals
+but reuse weekend coefficients rather than estimating festival-specific
+magnitudes; the Grid-India \emph{Electricity Demand Pattern Analysis}
+\citep{gridindia2023} discusses festival behaviour narratively without per-festival
+Delhi magnitudes; and \citet{hunt2025}, the nearest academic neighbour, model
+Indian states but report no per-festival sizes. One study of the Northern grid
+\citep{banerjee2010} found \emph{no} holiday effect at all.
+
+This paper makes three empirical contributions and one methodological cautionary
+tale, stated here in their narrowest honest form.
+
+\begin{enumerate}
+\item \textbf{Quantification.} We estimate, for each major festival, a
+  weather-adjusted counterfactual effect on Delhi's daily peak demand over
+  2015--2024, with uncertainty intervals (Table~\ref{tab:effects}). To our
+  knowledge these are the first multi-year per-festival magnitudes for Delhi. The
+  effects are large and year-to-year stable.
+\item \textbf{Multi-day structure.} The Diwali effect spans about three days
+  (Diwali, Govardhan Puja, Bhai Duj), and Holi has a pronounced day-after effect.
+  A single-day binary flag cannot represent either pattern.
+\item \textbf{Forecasting value of an effect-size prior.} In a rolling-origin
+  day-ahead backtest, a causal signed-magnitude feature reduces festival-day
+  error for a gradient-boosted model, while a binary flag and even a categorical
+  festival identity do not. We frame this as a rare-event encoding result, not a
+  new method.
+\item \textbf{Data-integrity case study.} We document how several silent pipeline
+  defects earlier manufactured a near-null result, and give the cheap tests that
+  catch them.
+\end{enumerate}
+
+We deliberately \emph{do not} claim this to be the first such study for India at
+large (state-level Grid-India tables are unchecked), nor that the mechanism is
+new, nor any sub-daily accuracy headline: the quantification is daily peak only.
+
+% =========================================================================
+\section{Related work}
+\label{sec:related}
+
+\paragraph{Indian demand studies.} \citet{gaur2016} and the Grid-India demand
+pattern reports \citep{gridindia2023} describe festival and weekend behaviour of
+Indian load qualitatively. \citet{hunt2025} provide a weather-driven account of
+Indian state demand without isolating per-festival magnitudes. \citet{banerjee2010}
+is a useful foil: a Northern-grid study that reports no holiday effect, which our
+weather-adjusted estimates contradict once the data are corrected
+(Section~\ref{sec:data}).
+
+\paragraph{Holiday modelling in load forecasting.} Holiday handling is a recurring
+theme in the forecasting literature. \citet{ziel2018} studies the treatment of
+public holidays in load models, and \citet{arora2018} incorporate special-day
+effects in short-term forecasting. The general point we build on is that rare,
+recurring special days are hard to encode well with dummies alone; impact-adjusted
+or target-style encodings of such days are an established device, and our
+signed-magnitude feature sits in that family.
+
+\paragraph{Counterfactual demand estimation.} Estimating ``what demand would have
+been'' absent a shock is methodologically close to the counterfactual estimation
+used to quantify COVID-19 lockdown effects on electricity demand
+\citep{fezzi2020,bahmanyar2020}. Machine-learning counterfactual and global
+forecasting approaches \citep{prasanna2022,rubattu2023} are natural alternative
+baselines for the robustness grid. Finally, the forecast-evaluation framing
+follows standard practice on forecast comparison and encompassing
+\citep{clements1996}.
+
+\paragraph{Prior disclosure.} The signed-effect idea was previously disclosed as
+part of the Gridalytics project (a public pull request and an internal research
+note); we treat it here as our own prior work and extend it with the
+decade-long estimation and the formal forecast ablation.
+
+% =========================================================================
+\section{Data}
+\label{sec:data}
+
+\paragraph{Demand.} The primary series is Grid-India's Power Supply Position (PSP)
+daily peak demand met for Delhi, 2015-01-01 to 2024-11-20, a continuous
+ten-year record. At daily resolution the target is the day's \emph{peak} (the PSP
+reports peak demand met); where the series is derived from higher-resolution SCADA
+data, days are aggregated with \texttt{max}, never \texttt{mean}.
+
+\paragraph{Weather.} Daily weather is ERA5 reanalysis obtained through the
+Open-Meteo archive API for Delhi ($28.61^\circ$N, $77.21^\circ$E): mean, maximum
+and minimum 2\,m temperature, mean relative humidity, and precipitation sum. We
+derive cooling and heating degree days,
+$\mathrm{CDD}_t=\max(\bar T_t-24,0)$ and $\mathrm{HDD}_t=\max(18-\bar T_t,0)$,
+their squares, and one- and two-day lags to capture the thermal inertia of the
+building stock.
+
+\paragraph{Calendar.} Festival and holiday dates are taken from the
+\texttt{holidays} library for India using both the \emph{public} and
+\emph{optional} categories, then mapped to a canonical, Delhi-relevant list of up
+to 25 named festivals. The optional category is essential: the public category
+alone omits Holi, Govardhan Puja, Bhai Duj, Chhath and Karwa Chauth.
+
+\subsection{Data-integrity audit}
+\label{sec:integrity}
+
+An earlier pass over this pipeline concluded that festivals barely mattered and
+that a magnitude feature was neutral. That conclusion was an artifact of several
+silent defects, each of which nudged the result toward ``no effect.'' We document
+them because the detection tests are cheap and generally reusable, and because
+the corrected result (Section~\ref{sec:results1}) is the paper.
+
+\begin{description}
+\item[\textnormal{(D1)} Report-date lag (resolved).] Pre-2021 \texttt{psp\_daily}
+  rows were dated one day late---a PSP report labelled day $D$ carries day $D{-}1$'s
+  demand. Evidence: the weekly demand low falls on Sunday/Monday in 2015--2020 but
+  Saturday/Sunday in 2021--2024, with the break near 2021-01-02 (a cumulative-sum
+  test); the day-of-month pattern is identical for $\le 12$ and $>12$, so this is a
+  one-day shift, not a day/month swap. Detection: a day-of-week-profile alignment
+  test across sub-periods.
+\item[\textnormal{(D2)} Day/month swap (resolved).] Legacy 5-minute SCADA rows
+  (2021 to late 2025) had day and month transposed whenever the day was $\le 12$,
+  from a date parse without \texttt{dayfirst=True}. Checking the 5-minute daily
+  maximum against the PSP peak, the stored date gives median APE $24.3\pct$ and
+  correlation $0.002$; the swapped date gives $0.6\pct$ and $0.999$ ($n{=}492$),
+  while days $>12$ are already correct ($0.7\pct$, $0.998$). Detection: a
+  cross-source agreement test at offsets $-1/0/+1$ and with day/month swapped.
+\item[\textnormal{(D3)} Missing festivals (resolved).] The off-the-shelf calendar
+  omitted Holi and several optional-category festivals before 2024. Detection: a
+  calendar-completeness check against an optional-holiday list.
+\item[\textnormal{(D4)} Peak/mean mixing (resolved).] After 2024-11 the daily
+  target blended PSP peak with a 5-minute daily \emph{mean} (${\approx}0.83\times$
+  peak), faking a level drop; the target is now the peak everywhere.
+\item[\textnormal{(D5)} Target leak (resolved).] Differenced and rolling target
+  features (\texttt{delhi\_mw\_diff\_*}, rolling statistics) included the current
+  target $y_t$ during training but not at inference, flattering cross-validated
+  accuracy. This is a textbook leak and we treat it as a cautionary case study in
+  its own right (Section~\ref{sec:leak}).
+\end{description}
+
+Defects D1--D4 are fixed in the code, and the local database was repaired with an
+idempotent script (dry run by default). D5 was subsequently fixed on the main
+branch so that all differenced and rolling features end at $t{-}1$.
+Table~\ref{tab:before-after} shows how the festival estimates and model fit moved
+once D1--D3 were corrected.
+
+\begin{table}[t]
+\centering
+\caption{Effect of the data-integrity corrections (D1--D3) on the festival
+estimates and the event-study fit. The ``before'' column is the earlier pass on
+broken, weather-unadjusted data; the ``after'' column is the corrected,
+weather-adjusted estimate used throughout this paper.}
+\label{tab:before-after}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Quantity & Before (broken data) & After (corrected) \\
+\midrule
+Diwali effect        & $-10.5\pct$ (shrunk) & $-17.2\pct$ \\
+Holi effect          & absent (not in calendar) & $-31.2\pct$ \\
+Republic Day effect  & $-3.9\pct$  & $-14.2\pct$ \\
+Id-ul-Fitr effect    & $+3.0\pct$ (sign artifact) & ${\approx}\,0$ (n.s.) \\
+Magnitude feature    & neutral & helps on festival days \\
+\midrule
+Model $R^2$          & $0.953$ & $0.967$ \\
+Residual SD          & $5.21\pct$ & $4.39\pct$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The improvement in fit ($R^2$ $0.953\to0.967$; residual standard deviation
+$5.21\pct\to4.39\pct$) is independent evidence that the one-day shift was real:
+correcting it makes the weather model fit better, not worse. The corrupted dates
+also explain a misleading earlier ``per-year'' pattern, in which Diwali and Holi
+appeared to have near-zero effects in 2015--2020 and large effects only in
+2021--2024.
+
+% =========================================================================
+\section{Method}
+\label{sec:method}
+
+\subsection{Event-study counterfactual}
+
+We model the log daily peak as a function of weather, calendar fixed effects,
+lockdown controls and festival indicators:
+\begin{align}
+\log L_t
+  &= \alpha
+   + g(\text{weather}_t)
+   + \sum_{d} \gamma_d\,\mathrm{DOW}_{d,t}
+   + \sum_{m} \delta_m\,\mathrm{YM}_{m,t} \nonumber\\
+  &\quad + \kappa_1\,\mathrm{COVID1}_t
+   + \kappa_2\,\mathrm{COVID2}_t
+   + \sum_{e} \beta_e\,F_{e,t}
+   + \varepsilon_t ,
+\label{eq:eventstudy}
+\end{align}
+where $\mathrm{DOW}$ are day-of-week dummies, $\mathrm{YM}$ are year-month fixed
+effects (absorbing slow seasonal and trend movement), and $\mathrm{COVID1}$,
+$\mathrm{COVID2}$ flag the two national lockdown windows (2020-03-23 to
+2020-05-31 and 2021-04-19 to 2021-06-07). The weather term $g(\cdot)$ comprises
+$\mathrm{CDD}$, $\mathrm{CDD}^2$, $\mathrm{HDD}$, $\mathrm{HDD}^2$, their one- and
+two-day lags, maximum temperature, mean relative humidity, $\log(1+\text{precip})$,
+and a $\mathrm{CDD}\times\mathrm{RH}$ interaction. Each $F_{e,t}$ is an indicator
+for festival $e$ (those with at least three occurrences in the sample are
+retained, giving up to 25 festival dummies). The reported effect of festival $e$
+is the percentage deviation from the weather-adjusted counterfactual,
+$\exp(\beta_e)-1$. The model is estimated by OLS on $N=\num{3569}$ days with
+Newey--West HAC standard errors at lag~7, so that serial correlation and
+heteroskedasticity over the weekly cycle are accommodated.
+
+\subsection{Inference: placebo randomisation}
+\label{sec:placebo}
+
+HAC standard errors turn out to be anti-conservative here. We run a placebo test
+that shifts every festival date by $\pm 28$ and $\pm 35$ days (keeping the same
+day of week) and re-estimates Equation~\eqref{eq:eventstudy}. The placebo
+coefficients have mean $0.5\pct$ and standard deviation $1.9\pct$, as they should
+under the null; but $22\pct$ of them reach $p<0.05$ against a nominal $5\pct$,
+confirming that the HAC $p$-values overstate significance. We therefore read
+significance against the placebo distribution rather than the HAC $p$-values: the
+top seven effects lie more than three placebo standard deviations from zero and
+survive regardless. The pre-submission inference will move fully to
+randomisation (placebo) or block-bootstrap intervals
+(Section~\ref{sec:limits}).
+
+\subsection{Multi-day windows and per-year stability}
+
+To characterise structure beyond the festival day itself, we fit the
+counterfactual on non-event days only, predict it for every day, and read the
+deviation $(\exp(\log L_t - \widehat{\log L_t})-1)$ over a window around each
+festival ($d{-}3$ to $d{+}3$ for Diwali, $d{-}2$ to $d{+}2$ for Holi). The same
+per-day deviations, grouped by year, give the year-to-year stability profile.
+
+\subsection{Forecast ablation}
+\label{sec:method-ablation}
+
+To test operational value we run a rolling-origin day-ahead backtest: for each
+test year $Y \in \{2019,\dots,2024\}$ we train on all earlier years and forecast
+$Y$. A LightGBM model (600 trees, learning rate $0.03$, 31 leaves) predicts the
+log peak from weather, calendar fields, autoregressive lags and a seven-day
+rolling mean, at horizons $h=1$ (latest usable lag $D{-}1$) and $h=7$ (latest lag
+$D{-}7$). Weather is supplied as an \emph{oracle} (actual ERA5), which upper-bounds
+the achievable accuracy; replacing it with archived forecasts is a pre-submission
+task (Section~\ref{sec:limits}). We compare five festival-information encodings:
+
+\begin{description}
+\item[none] no holiday information;
+\item[DB flag] the binary flag as shipped in the repository calendar (with Holi
+  missing before 2024);
+\item[full flag] a binary flag from the complete public$+$optional calendar;
+\item[flag $+$ identity] the full flag plus a categorical festival identity;
+\item[flag $+$ magnitude] the full flag plus a causal signed magnitude.
+\end{description}
+
+The signed magnitude for a festival on a given date is the mean deviation of that
+festival's \emph{strictly prior-year} occurrences from a weather/calendar
+counterfactual; a never-before-seen occurrence gets zero. This makes the signal
+itself leak-free within each fold. (One caveat we carry forward: in the current
+feasibility run the counterfactual's weather coefficients are fit on the full
+sample while only the averaged event deviations are prior-years-only; making the
+counterfactual fully out-of-sample is a pre-submission task,
+Section~\ref{sec:limits}.) We report MAPE separately on the 146 festival test
+days and on normal days, against a persistence baseline, and compare encodings on
+festival days with a paired Wilcoxon signed-rank test.
+
+% =========================================================================
+\section{Results I: the festival catalogue}
+\label{sec:results1}
+
+\subsection{Per-festival effects}
+
+Table~\ref{tab:effects} reports the weather-adjusted effect of each festival on
+Delhi's daily peak, with $95\pct$ HAC confidence intervals.
+Figure~\ref{fig:forest} shows the same effects as a diverging forest plot. The
+sign varies: most festivals suppress the peak---offices and industry shut---while
+a few raise it. Holi is the single largest effect at $-31.2\pct$. The Diwali
+cluster (Diwali, Govardhan Puja, Bhai Duj) and Republic Day are all large and
+tightly estimated. Eid-ul-Fitr/Bakrid is statistically null---notable because the
+earlier broken-data pass had reported a spurious $+3\pct$. Christmas and Maha
+Shivaratri are positive but flagged for confounds (a winter/New-Year overlap and a
+February--March weather transition respectively) and are reported as provisional.
+
+\begin{table}[t]
+\centering
+\caption{Event-study effect of each festival on Delhi's daily peak demand versus a
+weather-adjusted counterfactual, 2015--2024. Intervals are $95\pct$ HAC(7).
+``Years'' is the number of in-sample occurrences. Effects are ordered from largest
+suppression to largest increase. The top seven survive placebo-randomisation
+inference by more than three placebo standard deviations
+(Section~\ref{sec:placebo}). \emph{Draft estimates}; to be regenerated from
+\texttt{scripts/paper/festival\_eventstudy.py} with the final weather series.}
+\label{tab:effects}
+\begin{tabular}{@{}l r l c@{}}
+\toprule
+Festival & Effect & $95\pct$ CI & Years \\
+\midrule
+Holi                       & $-31.2\pct$ & $[-32.6,\,-29.8]$ & 10 \\
+Govardhan Puja (Diwali$+1$) & $-18.7\pct$ & $[-22.1,\,-15.3]$ & 10 \\
+Diwali                     & $-17.2\pct$ & $[-19.4,\,-14.9]$ & 10 \\
+Republic Day               & $-14.2\pct$ & $[-16.3,\,-12.1]$ & 10 \\
+Bhai Duj (Diwali$+2$)      & $-11.7\pct$ & $[-14.5,\,-8.9]$  & 10 \\
+Dussehra                   & $-10.7\pct$ & $[-14.0,\,-7.3]$  & 10 \\
+Ram Navami                 & $-6.2\pct$  & $[-8.1,\,-4.3]$   & 10 \\
+Independence Day           & $-3.8\pct$  & $[-6.5,\,-1.1]$   & 8 \\
+Eid-ul-Fitr / Bakrid       & ${\approx}\,0$ & n.s. & 10 \\
+Christmas$^\dagger$        & $+4.1\pct$  & $[+2.4,\,+5.9]$   & 9 \\
+Maha Shivaratri$^\dagger$  & $+6.0\pct$  & $[+3.5,\,+8.4]$   & 9 \\
+\bottomrule
+\end{tabular}
+
+\vspace{2pt}
+{\footnotesize $^\dagger$ Positive sign provisional: Christmas carries a
+winter/New-Year confound; Maha Shivaratri falls in the February--March weather
+transition. To be explained or reported as unexplained before submission.}
+\end{table}
+
+% TODO: regenerate figures/festival_effects_forest.pdf from scripts/paper/festival_eventstudy.py
+\begin{figure}[t]
+\centering
+\placeholderfig{festival_effects_forest}{5.5cm}
+\caption{Per-festival effect on Delhi's daily peak demand with $95\pct$
+intervals (diverging forest plot of Table~\ref{tab:effects}).}
+\label{fig:forest}
+\end{figure}
+
+\subsection{Per-year stability}
+
+The large effects are stable from year to year, not driven by any single
+occurrence. Holi falls between $-27\pct$ and $-34\pct$ in \emph{every} year of
+2015--2024. Diwali falls between $-11\pct$ and $-24\pct$, and the drop is
+deepening---the four largest Diwali dips are 2021--2024.
+Figure~\ref{fig:stability} plots the per-year deviations for Holi and Diwali.
+
+% TODO: regenerate figures/peryear_stability.pdf from scripts/paper/festival_eventstudy.py
+\begin{figure}[t]
+\centering
+\placeholderfig{peryear_stability}{5cm}
+\caption{Per-year deviation of Holi and Diwali from the weather-adjusted
+counterfactual, 2015--2024. Holi is stable within $[-34,-27]\pct$; the Diwali dip
+deepens over the decade.}
+\label{fig:stability}
+\end{figure}
+
+\subsection{Multi-day structure}
+
+Festivals are not one-day events. The Diwali effect is a three-day trough:
+Diwali ${\approx}-17\pct$, Govardhan Puja (the following day) ${\approx}-19\pct$,
+and Bhai Duj (two days after) ${\approx}-12\pct$. Holi carries a day-after effect
+of about $-13\pct$ in addition to the $-31\pct$ on Holi itself.
+Figure~\ref{fig:windows} shows both windows. A single-day binary flag cannot
+express either shape, and even a per-festival identity misses the ordered,
+multi-day decay---motivating the signed, continuous encoding tested next.
+
+% TODO: regenerate figures/event_windows.pdf from scripts/paper/festival_eventstudy.py
+\begin{figure}[t]
+\centering
+\placeholderfig{event_windows}{5cm}
+\caption{Event windows: mean deviation from the counterfactual around Diwali
+($d{-}3$ to $d{+}3$) and Holi ($d{-}2$ to $d{+}2$). Diwali is a three-day trough;
+Holi carries a day-after effect.}
+\label{fig:windows}
+\end{figure}
+
+% =========================================================================
+\section{Results II: forecasting value}
+\label{sec:results2}
+
+Table~\ref{tab:ablation} reports the rolling-origin backtest. On festival days the
+signed magnitude is the clear winner at both horizons; the ordering of the other
+encodings is informative. Moving from no information to a binary flag helps a
+little; using the \emph{complete} calendar flag (adding Holi and the optional
+festivals) helps more; but adding a categorical festival identity on top of the
+flag does \emph{not} improve on the flag, and the signed magnitude is what closes
+the gap.
+
+\begin{table}[t]
+\centering
+\caption{Day-ahead festival-information ablation. MAPE ($\pct$) on test years
+2019--2024 (rolling origin), LightGBM forecasting the log peak, oracle weather,
+146 festival test days. Best festival-day entry in each horizon in bold.
+\emph{Feasibility run}; to be regenerated from
+\texttt{scripts/paper/festival\_forecast\_ablation.py} with the fully-causal
+counterfactual, archived-forecast weather, Diebold--Mariano tests and multiple
+seeds.}
+\label{tab:ablation}
+\begin{tabular}{@{}l l r r r r r r@{}}
+\toprule
+$h$ & day type & none & DB flag & full flag & flag$+$id & flag$+$mag & persist. \\
+\midrule
+1 & festival & $7.95$ & $7.43$ & $6.57$ & $6.64$ & $\mathbf{5.59}$ & $7.38$ \\
+1 & normal   & $4.26$ & $4.15$ & $4.05$ & $4.06$ & $4.03$          & $4.56$ \\
+7 & festival & $10.31$& $9.95$ & $9.52$ & $9.43$ & $\mathbf{7.07}$ & $13.37$ \\
+7 & normal   & $6.78$ & $6.66$ & $6.47$ & $6.47$ & $6.37$          & $9.21$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Concretely, on festival days the signed magnitude cuts error from the full-flag
+baseline of $6.6\pct$ to $5.6\pct$ at $h=1$ (Wilcoxon $p=0.045$) and from
+$9.5\pct$ to $7.1\pct$ at $h=7$ ($p=3\times10^{-5}$). The gain is sharply
+concentrated on the festival days themselves: on normal days, where the magnitude
+feature is exactly zero, every encoding moves by less than $0.3$ points, which is
+how we know the improvement is the event signal and not a global perturbation of
+the model. The effect is largest where the festival is largest---Holi festival-day
+MAPE falls from roughly $32\pct$ to about $11\pct$.
+
+The mechanism is a rare-event encoding one. A festival occurs about once per year,
+so over a five-to-nine-year training span a gradient-boosted tree sees only a
+handful of positive examples; it has nowhere near enough splits to learn a
+rare event's size from a binary dummy or a bare identity. A signed, pre-computed
+magnitude instead hands the model the answer as a continuous prior. This is a
+feature-encoding result, in the spirit of impact-adjusted or target-style
+encodings of special days \citep{ziel2018,arora2018}; it is not a new estimator.
+
+The magnitude feature does not win uniformly. Bhai Duj at $h=1$ gets
+\emph{worse} under the magnitude encoding ($2.8\pct \to 7.7\pct$); we suspect an
+interaction with the preceding day being Govardhan Puja (so the $h=1$ lag is
+itself a deep-trough festival day), and we flag it for investigation rather than
+smoothing it over.
+
+\subsection{A target leak, and why trees exploit it too}
+\label{sec:leak}
+
+Defect D5 deserves a result of its own. The differenced and rolling target
+features included the current target $y_t$ in training but not at inference. On
+the daily series this made the as-shipped cross-validated MAPE look like
+$1.08\pct$ when the leak-free value is $3.92\pct$, against $5.05\pct$ for
+persistence. After shifting all such features to end at $t{-}1$, the leak-free
+champions are $3.92\pct$ (daily), $1.31\pct$ (hourly) and $0.45\pct$ (5-minute)
+MAPE, versus persistence baselines of $5.05\pct$, $3.43\pct$ and $0.68\pct$. The
+point for practitioners is that this is \emph{not} a linear-model-only
+pathology: gradient-boosted trees exploit a target leak just as eagerly as a
+linear model does, and the only reliable guard is to construct differenced and
+rolling features so they end at $t{-}1$ and to verify train/serve parity. We
+include it as a cautionary case study alongside the festival result, since both
+are instances of the same discipline---honest numbers only after the pipeline is
+audited.
+
+% =========================================================================
+\section{Discussion}
+\label{sec:discussion}
+
+\paragraph{Why binary flags fail for rare events.} The central practical lesson is
+that a binary \texttt{is\_festival} flag is the wrong representation for a shock
+that is large, signed, multi-day and rare. It cannot carry the sign (Christmas up,
+Holi down), the magnitude (Holi is four times Dussehra), or the multi-day shape
+(the Diwali trough). A categorical identity carries sign and shape in principle but
+cannot be learned from one example per year. A signed, causal magnitude carries
+all three and is learnable because it is pre-computed from prior years, not
+rediscovered from dummies.
+
+\paragraph{What the earlier corrupted pipeline concluded.} Before the audit, the
+same data said festivals barely mattered and that the magnitude feature was
+neutral (Table~\ref{tab:before-after}). Each defect pushed in the same direction,
+and together they produced a publishable-looking negative result. The corrected
+analysis reverses it. We think the general lesson---that a cluster of small,
+silent data defects can manufacture a confident null---is worth more than the
+specific Delhi numbers.
+
+\paragraph{Operational use.} For an SLDC scheduling a day ahead, a reliable
+$-17\pct$ to $-31\pct$ festival-day correction, with a three-day Diwali shape, is
+directly actionable for unit commitment and reserve sizing; for a DISCOM, it sizes
+day-ahead power purchase on exactly the days when a mis-sized forecast is most
+costly. We are careful, however, not to oversell the forecasting lever: in the
+production fleet, where rich autoregressive lags already encode most of the
+one-step signal, the signed magnitude earns its place in the champion model only
+for some series (clearly for Punjab's daily peak, marginally or not at all
+elsewhere), and it is shipped only where a per-state back-test says it pays. The
+\emph{quantification} is broad and robust; the \emph{forecasting} lever is real
+but narrow.
+
+% =========================================================================
+\section{Limitations and future work}
+\label{sec:limits}
+
+\begin{description}
+\item[Daily peak, one city.] The decade-long estimation is Delhi's daily peak
+  only. We make no sub-daily or multi-city accuracy claim. Festivals also reshape
+  the intraday profile (the Diwali evening peak), which no daily scalar can
+  express; quantifying that needs a corrected 5-minute backfill around event dates
+  and is the one lever with real upside left.
+\item[Inference.] HAC(7) standard errors are anti-conservative here
+  (Section~\ref{sec:placebo}); the final inference will use
+  placebo-randomisation or block-bootstrap intervals throughout. The top seven
+  effects survive this already.
+\item[Oracle weather.] The forecast ablation uses actual (oracle) weather, which
+  upper-bounds accuracy. Before submission we will substitute archived weather
+  \emph{forecasts} (Open-Meteo historical-forecast API, 2022 onward) or a
+  noise-injection sensitivity check, and add Diebold--Mariano tests and multiple
+  seeds.
+\item[Fully-causal ablation counterfactual.] The magnitude feature's counterfactual
+  currently uses full-sample weather coefficients (its event deviations are already
+  prior-years-only); we will refit the counterfactual on pre-test-year data only so
+  the ablation is strictly out-of-sample.
+\item[Robustness grid.] We will report alternative counterfactuals (a $\pm21$-day
+  same-day-of-week estimator, this regression, and a machine-learning
+  counterfactual \citep{prasanna2022,rubattu2023}); results with the 2020--2021
+  COVID years dropped; peak versus energy (re-scraping PSP energy for legacy rows);
+  and the full $d{-}1$ to $d{+}3$ window.
+\item[Positive effects.] Christmas and Maha Shivaratri are positive but confounded
+  (winter/New-Year overlap; February--March weather transition). We will either
+  explain them or report them explicitly as unexplained.
+\item[Scoop risk.] We have not yet checked the state-level Grid-India demand
+  pattern tables (Vol.~II) for any Delhi festival magnitudes; this is the main
+  residual novelty risk and will be resolved before we claim ``first.''
+\end{description}
+
+% =========================================================================
+\section*{Reproducibility}
+
+The event-study estimator and the forecast ablation are implemented in
+\texttt{scripts/paper/festival\_eventstudy.py} and
+\texttt{scripts/paper/festival\_forecast\_ablation.py}. The data-repair script and
+the leak-free feature construction are part of the Gridalytics repository.
+Weather is fetched from the Open-Meteo archive API. The tables and figures in this
+draft are the feasibility estimates of 2026-10-29 and are to be regenerated with
+the final weather series before submission.
+
+% =========================================================================
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}

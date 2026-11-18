@@ -260,7 +260,7 @@ footer .mono{color:var(--fg)}
 <section class="band" id="forecast"><div class="wrap">
   <span class="eyebrow">Forecasting value · the study</span>
   <h2>The signed magnitude cuts festival-day error</h2>
-  <p class="sub">Rolling-origin backtest on Delhi, LightGBM forecasting log peak, test years 2019–2024, 146 festival test days. The counterfactual for the magnitude feature is fit only on data before each test year — fully causal. On <strong>festival days</strong> the signed magnitude is the clear winner; on normal days (where the feature is exactly 0) everything barely moves, which is how you know the gain is the event signal and not global perturbation.</p>
+  <p class="sub">Rolling-origin backtest on Delhi, LightGBM forecasting log peak, test years 2019–2024, 146 festival test days. The magnitude feature's event deviations use only occurrences strictly before each test year, so the event signal itself is leak-free; its weather-adjustment baseline still uses full-sample coefficients, so this feasibility backtest isn't yet strictly out-of-sample (refitting that baseline on pre-test-year data only is the next step). On <strong>festival days</strong> the signed magnitude is the clear winner; on normal days (where the feature is exactly 0) everything barely moves, which is how you know the gain is the event signal and not global perturbation.</p>
   <div class="tbl"><table>
     <thead><tr><th>Festival-day MAPE</th><th>no event</th><th>DB flag</th><th>full flag</th><th>+ identity</th><th>+ magnitude</th><th>persistence</th></tr></thead>
     <tbody>

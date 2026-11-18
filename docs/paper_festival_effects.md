@@ -74,10 +74,11 @@ issues were found while re-running the evaluations:
   daily *mean* (≈0.83× peak) after 2024-11. This created a fake level drop. Fixed: the daily
   target is now the peak everywhere.
 - **5. Target leak.** `delhi_mw_diff_*` and the rolling stats include y_t in training but not
-  at inference. Daily CV is 1.08% as shipped vs 3.87% leak-free, against 5.05% for
-  persistence. **Still open; needs a feature fix and a retrain.** This is a strong
-  paper-worthy illustration for Angle C. The corrected framing is "trees exploit it too",
-  not "only linear models".
+  at inference. Daily CV was 1.08% as shipped vs 3.92% leak-free, against 5.05% for
+  persistence. **FIXED on `main` (af35032):** the diff/rolling features now end at t−1;
+  leak-free CV is daily 3.92% / hourly 1.31% / 5-min 0.45% vs persistence 5.05 / 3.43 / 0.68.
+  This is a strong paper-worthy illustration for Angle C. The corrected framing is "trees
+  exploit it too", not "only linear models".
 
 
 1. **`psp_daily` pre-2021: one-day lag.**
