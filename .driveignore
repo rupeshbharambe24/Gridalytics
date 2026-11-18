@@ -1,0 +1,14 @@
+# rclone exclude patterns for gdrive-sync (one per line, --exclude-from).
+# Root-anchored (leading /) because gdrive-sync's built-in **/<dir>/** patterns
+# only catch NESTED copies — a TOP-LEVEL regenerable tree slips through. These
+# are all rebuildable (uv/pip, git clone, test caches) so they don't belong in
+# the Drive backup; the precious bits (data/edfs.db, .env, models/) still sync.
+/.venv/**
+/.git/**
+/__pycache__/**
+/.pytest_cache/**
+/.mypy_cache/**
+/.ruff_cache/**
+/build/**
+/node_modules/**
+/.next/**
