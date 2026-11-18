@@ -2,7 +2,7 @@
   "state": "himachal_pradesh",
   "resolution": "15min",
   "source": "state_demand",
-  "served_model": "LightGBM",
+  "served_model": "XGBoost",
   "champion": "XGBoost",
   "champion_cv_mape": 0.921,
   "persistence_mape": 1.909,
@@ -115,5 +115,5 @@
     "fourier_sin_672_3",
     "fourier_cos_672_3"
   ],
-  "trained_at": "2026-11-17T11:02:40"
+  "trained_at": "2026-11-18T18:46:07"
 }

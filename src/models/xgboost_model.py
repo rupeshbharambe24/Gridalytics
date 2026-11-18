@@ -9,6 +9,15 @@ import xgboost as xgb
 
 from .base import BaseForecaster
 
+# --- xgboost 2.1.4 + scikit-learn >= 1.6 compatibility shim (see issue #15) ---
+# Newer scikit-learn no longer defines a class-level ``_estimator_type`` on
+# estimators, so XGBoost's own ``XGBRegressor.save_model`` -> ``_get_type``
+# raises ``TypeError: _estimator_type undefined`` and the champion cannot be
+# persisted (the training pipeline then silently falls back to LightGBM).
+# ``XGBRegressor`` is unambiguously a regressor, so pin the attribute back once.
+if not hasattr(xgb.XGBRegressor, "_estimator_type"):
+    xgb.XGBRegressor._estimator_type = "regressor"
+
 
 DEFAULT_PARAMS = {
     "objective": "reg:squarederror",
@@ -88,6 +97,12 @@ class XGBoostForecaster(BaseForecaster):
         point = self.model.predict(X)
         lower = self.model_lower.predict(X)
         upper = self.model_upper.predict(X)
+        # Point and quantile models are trained separately, so under recursive
+        # multi-step forecasting the point can drift outside the [lower, upper]
+        # band (and the quantiles can cross). Guarantee a coherent band that
+        # always contains the point forecast.
+        lower = np.minimum(lower, point)
+        upper = np.maximum(upper, point)
         return point, lower, upper
 
     def save(self, path: str | Path) -> None:

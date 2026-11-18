@@ -2,7 +2,7 @@
   "state": "karnataka",
   "resolution": "hourly",
   "source": "state_demand",
-  "served_model": "LightGBM",
+  "served_model": "XGBoost",
   "champion": "XGBoost",
   "champion_cv_mape": 2.376,
   "persistence_mape": 4.71,
@@ -119,5 +119,5 @@
     "fourier_sin_168_3",
     "fourier_cos_168_3"
   ],
-  "trained_at": "2026-11-17T11:15:43"
+  "trained_at": "2026-11-18T18:10:42"
 }

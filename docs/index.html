@@ -475,7 +475,7 @@ var BOARD=[
  {res:'All-India · 15-minute',unit:'national model · leak-free CV',rows:[
    {n:'XGBoost',cls:'champ',v:0.28,champ:1},{n:'LightGBM',cls:'chall',v:0.29},
    {n:'Persistence',cls:'base',v:0.72,base:1}],max:1.0,
-   foot:'One model for the whole-country 15-minute series: 68,736 rows (Nov 2024→, R² ≈ 0.994). Champion XGBoost (0.28%); LightGBM is served (0.29%) because xgboost 2.1.4 / sklearn 1.9 can’t pickle the booster. Beats persistence by 61%.'},
+   foot:'One model for the whole-country 15-minute series: 68,736 rows (Nov 2024→, R² ≈ 0.994). Champion & served: XGBoost (0.28%); LightGBM near-tied (0.29%). Beats persistence by 61%.'},
 ];
 document.getElementById('board').innerHTML=BOARD.map(function(b){
  var rows=b.rows.map(function(r){
@@ -499,10 +499,10 @@ requestAnimationFrame(function(){requestAnimationFrame(function(){
 
 /* ---- state fleet ---- */
 var SF=[
- {n:'All-India',rg:'National',res:'15-min · whole-country series',champ:0.28,pers:0.72,g:61},
+ {n:'All-India',rg:'National',res:'15-min · whole-country series',champ:0.28,pers:0.72,g:61,sm:'XGBoost'},
  {n:'Haryana',rg:'Northern',res:'daily peak · PSP',champ:4.31,pers:9.85,g:56},
- {n:'Himachal Pradesh',rg:'Northern',res:'15-min · HPSLDC',champ:0.92,pers:1.91,g:52},
- {n:'Karnataka',rg:'Southern',res:'hourly · KPTCL',champ:2.38,pers:4.71,g:50,tag:'2011→now'},
+ {n:'Himachal Pradesh',rg:'Northern',res:'15-min · HPSLDC',champ:0.92,pers:1.91,g:52,sm:'XGBoost'},
+ {n:'Karnataka',rg:'Southern',res:'hourly · KPTCL',champ:2.38,pers:4.71,g:50,tag:'2011→now',sm:'XGBoost'},
  {n:'Sikkim',rg:'Eastern',res:'daily peak · PSP',champ:6.41,pers:12.68,g:49,tag:'~95 MW grid'},
  {n:'Tamil Nadu',rg:'Southern',res:'daily peak · PSP',champ:2.99,pers:5.66,g:47},
  {n:'Chandigarh',rg:'Northern',res:'daily peak · PSP',champ:3.54,pers:6.72,g:47},
@@ -528,7 +528,7 @@ document.getElementById('sfleet').innerHTML=SF.map(function(s){
  return '<div class="scard"><div class="top"><span class="nm">'+s.n+'</span>'+
    (s.tag?'<span class="tag">'+s.tag+'</span>':'<span class="rg">'+s.rg+'</span>')+'</div>'+
    '<div class="meta">'+s.res+'</div>'+
-   '<div class="mape"><b>'+s.champ.toFixed(2)+'%</b><span>MAPE · LightGBM</span></div>'+
+   '<div class="mape"><b>'+s.champ.toFixed(2)+'%</b><span>MAPE · '+(s.sm||'LightGBM')+'</span></div>'+
    '<div class="sbar"><i data-w="'+s.g+'"></i></div>'+
    '<div class="gain"><span>vs '+s.pers.toFixed(2)+'% persistence</span><span>−'+s.g+'%</span></div></div>';
 }).join('');

@@ -33,9 +33,12 @@ to persistence), but only models that genuinely beat "tomorrow = today" are serv
 | West Bengal | Eastern | daily peak | PSP | **3.12%** | 3.64% | 14% | |
 | Odisha | Eastern | daily peak | PSP | **3.98%** | 4.12% | 3% | only beats persistence with lag-365 dropped |
 
-All twenty-four are served by **LightGBM**. For the all-India and Karnataka models XGBoost is the
-CV champion but can't be pickled under xgboost 2.1.4 / sklearn 1.9 (`_estimator_type` on
-save), so the near-tied LightGBM is served; `served.json` records both.
+Most are served by **LightGBM**; **all-India (15-min), Karnataka (hourly) and Himachal Pradesh
+(15-min) are served by XGBoost**, which is their CV champion. (These three previously fell back to
+the near-tied LightGBM because XGBoost could not be persisted under xgboost 2.1.4 / scikit-learn 1.9
+— `XGBRegressor.save_model` raised `_estimator_type undefined`; fixed with a one-line compatibility
+shim in `src/models/xgboost_model.py`, so the true champion is now served. See issue #15.)
+`served.json` records both candidates' CV scores for every model.
 
 The nine most recent daily models (Haryana, Chandigarh, Uttarakhand, Puducherry, Assam,
 Kerala, Jammu & Kashmir, Chhattisgarh, Goa) came from a **Nov 2026 fleet-expansion sweep** of
