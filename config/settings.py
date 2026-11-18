@@ -44,7 +44,11 @@ class Settings(BaseSettings):
     JWT_EXPIRY_MINUTES: int = 60
 
     # MLflow
-    MLFLOW_TRACKING_URI: str = "sqlite:///./mlflow/mlflow.db"
+    # File store (not the SQLAlchemy/sqlite store): MLflow 2.x's SQLAlchemy backend
+    # imports `FallbackAsyncAdaptedQueuePool`, which SQLAlchemy 2.x dropped, so the
+    # sqlite URI raises on init and logging was silently skipped (issue #18). The
+    # file store needs no SQLAlchemy and logs cleanly. (mlflow/ is gitignored.)
+    MLFLOW_TRACKING_URI: str = "file:./mlflow/mlruns"
     MLFLOW_ARTIFACT_ROOT: str = "./mlflow/artifacts"
 
     # Model serving
