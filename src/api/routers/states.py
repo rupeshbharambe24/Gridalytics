@@ -179,7 +179,8 @@ def state_forecast(
     try:
         forecaster = _load_state_forecaster(code, res, meta)
         out = forecast_state_future(code, res, tdate, forecaster, db,
-                                    source=meta.get("source", "state_demand"))
+                                    source=meta.get("source", "state_demand"),
+                                    pi_scale=float(meta.get("pi_scale", 1.0)))
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:  # pragma: no cover

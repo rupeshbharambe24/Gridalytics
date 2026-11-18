@@ -115,5 +115,6 @@
     "fourier_sin_672_3",
     "fourier_cos_672_3"
   ],
-  "trained_at": "2026-11-18T18:46:07"
+  "trained_at": "2026-11-18T18:46:07",
+  "pi_scale": 1.278
 }

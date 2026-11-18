@@ -55,6 +55,7 @@ def build_frame(m: dict):
     use_weather = not m.get("no_weather") and m["state"] in T.STATE_COORDS
     if use_weather:
         lat, lon = T.STATE_COORDS[m["state"]]
+        time.sleep(2.5)  # pace fetches: Open-Meteo throttles bursts, not steady single calls
         wx = T.fetch_weather(lat, lon, df.index.min(), df.index.max())
         for _ in range(4):  # Open-Meteo throttles back-to-back fleet runs; retry transient empties
             if not wx.empty:
@@ -102,6 +103,10 @@ def evaluate(m: dict):
     point, lo, hi = model.predict_interval(test[cols])
     point, lo, hi = np.asarray(point), np.asarray(lo), np.asarray(hi)
     lo, hi = np.minimum(lo, hi), np.maximum(lo, hi)  # guard inverted bands
+    k = float(meta.get("pi_scale", 1.0))  # apply conformal recalibration (what serving returns)
+    if k != 1.0:
+        lo = point - k * (point - lo)
+        hi = point + k * (hi - point)
     inside = (y >= lo) & (y <= hi)
     nz = y != 0
     return {

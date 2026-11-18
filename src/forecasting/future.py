@@ -744,6 +744,7 @@ def forecast_state_future(
     overrides: dict | None = None,
     as_of: date | None = None,
     source: str = "state_demand",
+    pi_scale: float = 1.0,
 ) -> dict:
     """Day-ahead forecast for a non-Delhi state.
 
@@ -810,6 +811,9 @@ def forecast_state_future(
         except Exception:
             pred = float(model.predict(X)[0])
             lo, hi = pred * 0.92, pred * 1.08
+        if pi_scale != 1.0:   # conformal recalibration (served.json pi_scale, see scripts/calibrate_intervals.py)
+            lo = pred - pi_scale * (pred - lo)
+            hi = pred + pi_scale * (hi - pred)
         pred = float(np.clip(pred, lo_clamp, hi_clamp))
         lo = float(np.clip(lo, lo_clamp, hi_clamp))
         hi = float(np.clip(hi, lo_clamp, hi_clamp))
