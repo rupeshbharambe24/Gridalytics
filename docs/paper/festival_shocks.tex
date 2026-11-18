@@ -520,10 +520,17 @@ feature-encoding result, in the spirit of impact-adjusted or target-style
 encodings of special days \citep{ziel2018,arora2018}; it is not a new estimator.
 
 The magnitude feature does not win uniformly. Bhai Duj at $h=1$ gets
-\emph{worse} under the magnitude encoding ($3.2\pct \to 7.3\pct$); we suspect an
-interaction with the preceding day being Govardhan Puja (so the $h=1$ lag is
-itself a deep-trough festival day), and we flag it for investigation rather than
-smoothing it over.
+\emph{worse} under the magnitude encoding ($3.2\pct \to 7.3\pct$). The cause is
+structural: Bhai Duj falls two days after Diwali, so its $h=1$ lag is Govardhan
+Puja (Diwali$+1$), the deepest trough in the catalogue ($-18.7\pct$), in all ten
+years. The model then sees a deep-trough lag \emph{and} a signed-magnitude prior
+pointing further down, and over-predicts the fall --- whereas demand in fact
+recovers from Govardhan Puja ($-18.7\pct$) to the shallower Bhai Duj
+($-11.7\pct$). Exposing the lag day's own magnitude as an extra feature, so the
+model can mean-revert, helps only marginally (Bhai Duj $7.3\pct \to 7.0\pct$,
+overall festival-day MAPE $5.50\pct \to 5.42\pct$) while slightly hurting
+Govardhan Puja, so we do not adopt it; the proper remedy is a window- or
+sequence-aware encoding of consecutive event days, which we leave to future work.
 
 \subsection{A target leak, and why trees exploit it too}
 \label{sec:leak}
