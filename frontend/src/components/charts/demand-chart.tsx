@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ReferenceLine,
+  Tooltip, Legend,
 } from "recharts";
 
 interface DemandChartProps {
@@ -14,17 +14,27 @@ interface DemandChartProps {
   forecast?: { time: string; predicted: number; lower: number; upper: number }[];
 }
 
+// Shared data-viz tokens (see globals.css). CSS vars resolve inside SVG attrs.
+const C = {
+  demand: "hsl(var(--chart-demand))",
+  forecast: "hsl(var(--chart-forecast))",
+  temp: "hsl(var(--chart-peak))",
+};
+
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-card/95 backdrop-blur-sm border border-border rounded-lg px-3 py-2 shadow-xl">
+    <div className="bg-card/95 backdrop-blur-sm border border-border rounded-lg px-3 py-2 shadow-card">
       <p className="text-xs text-muted-foreground mb-1">{label}</p>
-      {payload.map((p: any) => (
-        <p key={p.name} className="text-sm font-medium" style={{ color: p.color }}>
-          {p.name}: <span className="font-mono">{p.value?.toFixed(1)}</span>
-          {p.name.includes("Demand") || p.name.includes("MW") ? " MW" : p.name.includes("Temp") ? "°C" : ""}
-        </p>
-      ))}
+      {payload
+        .filter((p: any) => p.name?.trim())
+        .map((p: any) => (
+          <p key={p.name} className="text-sm font-medium flex items-center gap-1.5" style={{ color: p.color }}>
+            <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+            {p.name}: <span className="font-mono tabular-nums">{p.value?.toFixed(1)}</span>
+            {p.name.includes("Demand") || p.name.includes("Forecast") || p.name.includes("MW") ? " MW" : p.name.includes("Temp") ? "°C" : ""}
+          </p>
+        ))}
     </div>
   );
 }
@@ -49,26 +59,26 @@ export function DemandChart({ data, title, showTemp = false, height = 350, forec
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="rounded-xl border border-border bg-card p-5"
+      className="rounded-xl border border-border bg-card p-5 shadow-card"
     >
       {title && <h3 className="text-sm font-semibold text-foreground mb-4">{title}</h3>}
       <ResponsiveContainer width="100%" height={height}>
         <AreaChart data={mergedData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
           <defs>
             <linearGradient id="demandGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.3} />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
+              <stop offset="0%" stopColor={C.demand} stopOpacity={0.32} />
+              <stop offset="100%" stopColor={C.demand} stopOpacity={0} />
             </linearGradient>
             <linearGradient id="forecastGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.2} />
-              <stop offset="100%" stopColor="#f59e0b" stopOpacity={0} />
+              <stop offset="0%" stopColor={C.forecast} stopOpacity={0.22} />
+              <stop offset="100%" stopColor={C.forecast} stopOpacity={0} />
             </linearGradient>
             <linearGradient id="tempGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#10b981" stopOpacity={0.2} />
-              <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+              <stop offset="0%" stopColor={C.temp} stopOpacity={0.2} />
+              <stop offset="100%" stopColor={C.temp} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} vertical={false} />
           <XAxis
             dataKey="time"
             tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
@@ -93,7 +103,7 @@ export function DemandChart({ data, title, showTemp = false, height = 350, forec
               type="monotone"
               dataKey="upper"
               stroke="none"
-              fill="#f59e0b"
+              fill={C.forecast}
               fillOpacity={0.08}
               name="Confidence Band"
             />
@@ -111,7 +121,7 @@ export function DemandChart({ data, title, showTemp = false, height = 350, forec
           <Area
             type="monotone"
             dataKey="demand"
-            stroke="#3b82f6"
+            stroke={C.demand}
             strokeWidth={2}
             fill="url(#demandGrad)"
             name="Actual Demand"
@@ -123,7 +133,7 @@ export function DemandChart({ data, title, showTemp = false, height = 350, forec
             <Area
               type="monotone"
               dataKey="predicted"
-              stroke="#f59e0b"
+              stroke={C.forecast}
               strokeWidth={2}
               strokeDasharray="6 3"
               fill="url(#forecastGrad)"
@@ -136,7 +146,7 @@ export function DemandChart({ data, title, showTemp = false, height = 350, forec
             <Area
               type="monotone"
               dataKey="temperature"
-              stroke="#10b981"
+              stroke={C.temp}
               strokeWidth={1.5}
               fill="url(#tempGrad)"
               name="Temperature"

@@ -108,7 +108,8 @@ export default function DashboardPage() {
                 : live?.timestamp ? `Updated ${new Date(live.timestamp).toLocaleTimeString("en-IN")}` : undefined
             }
             trend={live?.vs_yesterday_pct}
-            icon={Zap} color="blue" delay={0}
+            icon={Zap} color="brand" delay={0}
+            sparkline={historical?.demand_mw?.slice(-24)}
           />
           <KPICard
             title="Today's Peak"
@@ -181,8 +182,8 @@ export default function DashboardPage() {
               <XAxis type="number" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} />
               <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={55} />
               <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} />
-              <Bar dataKey="peak" name="Peak MW" fill="#f59e0b" radius={[0, 4, 4, 0]} opacity={0.8} />
-              <Bar dataKey="avg" name="Avg MW" fill="#3b82f6" radius={[0, 4, 4, 0]} opacity={0.6} />
+              <Bar dataKey="peak" name="Peak MW" fill="hsl(var(--chart-peak))" radius={[0, 4, 4, 0]} opacity={0.85} />
+              <Bar dataKey="avg" name="Avg MW" fill="hsl(var(--chart-forecast))" radius={[0, 4, 4, 0]} opacity={0.6} />
             </BarChart>
           </ResponsiveContainer>
           <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mt-3">
@@ -208,8 +209,8 @@ export default function DashboardPage() {
               <XAxis dataKey="date" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} />
-              <Bar dataKey="actual" name="Actual Peak" fill="#3b82f6" radius={[4, 4, 0, 0]} opacity={0.7} />
-              <Bar dataKey="predicted" name="Predicted Peak" fill="#f59e0b" radius={[4, 4, 0, 0]} opacity={0.7} />
+              <Bar dataKey="actual" name="Actual Peak" fill="hsl(var(--chart-demand))" radius={[4, 4, 0, 0]} opacity={0.8} />
+              <Bar dataKey="predicted" name="Predicted Peak" fill="hsl(var(--chart-forecast))" radius={[4, 4, 0, 0]} opacity={0.7} />
             </BarChart>
           </ResponsiveContainer>
         </motion.div>
