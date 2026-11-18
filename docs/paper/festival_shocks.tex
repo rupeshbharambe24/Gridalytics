@@ -83,8 +83,8 @@ about $17\pct$, and Republic Day by about $14\pct$, while a few festivals
 (Diwali, Govardhan Puja, Bhai Duj) and Holi carries a day-after effect, neither
 of which a single binary holiday flag can represent. In a rolling-origin
 day-ahead backtest (test years 2019--2024, LightGBM), encoding the festival as a
-signed effect-size prior cuts festival-day MAPE from $6.6\pct$ to $5.6\pct$ at
-horizon~1 and from $9.5\pct$ to $7.1\pct$ at horizon~7, whereas a binary flag or
+signed effect-size prior cuts festival-day MAPE from $6.6\pct$ to $5.5\pct$ at
+horizon~1 and from $9.5\pct$ to $6.9\pct$ at horizon~7, whereas a binary flag or
 a categorical festival identity do not: with roughly one occurrence per year, a
 gradient-boosted tree cannot isolate a rare event from a dummy. We frame this as
 a rare-event encoding result, not a new estimator. Finally, we present a
@@ -361,14 +361,13 @@ task (Section~\ref{sec:limits}). We compare five festival-information encodings:
 
 The signed magnitude for a festival on a given date is the mean deviation of that
 festival's \emph{strictly prior-year} occurrences from a weather/calendar
-counterfactual; a never-before-seen occurrence gets zero. This makes the signal
-itself leak-free within each fold. (One caveat we carry forward: in the current
-feasibility run the counterfactual's weather coefficients are fit on the full
-sample while only the averaged event deviations are prior-years-only; making the
-counterfactual fully out-of-sample is a pre-submission task,
-Section~\ref{sec:limits}.) We report MAPE separately on the 146 festival test
-days and on normal days, against a persistence baseline, and compare encodings on
-festival days with a paired Wilcoxon signed-rank test.
+counterfactual; a never-before-seen occurrence gets zero. The feature is fully
+out-of-sample within each fold: for test year $Y$ the counterfactual is itself
+fit only on non-event days \emph{strictly before} $Y$, with a continuous year
+trend replacing year fixed effects so it extrapolates cleanly to the held-out
+year. We report MAPE separately on the 147 festival test days and on normal days,
+against a persistence baseline, and compare encodings on festival days with a
+paired Wilcoxon signed-rank test.
 
 % =========================================================================
 \section{Results I: the festival catalogue}
@@ -484,32 +483,33 @@ the gap.
 \centering
 \caption{Day-ahead festival-information ablation. MAPE ($\pct$) on test years
 2019--2024 (rolling origin), LightGBM forecasting the log peak, oracle weather,
-146 festival test days. Best festival-day entry in each horizon in bold.
-\emph{Feasibility run}; to be regenerated from
-\texttt{scripts/paper/festival\_forecast\_ablation.py} with the fully-causal
-counterfactual, archived-forecast weather, Diebold--Mariano tests and multiple
-seeds.}
+147 festival test days. The flag$+$magnitude counterfactual is \emph{fully
+out-of-sample} (for each test year it is fit only on non-event days strictly
+before that year). Best festival-day entry in each horizon in bold. Weather is
+still oracle; archived-forecast weather, Diebold--Mariano tests and multiple
+seeds remain pre-submission tasks (Section~\ref{sec:limits}).}
 \label{tab:ablation}
 \begin{tabular}{@{}l l r r r r r r@{}}
 \toprule
 $h$ & day type & none & DB flag & full flag & flag$+$id & flag$+$mag & persist. \\
 \midrule
-1 & festival & $7.95$ & $7.43$ & $6.57$ & $6.64$ & $\mathbf{5.59}$ & $7.38$ \\
-1 & normal   & $4.26$ & $4.15$ & $4.05$ & $4.06$ & $4.03$          & $4.56$ \\
-7 & festival & $10.31$& $9.95$ & $9.52$ & $9.43$ & $\mathbf{7.07}$ & $13.37$ \\
-7 & normal   & $6.78$ & $6.66$ & $6.47$ & $6.47$ & $6.37$          & $9.21$ \\
+1 & festival & $7.94$ & $7.00$ & $6.61$ & $6.70$ & $\mathbf{5.50}$ & $7.37$ \\
+1 & normal   & $4.23$ & $4.03$ & $4.06$ & $4.05$ & $4.06$          & $4.55$ \\
+7 & festival & $10.33$& $9.38$ & $9.45$ & $9.50$ & $\mathbf{6.90}$ & $13.35$ \\
+7 & normal   & $6.73$ & $6.49$ & $6.41$ & $6.48$ & $6.42$          & $9.21$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 Concretely, on festival days the signed magnitude cuts error from the full-flag
-baseline of $6.6\pct$ to $5.6\pct$ at $h=1$ (Wilcoxon $p=0.045$) and from
-$9.5\pct$ to $7.1\pct$ at $h=7$ ($p=3\times10^{-5}$). The gain is sharply
+baseline of $6.6\pct$ to $5.5\pct$ at $h=1$ (Wilcoxon $p=0.005$) and from
+$9.5\pct$ to $6.9\pct$ at $h=7$ ($p\approx1\times10^{-5}$). The gain is sharply
 concentrated on the festival days themselves: on normal days, where the magnitude
 feature is exactly zero, every encoding moves by less than $0.3$ points, which is
 how we know the improvement is the event signal and not a global perturbation of
 the model. The effect is largest where the festival is largest---Holi festival-day
-MAPE falls from roughly $32\pct$ to about $11\pct$.
+MAPE at $h=1$ falls to about $11\pct$, from $25\pct$ under the complete flag (and
+$43\pct$ with no festival information at all).
 
 The mechanism is a rare-event encoding one. A festival occurs about once per year,
 so over a five-to-nine-year training span a gradient-boosted tree sees only a
@@ -520,7 +520,7 @@ feature-encoding result, in the spirit of impact-adjusted or target-style
 encodings of special days \citep{ziel2018,arora2018}; it is not a new estimator.
 
 The magnitude feature does not win uniformly. Bhai Duj at $h=1$ gets
-\emph{worse} under the magnitude encoding ($2.8\pct \to 7.7\pct$); we suspect an
+\emph{worse} under the magnitude encoding ($3.2\pct \to 7.3\pct$); we suspect an
 interaction with the preceding day being Govardhan Puja (so the $h=1$ lag is
 itself a deep-trough festival day), and we flag it for investigation rather than
 smoothing it over.
@@ -595,10 +595,6 @@ but narrow.
   \emph{forecasts} (Open-Meteo historical-forecast API, 2022 onward) or a
   noise-injection sensitivity check, and add Diebold--Mariano tests and multiple
   seeds.
-\item[Fully-causal ablation counterfactual.] The magnitude feature's counterfactual
-  currently uses full-sample weather coefficients (its event deviations are already
-  prior-years-only); we will refit the counterfactual on pre-test-year data only so
-  the ablation is strictly out-of-sample.
 \item[Robustness grid.] We will report alternative counterfactuals (a $\pm21$-day
   same-day-of-week estimator, this regression, and a machine-learning
   counterfactual \citep{prasanna2022,rubattu2023}); results with the 2020--2021

@@ -28,23 +28,38 @@ names = sorted(ev.event.unique())
 emap = ev.drop_duplicates("date").set_index("date").event
 df["event_id"] = pd.Categorical(df.index.map(emap).fillna("none"), categories=["none"] + names)
 
-# deviation of each event day vs a counterfactual fit on non-event days (weather/calendar only)
+# Causal signed-magnitude feature (leak-free for the rolling-origin backtest).
+# Each festival day's deviation is measured against a weather/calendar
+# counterfactual; for test year Y that counterfactual is fit ONLY on non-event
+# days strictly before Y, and each festival's magnitude averages only its
+# strictly-prior occurrences. A continuous year trend (`yrs`) replaces year
+# fixed effects so the counterfactual predicts cleanly on the held-out year.
 t = df["temperature_2m_mean"]
 df["cdd"] = np.clip(t - 24, 0, None); df["hdd"] = np.clip(18 - t, 0, None)
 df["dow"] = df.index.dayofweek; df["doy"] = df.index.dayofyear; df["year"] = df.index.year
+df["yrs"] = df["year"] - int(df["year"].min())
 df["covid"] = (((df.index >= "2020-03-23") & (df.index <= "2020-05-31")) |
                ((df.index >= "2021-04-19") & (df.index <= "2021-06-07"))).astype(int)
 df["lmw"] = np.log(df.mw)
-cf = smf.ols("lmw ~ cdd + I(cdd**2) + hdd + I(hdd**2) + C(dow) + C(year) + np.sin(2*np.pi*doy/365.25)"
-             " + np.cos(2*np.pi*doy/365.25) + covid", data=df[df.full_flag == 0]).fit()
-df["dev"] = df.lmw - cf.predict(df)
-mag = pd.Series(0.0, index=df.index)
-for name in names:
-    ds = sorted(d for d in ev[ev.event == name].date if d in df.index)
-    for i, d in enumerate(ds):
-        prior = [df.dev[p] for p in ds[:i]]
-        mag[d] = float(np.mean(prior)) if prior else 0.0
-df["magnitude"] = mag
+
+_EVDATES = {name: sorted(d for d in ev[ev.event == name].date if d in df.index) for name in names}
+
+
+def causal_magnitude(cutoff_year: int) -> pd.Series:
+    """Signed per-festival magnitude using only data strictly before cutoff_year."""
+    train = df[(df.full_flag == 0) & (df.year < cutoff_year)]
+    terms = ("cdd + I(cdd**2) + hdd + I(hdd**2) + C(dow) + yrs"
+             " + np.sin(2*np.pi*doy/365.25) + np.cos(2*np.pi*doy/365.25)")
+    if train["covid"].nunique() > 1:   # covid period absent from early training windows
+        terms += " + covid"
+    cf = smf.ols(f"lmw ~ {terms}", data=train).fit()
+    dev = df.lmw - cf.predict(df)
+    mag = pd.Series(0.0, index=df.index)
+    for name, ds in _EVDATES.items():
+        for i, d in enumerate(ds):
+            prior = [dev[p] for p in ds[:i]]   # strictly-prior occurrences (all < cutoff_year)
+            mag[d] = float(np.mean(prior)) if prior else 0.0
+    return mag
 
 WX_COLS = ["temperature_2m_mean", "temperature_2m_max", "temperature_2m_min",
            "relative_humidity_2m_mean", "precipitation_sum", "cdd", "hdd"]
@@ -68,6 +83,7 @@ for h in [1, 7]:
     X = lagged(h)
     lagc = [c for c in X.columns if c.startswith(("lag", "roll"))]
     for Y in range(2019, 2025):
+        X["magnitude"] = causal_magnitude(Y).reindex(X.index).fillna(0.0)
         tr, te = X[X.year < Y], X[X.year == Y]
         for s, extra in SETS.items():
             feats = BASE + lagc + extra
