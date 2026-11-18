@@ -5,6 +5,7 @@ import { Target, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2 } from "l
 import { Badge } from "@/components/ui/badge";
 import { useFetch } from "@/lib/hooks";
 import { getPredictionHistory, getAccuracyTrend } from "@/lib/api";
+import { PageHeader } from "@/components/layout/page-header";
 import {
   ResponsiveContainer, LineChart, Line, AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, Cell,
@@ -48,15 +49,17 @@ export default function AccuracyPage() {
 
   return (
     <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-bold tracking-tight">Prediction Accuracy</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Daily predicted vs actual demand tracking</p>
-      </motion.div>
+      <PageHeader
+        eyebrow="Monitoring"
+        title="Prediction Accuracy"
+        icon={Target}
+        subtitle="Daily predicted vs actual peak demand, with rolling-MAPE drift detection and an error-distribution breakdown."
+      />
 
       {/* KPI Row */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
-          { label: "Avg MAPE", value: summary.avg_mape ? `${Number(summary.avg_mape).toFixed(2)}%` : "---", color: "text-blue-400" },
+          { label: "Avg MAPE", value: summary.avg_mape ? `${Number(summary.avg_mape).toFixed(2)}%` : "---", color: "text-brand" },
           { label: "Avg MAE", value: summary.avg_mae ? `${Number(summary.avg_mae).toFixed(1)} MW` : "---", color: "text-emerald-400" },
           { label: "Days Tracked", value: summary.days_with_actuals || 0, color: "text-foreground" },
           { label: "Best Day", value: summary.best_day ? `${Number(summary.best_day[1]).toFixed(2)}%` : "---", color: "text-emerald-400" },
@@ -93,8 +96,8 @@ export default function AccuracyPage() {
               formatter={(val: any, name: any) => [`${val} MW`, name]}
             />
             <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 10 }} />
-            <Line type="monotone" dataKey="actual" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} name="Actual Peak" />
-            <Line type="monotone" dataKey="predicted" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 3 }} name="Predicted Peak" />
+            <Line type="monotone" dataKey="actual" stroke="hsl(var(--chart-demand))" strokeWidth={2} dot={{ r: 3 }} name="Actual Peak" />
+            <Line type="monotone" dataKey="predicted" stroke="hsl(var(--chart-forecast))" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 3 }} name="Predicted Peak" />
           </LineChart>
         </ResponsiveContainer>
       </motion.div>
@@ -122,10 +125,10 @@ export default function AccuracyPage() {
               <XAxis dataKey="date" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} />
-              <ReferenceLine y={trend?.threshold || 5} stroke="#ef4444" strokeDasharray="5 5" label={{ value: "Alert Threshold", fontSize: 10, fill: "#ef4444" }} />
-              <Area type="monotone" dataKey="daily" stroke="#6b7280" strokeWidth={1} fill="none" name="Daily MAPE %" dot={false} />
-              <Area type="monotone" dataKey="rolling7d" stroke="#3b82f6" strokeWidth={2} fill="rgba(59,130,246,0.1)" name="7-Day Rolling" dot={false} />
-              <Area type="monotone" dataKey="rolling30d" stroke="#f59e0b" strokeWidth={2} fill="rgba(245,158,11,0.05)" name="30-Day Rolling" dot={false} />
+              <ReferenceLine y={trend?.threshold || 5} stroke="hsl(var(--chart-bad))" strokeDasharray="5 5" label={{ value: "Alert Threshold", fontSize: 10, fill: "hsl(var(--chart-bad))" }} />
+              <Area type="monotone" dataKey="daily" stroke="hsl(var(--muted-foreground))" strokeWidth={1} fill="none" name="Daily MAPE %" dot={false} />
+              <Area type="monotone" dataKey="rolling7d" stroke="hsl(var(--chart-forecast))" strokeWidth={2} fill="hsl(var(--chart-forecast) / 0.12)" name="7-Day Rolling" dot={false} />
+              <Area type="monotone" dataKey="rolling30d" stroke="hsl(var(--chart-peak))" strokeWidth={2} fill="hsl(var(--chart-peak) / 0.08)" name="30-Day Rolling" dot={false} />
             </AreaChart>
           </ResponsiveContainer>
         </motion.div>
@@ -146,7 +149,7 @@ export default function AccuracyPage() {
               <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
               <Bar dataKey="count" name="Days" radius={[6, 6, 0, 0]}>
                 {errorDist.map((_, i) => (
-                  <Cell key={i} fill={i === 0 ? "#10b981" : i === 1 ? "#3b82f6" : i === 2 ? "#f59e0b" : "#ef4444"} fillOpacity={0.7} />
+                  <Cell key={i} fill={i === 0 ? "hsl(var(--chart-good))" : i === 1 ? "hsl(var(--chart-forecast))" : i === 2 ? "hsl(var(--chart-peak))" : "hsl(var(--chart-bad))"} fillOpacity={0.8} />
                 ))}
               </Bar>
             </BarChart>

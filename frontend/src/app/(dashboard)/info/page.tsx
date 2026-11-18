@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Info, Zap, Clock, BarChart3, Database, Brain, AlertTriangle, ExternalLink, FlaskConical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/layout/page-header";
 
 const fadeIn = (delay: number) => ({
   initial: { opacity: 0, y: 15 },
@@ -14,8 +15,8 @@ function Section({ title, icon: Icon, children, delay = 0 }: { title: string; ic
   return (
     <motion.div {...fadeIn(delay)} className="rounded-xl border border-border bg-card p-6 space-y-4">
       <h2 className="text-lg font-semibold flex items-center gap-2.5">
-        <div className="p-1.5 rounded-lg bg-blue-500/10">
-          <Icon className="w-4.5 h-4.5 text-blue-400" />
+        <div className="p-1.5 rounded-lg bg-brand/10">
+          <Icon className="w-4 h-4 text-brand" />
         </div>
         {title}
       </h2>
@@ -42,13 +43,12 @@ function UnitCard({ unit, name, meaning, example, color }: { unit: string; name:
 export default function InfoPage() {
   return (
     <div className="space-y-6 max-w-4xl">
-      {/* Header */}
-      <motion.div {...fadeIn(0)}>
-        <h1 className="text-2xl font-bold tracking-tight">How Gridalytics Works</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Understanding electricity demand forecasting, units, and how to read the predictions
-        </p>
-      </motion.div>
+      <PageHeader
+        eyebrow="Reference"
+        title="How Gridalytics Works"
+        icon={Info}
+        subtitle="Understanding electricity-demand forecasting — the units, the data sources, the models, and how to read the predictions."
+      />
 
       {/* Units Explanation */}
       <Section title="Understanding the Units" icon={Zap} delay={0.05}>
@@ -247,11 +247,11 @@ export default function InfoPage() {
                 <tr key={m.name} className="border-b border-border/50">
                   <td className="p-2.5 font-medium text-foreground flex items-center gap-1.5">
                     {m.name}
-                    {m.champion && <Badge className="text-[9px] bg-emerald-500/15 text-emerald-400 border-0">champion</Badge>}
+                    {m.champion && <Badge variant="success" className="text-[9px] border-0">champion</Badge>}
                   </td>
                   <td className="p-2.5">{m.type}</td>
                   <td className="p-2.5 text-center">{m.best}</td>
-                  <td className="p-2.5 text-center font-mono text-blue-400">{m.mape}</td>
+                  <td className="p-2.5 text-center font-mono text-brand">{m.mape}</td>
                 </tr>
               ))}
             </tbody>
@@ -290,12 +290,12 @@ export default function InfoPage() {
       <Section title="How to Read the Forecasts" icon={BarChart3} delay={0.25}>
         <div className="space-y-4">
           <div>
-            <h3 className="text-sm font-medium text-foreground mb-1">The Blue Line (Actual Demand)</h3>
+            <h3 className="text-sm font-medium text-foreground mb-1">The Green Line (Actual Demand)</h3>
             <p className="text-xs">Shows real historical demand data from the Delhi SLDC. Only available for past dates.</p>
           </div>
           <div>
-            <h3 className="text-sm font-medium text-foreground mb-1">The Orange Dashed Line (Forecast)</h3>
-            <p className="text-xs">Shows the model's predicted demand. For past dates, you can compare this with the blue line to see accuracy. For future dates, only the orange line appears.</p>
+            <h3 className="text-sm font-medium text-foreground mb-1">The Blue Dashed Line (Forecast)</h3>
+            <p className="text-xs">Shows the model's predicted demand. For past dates, you can compare this with the green line to see accuracy. For future dates, only the forecast line appears.</p>
           </div>
           <div>
             <h3 className="text-sm font-medium text-foreground mb-1">The Shaded Band (Confidence Interval)</h3>
@@ -471,8 +471,8 @@ export default function InfoPage() {
           </div>
         </div>
         <p className="text-xs mt-2">
-          <strong className="text-foreground">How to interpret results:</strong> The blue line shows the baseline forecast
-          (using actual/predicted conditions). The orange line shows your scenario. A positive percentage change means
+          <strong className="text-foreground">How to interpret results:</strong> The green line shows the baseline forecast
+          (using actual/predicted conditions). The blue dashed line shows your scenario. A positive percentage change means
           the scenario <em>increases</em> demand — the grid needs more power. A negative change means lower demand.
           Both average and peak impacts are shown separately because peak capacity is the critical safety constraint.
         </p>

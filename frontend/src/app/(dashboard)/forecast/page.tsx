@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { DemandChart } from "@/components/charts/demand-chart";
 import { getForecast, getForecastRange, getForecastPeak, getForecastWithModel, getAvailableModels, getHistorical } from "@/lib/api";
 import { useFetch } from "@/lib/hooks";
+import { PageHeader } from "@/components/layout/page-header";
 
 type Mode = "single" | "range";
 type Resolution = "daily" | "hourly" | "5min";
@@ -190,13 +191,12 @@ export default function ForecastPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-bold tracking-tight">Forecast</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Predict electricity demand for any date — past or up to 90 days ahead
-        </p>
-      </motion.div>
+      <PageHeader
+        eyebrow="Prediction"
+        title="Forecast"
+        icon={TrendingUp}
+        subtitle="Predict electricity demand for any date — backtest a past day or look up to 90 days ahead, at 5-minute, hourly or daily resolution."
+      />
 
       {/* Controls */}
       <motion.div
@@ -216,7 +216,7 @@ export default function ForecastPage() {
                   key={m}
                   onClick={() => setMode(m)}
                   className={`px-4 py-2 text-sm font-medium transition-colors ${
-                    mode === m ? "bg-blue-600 text-white" : "bg-card text-muted-foreground hover:text-foreground"
+                    mode === m ? "bg-brand text-brand-foreground" : "bg-card text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {m === "single" ? "Single Day" : "Date Range"}
@@ -234,7 +234,7 @@ export default function ForecastPage() {
                   key={r}
                   onClick={() => setResolution(r)}
                   className={`px-4 py-2 text-sm font-medium transition-colors ${
-                    resolution === r ? "bg-blue-600 text-white" : "bg-card text-muted-foreground hover:text-foreground"
+                    resolution === r ? "bg-brand text-brand-foreground" : "bg-card text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {r === "5min" ? "5-Minute" : r.charAt(0).toUpperCase() + r.slice(1)}
@@ -283,7 +283,7 @@ export default function ForecastPage() {
                         if (p.days > 0) setEndDate(addDays(startDate, p.days));
                       }}
                       className={`px-3 py-2 text-xs font-medium transition-colors ${
-                        rangePreset === p.value ? "bg-blue-600 text-white" : "bg-card text-muted-foreground hover:text-foreground"
+                        rangePreset === p.value ? "bg-brand text-brand-foreground" : "bg-card text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       {p.label}
@@ -321,7 +321,7 @@ export default function ForecastPage() {
             whileTap={{ scale: 0.98 }}
             onClick={handlePredict}
             disabled={loading}
-            className="flex items-center gap-2 px-6 py-2 rounded-lg bg-blue-600 text-white font-medium text-sm hover:bg-blue-500 disabled:opacity-50 transition-colors h-10"
+            className="flex items-center gap-2 px-6 py-2 rounded-lg bg-brand text-brand-foreground font-medium text-sm hover:bg-brand/90 disabled:opacity-50 transition-colors h-10"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
             {loading ? "Predicting..." : "Predict"}
@@ -397,7 +397,7 @@ export default function ForecastPage() {
                 className="rounded-xl border border-border bg-card p-4">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Model</p>
                 <div className="flex items-center gap-2 mt-2">
-                  <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-400 border-blue-500/20">
+                  <Badge variant="outline" className="text-xs bg-brand/10 text-brand border-brand/20">
                     {result.model_name}
                   </Badge>
                 </div>

@@ -7,6 +7,7 @@ import { HeatmapChart } from "@/components/charts/heatmap-chart";
 import { useFetch } from "@/lib/hooks";
 import { getHistorical, getHeatmap, getStats, getSeasonalStats, getAnomalies, getErrorByHour } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/layout/page-header";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
 } from "recharts";
@@ -52,10 +53,12 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Historical demand patterns and trends</p>
-      </motion.div>
+      <PageHeader
+        eyebrow="Patterns"
+        title="Analytics"
+        icon={LineChart}
+        subtitle="Historical demand patterns and trends — seasonality, daily load shape, and where the model finds the day hardest to predict."
+      />
 
       {/* 90-Day Trend */}
       <DemandChart
@@ -87,13 +90,13 @@ export default function AnalyticsPage() {
               <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#1c1c22",
-                  border: "1px solid #333",
+                  backgroundColor: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
                   borderRadius: "8px",
                   fontSize: "12px",
                 }}
-                labelStyle={{ color: "#f0f0f0" }}
-                itemStyle={{ color: "#d4d4d8" }}
+                labelStyle={{ color: "hsl(var(--foreground))" }}
+                itemStyle={{ color: "hsl(var(--muted-foreground))" }}
               />
               <Bar dataKey="avg" radius={[4, 4, 0, 0]} name="Avg Demand (MW)">
                 {dailyAvg.slice(-30).map((entry, i) => (
@@ -154,7 +157,7 @@ export default function AnalyticsPage() {
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
               <XAxis dataKey="hour" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ backgroundColor: "#1c1c22", border: "1px solid #333", borderRadius: "8px", fontSize: "12px" }} labelStyle={{ color: "#f0f0f0" }} itemStyle={{ color: "#d4d4d8" }} />
+              <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} labelStyle={{ color: "hsl(var(--foreground))" }} itemStyle={{ color: "hsl(var(--muted-foreground))" }} />
               <Bar dataKey="error" name="Avg Error %" radius={[4, 4, 0, 0]}>
                 {errorByHour.hours.map((_: number, i: number) => (
                   <Cell key={i} fill={errorByHour.avg_pct_error[i] > 5 ? "#ef4444" : errorByHour.avg_pct_error[i] > 3 ? "#f59e0b" : "#10b981"} fillOpacity={0.7} />
@@ -175,7 +178,7 @@ export default function AnalyticsPage() {
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
               <XAxis dataKey="season" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ backgroundColor: "#1c1c22", border: "1px solid #333", borderRadius: "8px", fontSize: "12px" }} labelStyle={{ color: "#f0f0f0" }} itemStyle={{ color: "#d4d4d8" }} />
+              <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }} labelStyle={{ color: "hsl(var(--foreground))" }} itemStyle={{ color: "hsl(var(--muted-foreground))" }} />
               <Bar dataKey="avg_mw" name="Avg MW" radius={[4, 4, 0, 0]}>
                 {seasonal.seasons.map((s: any, i: number) => (
                   <Cell key={i} fill={

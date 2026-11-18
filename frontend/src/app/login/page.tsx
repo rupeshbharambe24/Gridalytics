@@ -63,8 +63,8 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      {/* Background subtle grid */}
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.03)_0%,transparent_70%)]" />
+      {/* Background subtle brand glow */}
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_center,hsl(var(--brand)/0.06)_0%,transparent_70%)]" />
 
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.98 }}
@@ -76,11 +76,11 @@ export default function LoginPage() {
         <div className="rounded-2xl border border-border bg-card p-8 shadow-2xl shadow-black/20">
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
-            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-blue-600 mb-3">
-              <Zap className="w-6 h-6 text-white" />
+            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-brand-gradient shadow-brand mb-3">
+              <Zap className="w-6 h-6 text-white" strokeWidth={2.5} />
             </div>
             <h1 className="text-2xl font-bold text-foreground tracking-tight">Gridalytics</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Grid Intelligence</p>
+            <p className="text-sm text-muted-foreground mt-0.5">India Grid Intelligence</p>
           </div>
 
           {/* Tab Toggle */}
