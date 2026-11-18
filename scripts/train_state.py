@@ -77,6 +77,14 @@ STATE_COORDS = {
     "goa": (15.4909, 73.8278),             # Panaji
     "chandigarh": (30.7333, 76.7794),      # Chandigarh
     "puducherry": (11.9416, 79.8083),      # Puducherry
+    # second fleet-expansion sweep (Nov 2026): small NE/UT grids
+    "sikkim": (27.3314, 88.6138),          # Gangtok
+    "meghalaya": (25.5788, 91.8933),       # Shillong
+    "tripura": (23.8315, 91.2868),         # Agartala
+    "manipur": (24.8170, 93.9368),         # Imphal
+    "mizoram": (23.7271, 92.7176),         # Aizawl
+    "nagaland": (25.9044, 93.7267),        # Dimapur (commercial load centre)
+    "dnh_dd": (20.2766, 73.0169),          # Silvassa (DNH industrial load)
 }
 _WX = ["temperature_2m", "relative_humidity_2m", "dew_point_2m", "precipitation",
        "cloud_cover", "wind_speed_10m", "shortwave_radiation"]

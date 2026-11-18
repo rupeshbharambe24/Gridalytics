@@ -1,6 +1,6 @@
 # State models — the all-India fleet
 
-**Status (Nov 2026).** Beyond Delhi's three resolutions, Gridalytics serves **20 curated
+**Status (Nov 2026).** Beyond Delhi's three resolutions, Gridalytics serves **24 curated
 state & national demand models**, each the champion of its own leak-free walk-forward
 contest and **each beating the persistence baseline**. The set is deliberately curated:
 `train_state.py` saves every champion it trains (and `served.json` flags the ones that lose
@@ -12,6 +12,7 @@ to persistence), but only models that genuinely beat "tomorrow = today" are serv
 | Haryana | Northern | daily peak | PSP | **4.31%** | 9.85% | 56% | NCR load centre |
 | Himachal Pradesh | Northern | 15-min | HPSLDC | **0.92%** | 1.91% | 52% | 2017→, 335k rows |
 | Karnataka | Southern | hourly | KPTCL | **2.38%** | 4.71% | 50% | back-extended to 2011 (138k rows) |
+| Sikkim | Eastern | daily peak | PSP | **6.41%** | 12.68% | 49% | tiny grid (~95 MW peak) |
 | Tamil Nadu | Southern | daily peak | PSP | **2.99%** | 5.66% | 47% | |
 | Chandigarh | Northern | daily peak | PSP | **3.54%** | 6.72% | 47% | UT |
 | Uttarakhand | Northern | daily peak | PSP | **3.32%** | 6.24% | 47% | |
@@ -22,14 +23,17 @@ to persistence), but only models that genuinely beat "tomorrow = today" are serv
 | Assam | North-Eastern | daily peak | PSP | **3.50%** | 5.33% | 34% | |
 | Andhra Pradesh | Southern | daily peak | PSP | **2.98%** | 4.19% | 29% | |
 | Maharashtra | Western | daily peak | PSP | **2.62%** | 3.71% | 29% | |
+| Mizoram | North-Eastern | daily peak | PSP | **5.60%** | 7.73% | 28% | small NE grid |
+| Manipur | North-Eastern | daily peak | PSP | **4.81%** | 6.34% | 24% | |
 | Kerala | Southern | daily peak | PSP | **3.17%** | 4.06% | 22% | |
+| Meghalaya | North-Eastern | daily peak | PSP | **3.25%** | 4.10% | 21% | |
 | Jammu & Kashmir | Northern | daily peak | PSP | **3.27%** | 4.07% | 19% | |
 | Chhattisgarh | Western | daily peak | PSP | **2.41%** | 2.99% | 19% | direct HTML scraper exists |
 | Goa | Western | daily peak | PSP | **2.51%** | 2.96% | 15% | |
 | West Bengal | Eastern | daily peak | PSP | **3.12%** | 3.64% | 14% | |
 | Odisha | Eastern | daily peak | PSP | **3.98%** | 4.12% | 3% | only beats persistence with lag-365 dropped |
 
-All twenty are served by **LightGBM**. For the all-India and Karnataka models XGBoost is the
+All twenty-four are served by **LightGBM**. For the all-India and Karnataka models XGBoost is the
 CV champion but can't be pickled under xgboost 2.1.4 / sklearn 1.9 (`_estimator_type` on
 save), so the near-tied LightGBM is served; `served.json` records both.
 
@@ -38,6 +42,14 @@ Kerala, Jammu & Kashmir, Chhattisgarh, Goa) came from a **Nov 2026 fleet-expansi
 previously-untried PSP series on the dense 2021-05→ span, each with Open-Meteo weather at a new
 load-centre city (`train_state.STATE_COORDS`). Of the ten states swept, nine beat persistence;
 **Jharkhand** was the only one that did not (−0.19 pts) and is not served.
+
+A **second sweep** then added four small Eastern/North-Eastern grids — **Sikkim, Mizoram,
+Manipur, Meghalaya** — on the same span and method. Of the seven states swept, four beat
+persistence; **Tripura** (−10 pts), **Nagaland** (−8 pts) and **Dadra & Nagar Haveli / Daman &
+Diu** (marginal +1 pt, and its point forecast slipped just outside its own prediction band) are
+not served. Sikkim is a useful illustration of why the baseline matters: its 6.41% MAPE is the
+fleet's highest, but on a ~95 MW grid where "tomorrow = today" misses by 12.7%, that is still a
+49% improvement.
 
 ## How they are trained
 

@@ -58,6 +58,14 @@ MANIFEST = [
     {"state": "jammu_kashmir",    "source": "psp", "start": "2021-05-09"},
     {"state": "chhattisgarh",     "source": "psp", "start": "2021-05-09"},
     {"state": "goa",              "source": "psp", "start": "2021-05-09"},
+    # second fleet-expansion sweep (Nov 2026): small NE/UT grids. Of the seven
+    # swept, four beat persistence and are served; Tripura (−10 pts), Nagaland
+    # (−8 pts) and Dadra & Nagar Haveli / Daman & Diu (marginal +1 pt, and its
+    # point forecast slipped just outside its own PI band) are not served.
+    {"state": "sikkim",           "source": "psp", "start": "2021-05-09"},
+    {"state": "mizoram",          "source": "psp", "start": "2021-05-09"},
+    {"state": "manipur",          "source": "psp", "start": "2021-05-09"},
+    {"state": "meghalaya",        "source": "psp", "start": "2021-05-09"},
 ]
 
 
