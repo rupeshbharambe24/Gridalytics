@@ -67,6 +67,16 @@ STATE_COORDS = {
     "madhya_pradesh": (23.2599, 77.4126),  # Bhopal
     "telangana": (17.3850, 78.4867),       # Hyderabad
     "all_india": (21.1458, 79.0882),       # Nagpur ~ national geographic centre (rough proxy)
+    # daily-PSP fleet-expansion candidates (load-centre cities)
+    "haryana": (28.4595, 77.0266),         # Gurugram (NCR load)
+    "kerala": (9.9312, 76.2673),           # Kochi
+    "jharkhand": (23.3441, 85.3096),       # Ranchi
+    "uttarakhand": (30.3165, 78.0322),     # Dehradun
+    "jammu_kashmir": (32.7266, 74.8570),   # Jammu
+    "assam": (26.1445, 91.7362),           # Guwahati
+    "goa": (15.4909, 73.8278),             # Panaji
+    "chandigarh": (30.7333, 76.7794),      # Chandigarh
+    "puducherry": (11.9416, 79.8083),      # Puducherry
 }
 _WX = ["temperature_2m", "relative_humidity_2m", "dew_point_2m", "precipitation",
        "cloud_cover", "wind_speed_10m", "shortwave_radiation"]

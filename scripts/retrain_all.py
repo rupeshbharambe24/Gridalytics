@@ -45,6 +45,19 @@ MANIFEST = [
     # Odisha only beats persistence once the yearly (lag_365) features are dropped
     # — they add noise on its short, drift-heavy PSP series. See --no-lag365.
     {"state": "odisha",           "source": "psp", "start": "2021-05-09", "no_lag365": True},
+    # daily-PSP fleet expansion (Nov 2026): previously-untried states whose champion
+    # beats persistence on the 2021-05→ dense span (weather on; load-centre coords in
+    # train_state.STATE_COORDS). Jharkhand was tried too but loses (−0.19 pts), so it
+    # is not served. See docs/state_models.md.
+    {"state": "haryana",          "source": "psp", "start": "2021-05-09"},
+    {"state": "chandigarh",       "source": "psp", "start": "2021-05-09"},
+    {"state": "uttarakhand",      "source": "psp", "start": "2021-05-09"},
+    {"state": "puducherry",       "source": "psp", "start": "2021-05-09"},
+    {"state": "assam",            "source": "psp", "start": "2021-05-09"},
+    {"state": "kerala",           "source": "psp", "start": "2021-05-09"},
+    {"state": "jammu_kashmir",    "source": "psp", "start": "2021-05-09"},
+    {"state": "chhattisgarh",     "source": "psp", "start": "2021-05-09"},
+    {"state": "goa",              "source": "psp", "start": "2021-05-09"},
 ]
 
 

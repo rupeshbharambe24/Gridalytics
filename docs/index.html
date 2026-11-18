@@ -281,7 +281,7 @@ footer .mono{color:var(--fg)}
   <p class="sub">Every retrain runs the same back-tested contest per resolution; the lowest-MAPE model becomes champion. Bars show mean cross-validated error (shorter is better) against the persistence baseline a forecast must beat. The first three are Delhi; the fourth is a single <strong>all-India</strong> 15-minute model — the same pipeline, national scale.</p>
   <div class="board" id="board"></div>
   <h3 style="font-size:1.05rem;font-weight:600;margin:28px 0 4px">The state fleet</h3>
-  <p class="sub" style="margin-bottom:14px"><strong>11 state &amp; national models</strong>, every one beating persistence — from a 15-minute national series down to daily peak demand per state. Each is the champion of its own walk-forward contest.</p>
+  <p class="sub" style="margin-bottom:14px"><strong>20 state &amp; national models</strong>, every one beating persistence — from a 15-minute national series down to daily peak demand per state. Each is the champion of its own walk-forward contest.</p>
   <div class="sfleet" id="sfleet"></div>
   <h3 style="font-size:1.05rem;font-weight:600;margin:28px 0 10px">The roster</h3>
   <div class="roster" id="roster"></div>
@@ -320,7 +320,7 @@ footer .mono{color:var(--fg)}
 })();
 
 /* ---- hero stats ---- */
-var STATS=[['36','states & UTs mapped'],['11','state &amp; national models'],['0.28%','all-India 15-min MAPE'],
+var STATS=[['36','states & UTs mapped'],['20','state &amp; national models'],['0.28%','all-India 15-min MAPE'],
   ['4','forecast resolutions'],['100%','models beating persistence'],['$0','monthly infra cost']];
 document.getElementById('stats').innerHTML=STATS.map(function(s){
   return '<div class="stat"><b>'+s[0]+'</b><span>'+s[1]+'</span></div>';}).join('');
@@ -500,14 +500,23 @@ requestAnimationFrame(function(){requestAnimationFrame(function(){
 /* ---- state fleet ---- */
 var SF=[
  {n:'All-India',rg:'National',res:'15-min · whole-country series',champ:0.28,pers:0.72,g:61},
+ {n:'Haryana',rg:'Northern',res:'daily peak · PSP',champ:4.31,pers:9.85,g:56},
  {n:'Himachal Pradesh',rg:'Northern',res:'15-min · HPSLDC',champ:0.92,pers:1.91,g:52},
  {n:'Karnataka',rg:'Southern',res:'hourly · KPTCL',champ:2.38,pers:4.71,g:50,tag:'2011→now'},
  {n:'Tamil Nadu',rg:'Southern',res:'daily peak · PSP',champ:2.99,pers:5.66,g:47},
+ {n:'Chandigarh',rg:'Northern',res:'daily peak · PSP',champ:3.54,pers:6.72,g:47},
+ {n:'Uttarakhand',rg:'Northern',res:'daily peak · PSP',champ:3.32,pers:6.24,g:47},
+ {n:'Puducherry',rg:'Southern',res:'daily peak · PSP',champ:3.09,pers:5.51,g:44},
  {n:'Bihar',rg:'Eastern',res:'hourly · BSPTCL',champ:1.56,pers:2.72,g:43},
  {n:'Punjab',rg:'Northern',res:'daily peak · PSP',champ:4.54,pers:7.32,g:38,tag:'festival-aware'},
  {n:'Uttar Pradesh',rg:'Northern',res:'daily peak · PSP',champ:3.54,pers:5.37,g:34},
+ {n:'Assam',rg:'North-Eastern',res:'daily peak · PSP',champ:3.50,pers:5.33,g:34},
  {n:'Andhra Pradesh',rg:'Southern',res:'daily peak · PSP',champ:2.98,pers:4.19,g:29},
  {n:'Maharashtra',rg:'Western',res:'daily peak · PSP',champ:2.62,pers:3.71,g:29},
+ {n:'Kerala',rg:'Southern',res:'daily peak · PSP',champ:3.17,pers:4.06,g:22},
+ {n:'Jammu & Kashmir',rg:'Northern',res:'daily peak · PSP',champ:3.27,pers:4.07,g:19},
+ {n:'Chhattisgarh',rg:'Western',res:'daily peak · PSP',champ:2.41,pers:2.99,g:19},
+ {n:'Goa',rg:'Western',res:'daily peak · PSP',champ:2.51,pers:2.96,g:15},
  {n:'West Bengal',rg:'Eastern',res:'daily peak · PSP',champ:3.12,pers:3.64,g:14},
  {n:'Odisha',rg:'Eastern',res:'daily peak · PSP',champ:3.98,pers:4.12,g:3},
 ];
