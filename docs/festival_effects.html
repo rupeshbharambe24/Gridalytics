@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Festival Demand Shocks · Gridalytics</title>
+<meta name="description" content="A decade of weather-adjusted, per-festival estimates of how Diwali, Holi and other festivals move Indian peak electricity demand — and how a leak-free signed-magnitude feature sharpens day-ahead forecasts.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Festival research page — shares the Gridalytics showcase design system. */
+:root{
+  --bg:#f5f7fa; --surface:#ffffff; --surface-2:#eef1f6; --fg:#101620; --muted:#59636f;
+  --border:#dce2ea; --accent:#bd6a05; --accent-2:#0c837c; --grid:rgba(16,22,32,.06);
+  --ok:#1f9d55; --warn:#b9760a; --crit:#cf3f39; --drop:#cf3f39; --rise:#0c837c;
+  --shadow:0 1px 2px rgba(16,22,32,.05),0 8px 24px rgba(16,22,32,.06);
+  --font-display:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  --font-body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --r:14px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c121b; --surface:#141c28; --surface-2:#1a2433; --fg:#e9eff7; --muted:#95a2b4;
+  --border:#263243; --accent:#f7a83a; --accent-2:#3ad2c7; --grid:rgba(255,255,255,.05);
+  --ok:#34d17f; --warn:#f2b43a; --crit:#f26b63; --drop:#f26b63; --rise:#3ad2c7;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0c121b; --surface:#141c28; --surface-2:#1a2433; --fg:#e9eff7; --muted:#95a2b4;
+  --border:#263243; --accent:#f7a83a; --accent-2:#3ad2c7; --grid:rgba(255,255,255,.05);
+  --ok:#34d17f; --warn:#f2b43a; --crit:#f26b63; --drop:#f26b63; --rise:#3ad2c7;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);line-height:1.6;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden}
+.wrap{max-width:1000px;margin:0 auto;
+  padding-left:max(18px,env(safe-area-inset-left,0px));
+  padding-right:max(18px,env(safe-area-inset-right,0px))}
+h1,h2,h3,h4{font-family:var(--font-display);text-wrap:balance;margin:0;line-height:1.15}
+a{color:var(--accent)}
+.mono{font-family:var(--font-mono)}
+.eyebrow{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
+.muted{color:var(--muted)}
+code{font-family:var(--font-mono);font-size:.86em;background:var(--surface-2);border:1px solid var(--border);
+  border-radius:6px;padding:1px 5px;word-break:break-word}
+
+/* ── top bar ── */
+header.bar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.bar .wrap{display:flex;align-items:center;gap:12px;padding-block:11px}
+.back{display:flex;align-items:center;gap:9px;font-family:var(--font-display);font-weight:700;
+  letter-spacing:-.01em;color:var(--fg);text-decoration:none}
+.back:hover{color:var(--accent)}
+.spark{width:22px;height:22px;flex:none}
+.bar .crumb{margin-left:auto;font-family:var(--font-mono);font-size:.72rem;color:var(--muted);
+  letter-spacing:.04em}
+.tog{margin-left:10px;border:1px solid var(--border);background:var(--surface);color:var(--fg);
+  width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:.95rem;flex:none}
+
+/* ── hero ── */
+.hero{padding-block:46px 8px}
+.hero .kick{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:.68rem;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 40%,var(--border));
+  padding:4px 10px;border-radius:999px;margin-bottom:18px}
+.hero h1{font-size:clamp(2rem,5.6vw,3.3rem);font-weight:700;letter-spacing:-.025em}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.hero p.lede{font-size:clamp(1rem,2.3vw,1.18rem);color:var(--muted);max-width:64ch;margin-top:16px}
+.hero .by{margin-top:16px;font-family:var(--font-mono);font-size:.76rem;color:var(--muted)}
+.stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 15px;min-width:0}
+.stat b{font-family:var(--font-mono);font-size:1.4rem;font-weight:500;display:block;font-variant-numeric:tabular-nums}
+.stat span{font-size:.72rem;color:var(--muted);letter-spacing:.03em}
+
+/* ── sections ── */
+section.band{padding-block:30px}
+section.band>.wrap>.eyebrow{display:block;margin-bottom:6px}
+section.band h2{font-size:1.6rem;font-weight:700;letter-spacing:-.02em}
+section.band>.wrap>p.sub{color:var(--muted);max-width:66ch;margin:10px 0 22px}
+.lead{max-width:66ch}
+.lead p{margin:0 0 12px}
+
+/* ── diverging bar chart ── */
+.chart{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);
+  padding:18px 18px 14px}
+.chart .axis{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:.66rem;
+  color:var(--muted);margin:0 0 10px;padding-left:138px}
+@media(max-width:560px){.chart .axis{padding-left:96px}}
+.fxrow{display:grid;grid-template-columns:132px 1fr;gap:10px;align-items:center;margin-bottom:7px;min-width:0}
+@media(max-width:560px){.fxrow{grid-template-columns:90px 1fr}}
+.fxrow .nm{font-size:.82rem;min-width:0}
+.fxrow .nm small{display:block;color:var(--muted);font-size:.66rem;font-family:var(--font-mono)}
+.fxtrack{position:relative;height:24px;background:linear-gradient(90deg,transparent 49.7%,var(--border) 49.7%,var(--border) 50.3%,transparent 50.3%);
+  border-radius:6px}
+.fxbar{position:absolute;top:3px;bottom:3px;border-radius:5px;width:0;transition:width 1s cubic-bezier(.22,.61,.36,1);
+  display:flex;align-items:center;font-family:var(--font-mono);font-size:.72rem;font-weight:500;color:#fff;white-space:nowrap}
+.fxbar.neg{right:50%;justify-content:flex-start;padding-left:7px;background:linear-gradient(90deg,var(--drop),color-mix(in srgb,var(--drop) 72%,#000))}
+.fxbar.pos{left:50%;justify-content:flex-end;padding-right:7px;background:linear-gradient(90deg,color-mix(in srgb,var(--rise) 72%,#000),var(--rise))}
+.fxbar.nul{left:calc(50% - 1px);width:2px!important;background:var(--muted)}
+.fxbar .v{position:absolute}
+.fxbar.neg .v{right:100%;margin-right:7px;color:var(--drop)}
+.fxbar.pos .v{left:100%;margin-left:7px;color:var(--rise)}
+.chart .note{margin-top:12px;font-size:.76rem;color:var(--muted);border-top:1px dashed var(--border);padding-top:10px}
+
+/* ── steps ── */
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.step{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:15px 16px;box-shadow:var(--shadow);position:relative}
+.step .n{font-family:var(--font-mono);font-size:.7rem;color:var(--accent);font-weight:500}
+.step h4{font-size:.98rem;font-weight:600;margin:6px 0 6px}
+.step p{margin:0;font-size:.84rem;color:var(--muted)}
+.step code{font-size:.78rem}
+
+/* ── before/after defect cards ── */
+.ba{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:720px){.ba{grid-template-columns:1fr 1fr}}
+.bacol{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 17px;box-shadow:var(--shadow)}
+.bacol.bad{border-color:color-mix(in srgb,var(--crit) 40%,var(--border))}
+.bacol.good{border-color:color-mix(in srgb,var(--accent-2) 45%,var(--border))}
+.bacol h4{font-size:.95rem;font-weight:600;display:flex;align-items:center;gap:8px}
+.bacol h4 .pill{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;
+  padding:2px 7px;border-radius:999px}
+.bad .pill{background:color-mix(in srgb,var(--crit) 16%,transparent);color:var(--crit)}
+.good .pill{background:color-mix(in srgb,var(--accent-2) 16%,transparent);color:var(--accent-2)}
+.bacol ul{margin:12px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+.bacol li{font-size:.84rem;display:flex;gap:9px;align-items:flex-start}
+.bacol li .b4{font-family:var(--font-mono);font-size:.78rem;color:var(--muted);white-space:nowrap}
+.bacol li .af{font-family:var(--font-mono);font-size:.78rem;color:var(--fg);white-space:nowrap}
+.bacol li b{font-weight:600}
+.defects{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:11px;margin-top:16px}
+.defect{background:var(--surface-2);border:1px solid var(--border);border-radius:11px;padding:12px 13px}
+.defect .t{font-size:.86rem;font-weight:600;display:flex;gap:8px;align-items:baseline}
+.defect .t .no{font-family:var(--font-mono);color:var(--crit);font-size:.74rem}
+.defect p{margin:6px 0 0;font-size:.8rem;color:var(--muted)}
+
+/* ── ablation table ── */
+.tbl{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:.84rem}
+thead th{background:var(--surface-2);font-family:var(--font-mono);font-size:.68rem;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--muted);font-weight:500;text-align:right;padding:10px 13px;white-space:nowrap}
+thead th:first-child{text-align:left}
+tbody td{padding:10px 13px;text-align:right;font-variant-numeric:tabular-nums;border-top:1px solid var(--border);white-space:nowrap}
+tbody td:first-child{text-align:left;font-weight:500}
+tbody tr:nth-child(odd) td{background:color-mix(in srgb,var(--surface-2) 45%,transparent)}
+td.win{color:#fff;font-weight:600;background:var(--accent)!important;border-radius:0}
+.tblnote{font-size:.76rem;color:var(--muted);margin-top:10px}
+
+/* ── production / punjab ── */
+.prod{display:grid;grid-template-columns:1fr;gap:16px}
+@media(min-width:760px){.prod{grid-template-columns:260px 1fr;align-items:start}}
+.pcard{background:var(--surface);border:1px solid color-mix(in srgb,var(--accent) 40%,var(--border));
+  border-radius:var(--r);padding:18px;box-shadow:var(--shadow)}
+.pcard .tag{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);
+  border:1px solid color-mix(in srgb,var(--accent) 40%,var(--border));padding:2px 8px;border-radius:999px}
+.pcard h4{font-size:1.25rem;font-weight:700;margin:12px 0 2px}
+.pcard .reg{font-family:var(--font-mono);font-size:.72rem;color:var(--muted)}
+.pcard .big{display:flex;align-items:baseline;gap:8px;margin:14px 0 4px}
+.pcard .big b{font-size:2rem;font-weight:700;color:var(--accent);line-height:1}
+.pcard .big span{font-size:.78rem;color:var(--muted)}
+.pcard dl{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:14px 0 0;font-size:.8rem}
+.pcard dt{color:var(--muted)}.pcard dd{margin:0;font-family:var(--font-mono);text-align:right}
+.verdict{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow)}
+.verdict p{margin:0 0 12px}.verdict p:last-child{margin:0}
+.verdict .stamp{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--accent-2);display:flex;align-items:center;gap:8px;margin-bottom:12px}
+
+/* callouts */
+.callout{background:color-mix(in srgb,var(--accent) 7%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 30%,var(--border));
+  border-left:3px solid var(--accent);border-radius:10px;padding:14px 16px;font-size:.88rem;color:var(--fg)}
+.callout b{color:var(--accent)}
+
+.limits{columns:2;column-gap:26px}
+@media(max-width:620px){.limits{columns:1}}
+.limits li{margin-bottom:9px;font-size:.86rem;color:var(--muted);break-inside:avoid}
+.limits li b{color:var(--fg);font-weight:600}
+
+footer{border-top:1px solid var(--border);padding-block:26px 44px;margin-top:24px}
+footer .wrap{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;font-size:.8rem;color:var(--muted)}
+footer a{text-decoration:none}
+footer .mono{color:var(--fg)}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="bar"><div class="wrap">
+  <a class="back" href="index.html">
+    <svg class="spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>
+    Gridalytics
+  </a>
+  <span class="crumb">research · festival effects</span>
+  <button class="tog" id="tog" aria-label="Toggle light / dark theme" title="Toggle theme">◐</button>
+</div></header>
+
+<section class="hero"><div class="wrap">
+  <span class="kick">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6 6 4.5 4.5M18 18l1.5 1.5M18 6l1.5-1.5M6 18l-1.5 1.5"/><circle cx="12" cy="12" r="3.5"/></svg>
+    Research note
+  </span>
+  <h1>Festivals as <em>demand shocks</em> on the Indian grid.</h1>
+  <p class="lede">How much does Diwali actually move electricity demand — and can telling the model help it forecast the day ahead? A decade of weather-adjusted, per-festival estimates on Delhi's peak demand, a data-integrity audit that had hidden the answer, and the disciplined way the signed effect now rides in production.</p>
+  <p class="by">Rupesh Bharambe · Gridalytics · daily peak demand, 2015–2024</p>
+  <div class="stats" id="stats"></div>
+</div></section>
+
+<section class="band" id="quantify"><div class="wrap">
+  <span class="eyebrow">Quantification · the main result</span>
+  <h2>A decade of per-festival effects</h2>
+  <p class="sub">An event-study regression on ten years of Delhi's daily <strong>peak</strong> demand (PSP, 2015–2024). Each effect is the festival day's deviation from a weather-adjusted counterfactual — temperature, humidity, rain, day-of-week and year-month fixed effects all removed first — so what's left is the festival, not the season. <strong>The sign varies</strong>: most festivals suppress demand (offices and industry shut), a few raise it. A single binary <code>is_festival</code> flag can express none of this.</p>
+  <div class="chart">
+    <div class="axis"><span>− demand (festival dip)</span><span>normal</span><span>demand + </span></div>
+    <div id="fx"></div>
+    <div class="note">Effect on daily peak vs counterfactual, with 95% CI. N = 3,569 days, HAC(7) errors; the top seven survive placebo-randomization inference by &gt;3 SD. Per-year stable — Holi lands between −27% and −34% in <em>every</em> year 2015–2024.</div>
+  </div>
+  <p class="sub" style="margin-top:20px"><strong>Festivals aren't one day.</strong> Diwali is a three-day trough — Diwali −17%, Govardhan Puja (+1) −19%, Bhai Duj (+2) −12% — and Holi carries a −13% day-after. A one-day flag, even a per-festival identity, can't carry that shape; a signed magnitude can.</p>
+</div></section>
+
+<section class="band" id="method"><div class="wrap">
+  <span class="eyebrow">Method</span>
+  <h2>A causal, leak-free effect — identical at train and serve</h2>
+  <p class="sub">The magnitude the model consumes is <code>expected_event_effect_pct</code>, built in <code>src/forecasting/event_effects.py</code>. It never sees its own outcome or any future year's, so it is honest inside walk-forward CV and recomputed the same way at inference.</p>
+  <div class="steps" id="steps"></div>
+  <div class="callout" style="margin-top:16px"><b>Why this beats a flag.</b> With roughly one occurrence per year, a gradient-boosted tree can't isolate a rare event from a binary dummy — it has nowhere near enough splits. A signed, pre-computed magnitude hands the model the answer as a continuous prior instead of asking it to rediscover a once-a-year pattern. It's a rare-event encoding, not a new estimator.</div>
+</div></section>
+
+<section class="band" id="integrity"><div class="wrap">
+  <span class="eyebrow">Data integrity · why the answer was hidden</span>
+  <h2>Three silent defects manufactured a false negative</h2>
+  <p class="sub">An earlier pass concluded festivals barely mattered and a magnitude feature was neutral. That conclusion was an artifact: the data was quietly broken, each defect nudging the result toward "no effect." Fixing them is what turned a null into the table above — the project's honest-numbers rule in action.</p>
+  <div class="ba">
+    <div class="bacol bad">
+      <h4><span class="pill">before · on broken data</span></h4>
+      <ul>
+        <li><span class="b4">Diwali&nbsp;−10.5%</span><span>— shrunk, understated</span></li>
+        <li><span class="b4">Holi&nbsp;—</span><span>— missing from the calendar entirely</span></li>
+        <li><span class="b4">Republic&nbsp;Day&nbsp;−3.9%</span><span>— washed out</span></li>
+        <li><span class="b4">Id-ul-Fitr&nbsp;+3.0%</span><span>— a phantom positive</span></li>
+        <li><span class="b4">verdict</span><span>— "festivals don't matter; feature neutral"</span></li>
+      </ul>
+    </div>
+    <div class="bacol good">
+      <h4><span class="pill">after · corrected + causal</span></h4>
+      <ul>
+        <li><span class="af">Diwali&nbsp;−17.2%</span><span>[−19.4, −14.9]</span></li>
+        <li><span class="af">Holi&nbsp;−31.2%</span><span>the single largest effect</span></li>
+        <li><span class="af">Republic&nbsp;Day&nbsp;−14.2%</span><span>[−16.3, −12.1]</span></li>
+        <li><span class="af">Id-ul-Fitr&nbsp;≈0</span><span>null — the +3% was an artifact</span></li>
+        <li><span class="af">model&nbsp;R²&nbsp;.953→.967</span><span>residual SD 5.21%→4.39%</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="defects" id="defects"></div>
+</div></section>
+
+<section class="band" id="forecast"><div class="wrap">
+  <span class="eyebrow">Forecasting value · the study</span>
+  <h2>The signed magnitude cuts festival-day error</h2>
+  <p class="sub">Rolling-origin backtest on Delhi, LightGBM forecasting log peak, test years 2019–2024, 146 festival test days. The counterfactual for the magnitude feature is fit only on data before each test year — fully causal. On <strong>festival days</strong> the signed magnitude is the clear winner; on normal days (where the feature is exactly 0) everything barely moves, which is how you know the gain is the event signal and not global perturbation.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Festival-day MAPE</th><th>no event</th><th>DB flag</th><th>full flag</th><th>+ identity</th><th>+ magnitude</th><th>persistence</th></tr></thead>
+    <tbody>
+      <tr><td>horizon h = 1</td><td>7.95</td><td>7.43</td><td>6.57</td><td>6.64</td><td class="win">5.59</td><td>7.38</td></tr>
+      <tr><td>horizon h = 7</td><td>10.31</td><td>9.95</td><td>9.52</td><td>9.43</td><td class="win">7.07</td><td>13.37</td></tr>
+    </tbody>
+  </table></div>
+  <p class="tblnote">Values are %MAPE. A binary flag, and even a categorical festival identity, don't close the gap — only the signed magnitude does. (Normal-day rows move &lt;0.3 pts across every column.)</p>
+</div></section>
+
+<section class="band" id="production"><div class="wrap">
+  <span class="eyebrow">In production · the disciplined part</span>
+  <h2>Shipped only where it earns its place</h2>
+  <p class="sub">The same signed-magnitude idea is wired into the state fleet as <code>expected_event_effect_pct</code>, estimated causally from <em>each state's own</em> peak series. Before shipping it anywhere, it was ablated across 12 states — and kept only where it beat that state's own baseline.</p>
+  <div class="prod">
+    <div class="pcard">
+      <span class="tag">festival-aware</span>
+      <h4>Punjab</h4>
+      <div class="reg">Northern grid · daily peak · PSP</div>
+      <div class="big"><b>4.54%</b><span>CV MAPE</span></div>
+      <dl>
+        <dt>without feature</dt><dd>4.72%</dd>
+        <dt>improvement</dt><dd>+0.18 pts</dd>
+        <dt>learns Diwali</dt><dd>≈ −10%</dd>
+        <dt>learns Holi</dt><dd>≈ −7%</dd>
+        <dt>vs persistence</dt><dd>7.32%</dd>
+      </dl>
+    </div>
+    <div class="verdict">
+      <div class="stamp">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>
+        honest ablation, not a blanket switch
+      </div>
+      <p>Across the 12-state ablation the feature helps <b>Punjab</b> clearly (+0.18 pts) and <b>Tamil Nadu</b> marginally (+0.05, within fold noise). Everywhere else it is flat or slightly negative — it actively <em>hurts</em> Odisha's short, drift-heavy series.</p>
+      <p>So it ships to <b>Punjab alone</b>. On Delhi, where rich lag features already encode most of the one-step signal, the magnitude isn't in the champion either. The quantification is real and large; the forecasting lever is narrow — and the model only carries it where the back-test says it pays.</p>
+    </div>
+  </div>
+</div></section>
+
+<section class="band" id="limits"><div class="wrap">
+  <span class="eyebrow">Honest limitations &amp; what's next</span>
+  <h2>Where this stops, and where it goes</h2>
+  <ul class="limits">
+    <li><b>Daily peak, one city.</b> The decade-long study is Delhi's peak demand only; the production feature generalizes per state, but the causal estimates are only as deep as each state's history.</li>
+    <li><b>Placebo caveat.</b> HAC(7) errors are anti-conservative here (22% of placebo shifts reach p&lt;0.05); the paper draft moves to randomization/block-bootstrap inference. The top seven effects survive regardless.</li>
+    <li><b>Intraday shape (open).</b> Festivals reshape the <em>evening peak</em>, which no daily scalar can express. That needs a 5-minute backfill around event dates — the one lever with real upside left.</li>
+    <li><b>Calendar freshness (open).</b> Lunar festival dates shift yearly and the hardcoded calendar stops at 2026; a schema-validated LLM pass would keep it current and catch ad-hoc events (a cricket final, a heatwave advisory).</li>
+  </ul>
+  <div class="callout" style="margin-top:18px">Full write-ups: <code>docs/paper_festival_effects.md</code> (the paper plan, references and robustness grid) and <code>docs/event_aware_forecasting.md</code> (the layer design and every measured result, including the negative ones). The estimator is <code>src/forecasting/event_effects.py</code> — run <code>python src/forecasting/event_effects.py data/edfs.db</code> to print the learned table.</div>
+</div></section>
+
+<footer><div class="wrap">
+  <span>Gridalytics · <a href="index.html">← back to the pipeline overview</a></span>
+  <span class="mono">research · festival demand shocks · daily peak</span>
+</div></footer>
+
+<script>
+/* theme toggle — shares the 'gx-theme' key with the showcase */
+(function(){
+  var root=document.documentElement, t=document.getElementById('tog');
+  try{var s=localStorage.getItem('gx-theme'); if(s) root.setAttribute('data-theme',s);}catch(e){}
+  t.addEventListener('click',function(){
+    var cur=root.getAttribute('data-theme');
+    var dark=cur?cur==='dark':matchMedia('(prefers-color-scheme:dark)').matches;
+    var next=dark?'light':'dark'; root.setAttribute('data-theme',next);
+    try{localStorage.setItem('gx-theme',next);}catch(e){}
+  });
+})();
+
+/* hero stats */
+var STATS=[['10 yrs','2015–2024 daily peak'],['−31%','Holi, the largest effect'],
+  ['−17%','Diwali (3-day trough)'],['9.5→7.1%','festival-day MAPE, h=7'],
+  ['+0.18 pt','Punjab, in production']];
+document.getElementById('stats').innerHTML=STATS.map(function(s){
+  return '<div class="stat"><b>'+s[0]+'</b><span>'+s[1]+'</span></div>';}).join('');
+
+/* diverging festival-effect bars (scale: 35% effect -> 50% of track) */
+var FX=[
+ {n:'Holi',e:-31.2,ci:'[−32.6, −29.8]',sub:'+ day-after −13%'},
+ {n:'Govardhan Puja',e:-18.7,ci:'[−22.1, −15.3]',sub:'Diwali +1'},
+ {n:'Diwali',e:-17.2,ci:'[−19.4, −14.9]'},
+ {n:'Republic Day',e:-14.2,ci:'[−16.3, −12.1]'},
+ {n:'Bhai Duj',e:-11.7,ci:'[−14.5, −8.9]',sub:'Diwali +2'},
+ {n:'Dussehra',e:-10.7,ci:'[−14.0, −7.3]'},
+ {n:'Ram Navami',e:-6.2,ci:'[−8.1, −4.3]'},
+ {n:'Independence Day',e:-3.8,ci:'[−6.5, −1.1]'},
+ {n:'Eid-ul-Fitr',e:0,ci:'n.s.',sub:'null effect'},
+ {n:'Christmas',e:4.1,ci:'[+2.4, +5.9]'},
+ {n:'Maha Shivaratri',e:6.0,ci:'[+3.5, +8.4]'}
+];
+var SCALE=50/35; /* % of half-track per 1% effect */
+document.getElementById('fx').innerHTML=FX.map(function(f){
+  var nm='<div class="nm">'+f.n+(f.sub?'<small>'+f.sub+'</small>':'')+'</div>';
+  var bar;
+  if(f.e===0){
+    bar='<div class="fxbar nul"></div><span class="v" style="position:absolute;left:calc(50% + 8px);font-family:var(--font-mono);font-size:.72rem;color:var(--muted)">≈0</span>';
+  }else{
+    var w=Math.abs(f.e)*SCALE;
+    var cls=f.e<0?'neg':'pos';
+    var lbl=(f.e<0?'−':'+')+Math.abs(f.e).toFixed(1)+'%';
+    bar='<div class="fxbar '+cls+'" data-w="'+w+'"><span class="v">'+lbl+'</span></div>';
+  }
+  return '<div class="fxrow">'+nm+'<div class="fxtrack">'+bar+'</div></div>';
+}).join('');
+requestAnimationFrame(function(){requestAnimationFrame(function(){
+  Array.prototype.forEach.call(document.querySelectorAll('.fxbar[data-w]'),function(b){
+    b.style.width=b.getAttribute('data-w')+'%';
+  });
+})});
+
+/* method steps */
+var STEPS=[
+ {n:'01',t:'Counterfactual baseline',d:'For each festival, pool nearby same-weekday non-holiday days within ±21 days — the "normal day" it displaced.'},
+ {n:'02',t:'Weather-adjusted',d:'Fit demand ~ temperature on that pool and evaluate at the festival day’s own temperature, so heat — not the holiday — is subtracted out.'},
+ {n:'03',t:'Causal / expanding',d:'The value for a date uses only occurrences strictly before it. No row sees its own or any future year’s outcome — leak-free in every CV fold.'},
+ {n:'04',t:'Pooled + shrunk',d:'With ≤10 samples per event, each estimate is shrunk toward its tier mean by n/(n+k); a never-seen event falls back to its tier, then to 0.'}
+];
+document.getElementById('steps').innerHTML=STEPS.map(function(s){
+  return '<div class="step"><div class="n">'+s.n+'</div><h4>'+s.t+'</h4><p>'+s.d+'</p></div>';}).join('');
+
+/* data defects */
+var DEF=[
+ {no:'1',t:'Report-date lag',d:'Pre-2021 PSP rows were dated one day late (the report for day D carries D−1). Festival dips landed on the wrong date.'},
+ {no:'2',t:'Day/month swap',d:'Legacy 5-min rows with day ≤ 12 had day and month transposed (a missing dayfirst=True), scrambling ~60% of legacy days.'},
+ {no:'3',t:'Missing festivals',d:'Holi, Govardhan Puja, Bhai Duj, Chhath and Karwa Chauth were absent before 2024 — the off-the-shelf calendar omits optional holidays.'},
+ {no:'4',t:'Peak vs mean',d:'The daily target mixed PSP peak with a 5-min daily mean (≈0.83× peak) after 2024-11, faking a level drop. Now peak everywhere.'},
+ {no:'5',t:'Target leak',d:'diff/rolling features included y_t in training but not at inference — a 1.08% CV MAPE that was really 3.87% leak-free. Shifted to end at t−1.'}
+];
+document.getElementById('defects').innerHTML=DEF.map(function(d){
+  return '<div class="defect"><div class="t"><span class="no">#'+d.no+'</span>'+d.t+'</div><p>'+d.d+'</p></div>';}).join('');
+</script>
+</body>
+</html>

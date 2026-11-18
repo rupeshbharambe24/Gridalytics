@@ -69,6 +69,25 @@ header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;backgroun
 .hero .note{margin-top:18px;font-size:.82rem;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 25%,transparent)}
 
+/* ── research banner ── */
+.promo{padding-block:8px 6px}
+.promo a{display:flex;align-items:center;gap:15px;text-decoration:none;color:var(--fg);
+  background:linear-gradient(100deg,color-mix(in srgb,var(--accent) 13%,var(--surface)),var(--surface) 60%);
+  border:1px solid color-mix(in srgb,var(--accent) 34%,var(--border));border-radius:var(--r);
+  padding:15px 18px;box-shadow:var(--shadow);transition:transform .14s,border-color .14s}
+.promo a:hover{transform:translateY(-1px);border-color:var(--accent)}
+.promo .pico{width:40px;height:40px;flex:none;border-radius:11px;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)}
+.promo .ptxt{flex:1;min-width:0}
+.promo .ptxt .pk{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.promo .ptxt b{display:block;font-size:1.02rem;font-weight:600;margin:1px 0 3px;letter-spacing:-.01em}
+.promo .ptxt span.pd{font-size:.85rem;color:var(--muted)}
+.promo .pcta{flex:none;font-family:var(--font-mono);font-size:.78rem;color:var(--accent);
+  display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.promo .pcta svg{transition:transform .14s}
+.promo a:hover .pcta svg{transform:translateX(3px)}
+@media(max-width:560px){.promo a{flex-wrap:wrap;gap:12px}.promo .pcta{width:100%;margin-left:49px}}
+
 /* ── pipeline spine ── */
 .flow{position:relative;padding-block:14px 30px}
 .flow h2{font-size:1.9rem;font-weight:700;letter-spacing:-.02em}
@@ -208,6 +227,7 @@ footer .mono{color:var(--fg)}
   <nav>
     <a href="#sources">Sources</a><a href="#pipeline">Pipeline</a><a href="#states">States</a>
     <a href="#models">Models</a><a href="#outcome">Outcome</a><a href="#stack">Stack</a>
+    <a href="festival_effects.html" style="color:var(--accent)">Festivals ↗</a>
   </nav>
   <button class="tog" id="tog" aria-label="Toggle light / dark theme" title="Toggle theme">◐</button>
 </div></header>
@@ -218,6 +238,18 @@ footer .mono{color:var(--fg)}
   <p class="lede">Gridalytics turns free, public grid telemetry into live electricity-demand forecasts — at 5-minute, hourly and daily resolution — and scales the same pipeline from the Delhi grid to every Indian state.</p>
   <div class="stats" id="stats"></div>
   <p class="note"><span class="dot"></span> Champion models are leak-free and reported against a persistence baseline — honest numbers, no inflated accuracy.</p>
+</div></section>
+
+<section class="promo"><div class="wrap">
+  <a href="festival_effects.html" target="_blank" rel="noopener" aria-label="Read the festival demand-shocks research">
+    <span class="pico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6 6 4.5 4.5M18 18l1.5 1.5M18 6l1.5-1.5M6 18l-1.5 1.5"/><circle cx="12" cy="12" r="3.3"/></svg></span>
+    <span class="ptxt">
+      <span class="pk">New · Research</span>
+      <b>How much do festivals actually move the grid?</b>
+      <span class="pd">A decade of weather-adjusted estimates — Holi −31%, Diwali −17% — and the leak-free signed effect now sharpening Punjab's day-ahead model.</span>
+    </span>
+    <span class="pcta">Read the study <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+  </a>
 </div></section>
 
 <section class="flow" id="pipeline"><div class="wrap">
