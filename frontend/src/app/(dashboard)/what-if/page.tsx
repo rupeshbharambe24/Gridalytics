@@ -209,7 +209,11 @@ export default function WhatIfPage() {
           {/* Holiday */}
           <div className="flex items-center justify-between">
             <label className="text-xs font-medium text-muted-foreground">Public Holiday</label>
-            <button onClick={() => setIsHoliday(!isHoliday)} aria-pressed={isHoliday}
+            <button
+              type="button"
+              onClick={() => setIsHoliday(!isHoliday)}
+              aria-label="Public Holiday"
+              aria-pressed={isHoliday}
               className={`relative w-10 h-5 rounded-full transition-colors ${isHoliday ? "bg-brand" : "bg-accent"}`}>
               <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200 ${isHoliday ? "left-[22px]" : "left-0.5"}`} />
             </button>

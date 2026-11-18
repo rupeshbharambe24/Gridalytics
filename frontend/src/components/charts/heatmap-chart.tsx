@@ -30,7 +30,12 @@ export function HeatmapChart({ hours, days, values }: HeatmapChartProps) {
       className="rounded-xl border border-border bg-card p-5"
     >
       <h3 className="text-sm font-semibold text-foreground mb-4">Demand Heatmap (Hour x Day)</h3>
-      <div className="overflow-x-auto">
+      <div
+        className="overflow-x-auto"
+        role="region"
+        aria-label="Demand heatmap showing electricity demand by hour and day"
+        tabIndex={0}
+      >
         <div className="min-w-[600px]">
           {/* Header row */}
           <div className="flex">
@@ -54,6 +59,8 @@ export function HeatmapChart({ hours, days, values }: HeatmapChartProps) {
                 {(values[di] || []).map((val, hi) => (
                   <div
                     key={hi}
+                    role="img"
+                    aria-label={`${day}, ${hours[hi]}:00, demand ${val.toFixed(0)} megawatts`}
                     className="flex-1 aspect-square rounded-sm cursor-pointer transition-transform hover:scale-110 hover:z-10 relative group"
                     style={{ backgroundColor: getColor(val, min, max) }}
                     title={`${day} ${hours[hi]}:00 — ${val.toFixed(0)} MW`}
