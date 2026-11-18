@@ -79,6 +79,15 @@ def _trim(m: dict | None) -> dict | None:
 _FORECASTERS: dict = {}  # (code, resolution) -> loaded forecaster, cached
 
 
+def clear_forecaster_cache() -> int:
+    """Drop cached per-state forecasters so changed/removed models reload from
+    disk on the next request (used by the admin hot-reload endpoint). Returns the
+    number of cached entries dropped."""
+    n = len(_FORECASTERS)
+    _FORECASTERS.clear()
+    return n
+
+
 def _load_state_forecaster(code: str, resolution: str, meta: dict):
     """Load (and cache) the served forecaster for a state/resolution."""
     key = (code, resolution)

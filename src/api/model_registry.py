@@ -63,6 +63,17 @@ def load_models():
     logger.info(f"Total models loaded: {len(_models)} (including ensembles)")
 
 
+def reload_models() -> dict:
+    """Clear and re-load all models from disk (admin hot-reload, no process restart).
+
+    Drops the current in-memory set (so artifacts removed on disk don't linger as
+    stale keys) and rebuilds it with load_models(). Returns the new roster.
+    """
+    _models.clear()
+    load_models()
+    return get_available_models()
+
+
 def get_model(resolution: str, model_name: str | None = None):
     """Get a loaded model by resolution and optional name."""
     if model_name:

@@ -148,6 +148,12 @@ export const triggerRetrain = (resolution: string) =>
 export const getRetrainStatus = () =>
   fetcher<{ status: string; resolution: string | null }>("/api/v1/admin/retrain/status");
 
+export const reloadModels = () =>
+  fetcher<{ status: string; delhi_models_loaded: number; available: string[]; state_forecaster_cache_cleared: number }>(
+    "/api/v1/admin/reload-models",
+    { method: "POST" }
+  );
+
 export const getScraperStatus = () => fetcher<any>("/api/v1/admin/scraper-status");
 
 export const getSchedulerJobs = () => fetcher<any[]>("/api/v1/admin/scheduler-jobs");

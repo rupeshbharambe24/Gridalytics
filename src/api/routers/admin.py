@@ -124,6 +124,33 @@ def retrain_status(admin: User = Depends(require_admin)):
 
 
 # ---------------------------------------------------------------------------
+# POST /reload-models  -  Hot-reload served models without a process restart
+# ---------------------------------------------------------------------------
+
+@router.post("/reload-models")
+def reload_models_endpoint(admin: User = Depends(require_admin)):
+    """Reload models from disk without restarting the server.
+
+    Rebuilds the startup-loaded Delhi models/ensemble (model_registry) and clears
+    the per-state forecaster cache so freshly retrained or newly added state
+    models are picked up on the next request. Use after scripts/retrain_all.py.
+    """
+    from src.api.model_registry import reload_models
+    from src.api.routers.states import clear_forecaster_cache
+
+    cleared = clear_forecaster_cache()
+    available = reload_models()
+    logger.info(f"Hot-reload: {len(available)} delhi models loaded, "
+                f"{cleared} state forecasters dropped")
+    return {
+        "status": "reloaded",
+        "delhi_models_loaded": len(available),
+        "available": sorted(available.keys()),
+        "state_forecaster_cache_cleared": cleared,
+    }
+
+
+# ---------------------------------------------------------------------------
 # GET /scraper-status  -  Data freshness and row counts
 # ---------------------------------------------------------------------------
 

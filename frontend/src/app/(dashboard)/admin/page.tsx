@@ -18,6 +18,7 @@ import {
   getSchedulerJobs,
   getMe,
   triggerPipeline,
+  reloadModels,
 } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
@@ -109,6 +110,20 @@ export default function AdminPage() {
     }
   };
 
+  const [reloadLoading, setReloadLoading] = useState(false);
+  const handleReload = async () => {
+    setReloadLoading(true);
+    const { toast } = await import("sonner");
+    try {
+      const r = await reloadModels();
+      toast.success(`Reloaded ${r.delhi_models_loaded} models · cleared ${r.state_forecaster_cache_cleared} cached state forecasters`);
+    } catch (err: any) {
+      toast.error(`Reload failed: ${err.message}`);
+    } finally {
+      setReloadLoading(false);
+    }
+  };
+
   const [pipelineLoading, setPipelineLoading] = useState(false);
   const handleTriggerPipeline = async () => {
     setPipelineLoading(true);
@@ -173,10 +188,16 @@ export default function AdminPage() {
         icon={Settings}
         subtitle="Model management, retraining, and pipeline monitoring."
         actions={
-          <Button onClick={handleTriggerPipeline} disabled={pipelineLoading} size="sm" className="gap-2 shrink-0">
-            {pipelineLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-            Run Daily Pipeline
-          </Button>
+          <>
+            <Button onClick={handleReload} disabled={reloadLoading} size="sm" variant="outline" className="gap-2 shrink-0">
+              {reloadLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              Reload models
+            </Button>
+            <Button onClick={handleTriggerPipeline} disabled={pipelineLoading} size="sm" className="gap-2 shrink-0">
+              {pipelineLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+              Run Daily Pipeline
+            </Button>
+          </>
         }
       />
 
