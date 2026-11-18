@@ -5,9 +5,9 @@ scraper), live data-collection status (rows stored), recent demand, and — wher
 model has been trained with scripts/train_state.py — its champion metrics. This
 powers the dashboard's state-wise view.
 
-Note: full recursive per-state *forecasting* is a follow-on; the forecast engine
-(src/forecasting/future.py) is currently Delhi-specific. These endpoints serve
-status + history + model metrics, which is what the state-wise UI needs today.
+Note: per-state forecasting is supported through the recursive forecast engine
+(src/forecasting/future.py), serving day-ahead forecasts for trained state models.
+These endpoints provide status, history, model metrics, and forecasts.
 """
 
 import json
