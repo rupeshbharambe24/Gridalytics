@@ -165,6 +165,8 @@ export default function StatesPage() {
                     whileHover={{ y: -1 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setSel(s.code)}
+                    aria-label={`${s.name}${s.discom_level ? ", DISCOM-level" : ""}${s.has_model ? ", model trained" : ""}${s.has_data && !s.has_model ? ", collecting data" : ""}`}
+                    aria-pressed={selCode === s.code}
                     className={cn(
                       "px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors flex items-center gap-1.5",
                       s.tier === "direct"
@@ -177,7 +179,7 @@ export default function StatesPage() {
                   >
                     {s.name}
                     {s.discom_level && <span className="text-brand" title="DISCOM-level">◆</span>}
-                    {s.has_model && <Cpu className="w-3 h-3 text-emerald-400" aria-label="model trained" />}
+                    {s.has_model && <Cpu className="w-3 h-3 text-emerald-400" aria-hidden="true" />}
                     {s.has_data && !s.has_model && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" title="collecting" />}
                   </motion.button>
                 ))}

@@ -62,6 +62,14 @@ export function DemandChart({ data, title, showTemp = false, height = 350, forec
       className="rounded-xl border border-border bg-card p-5 shadow-card"
     >
       {title && <h3 className="text-sm font-semibold text-foreground mb-4">{title}</h3>}
+      <div
+        role="img"
+        aria-label={
+          title
+            ? `${title}. Demand chart showing actual demand${forecast ? ", forecast and confidence bands" : ""}${showTemp ? " and temperature" : ""}.`
+            : `Demand chart showing actual demand${forecast ? ", forecast and confidence bands" : ""}${showTemp ? " and temperature" : ""}.`
+        }
+      >
       <ResponsiveContainer width="100%" height={height}>
         <AreaChart data={mergedData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
           <defs>
@@ -156,6 +164,7 @@ export function DemandChart({ data, title, showTemp = false, height = 350, forec
           )}
         </AreaChart>
       </ResponsiveContainer>
+      </div>
     </motion.div>
   );
 }

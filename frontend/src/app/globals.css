@@ -30,12 +30,12 @@
     --input: 214 22% 88%;
 
     /* brand — electric teal-emerald */
-    --brand: 167 78% 34%;
+    --brand: 167 78% 28%;
     --brand-foreground: 0 0% 100%;
     --brand-muted: 167 60% 94%;
-    --primary: 167 78% 34%;
+    --primary: 167 78% 28%;
     --primary-foreground: 0 0% 100%;
-    --ring: 167 72% 40%;
+    --ring: 167 72% 34%;
 
     /* state */
     --destructive: 352 78% 52%;
@@ -140,8 +140,9 @@
   *::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.4); background-clip: content-box; }
   /* consistent focus ring */
   :focus-visible {
-    outline: 2px solid hsl(var(--ring) / 0.6);
-    outline-offset: 2px;
+    outline: 3px solid hsl(var(--ring));
+    outline-offset: 3px;
+    border-radius: 4px;
   }
 }
 
