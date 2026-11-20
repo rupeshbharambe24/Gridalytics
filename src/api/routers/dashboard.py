@@ -429,12 +429,13 @@ def get_seasonal_stats(db: Session = Depends(get_db)):
         if mask.sum() == 0:
             continue
         vals = daily[mask]
+        std = float(vals.std())  # NaN when a season has a single day
         results.append({
             "season": season_name,
             "min_mw": round(float(vals.min()), 1),
             "max_mw": round(float(vals.max()), 1),
             "avg_mw": round(float(vals.mean()), 1),
-            "std_mw": round(float(vals.std()), 1),
+            "std_mw": None if pd.isna(std) else round(std, 1),
             "days": int(mask.sum()),
         })
 
@@ -511,12 +512,17 @@ def get_error_by_hour(
         avg_pct_error=("pct_error", "mean"),
     ).reset_index()
 
+    # std() is NaN for any hour with a single sample (common when the window is
+    # sparse); NaN is not JSON-serializable, so coerce every stat to null.
+    def _clean(series, nd):
+        return [None if pd.isna(v) else round(float(v), nd) for v in series]
+
     return {
         "hours": by_hour["hour"].tolist(),
-        "avg_demand": [round(v, 1) for v in by_hour["avg_demand"]],
-        "std_demand": [round(v, 1) for v in by_hour["std_demand"]],
-        "avg_error": [round(v, 1) for v in by_hour["avg_error"]],
-        "avg_pct_error": [round(v, 2) for v in by_hour["avg_pct_error"]],
+        "avg_demand": _clean(by_hour["avg_demand"], 1),
+        "std_demand": _clean(by_hour["std_demand"], 1),
+        "avg_error": _clean(by_hour["avg_error"], 1),
+        "avg_pct_error": _clean(by_hour["avg_pct_error"], 2),
     }
 
 
