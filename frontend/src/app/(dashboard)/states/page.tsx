@@ -50,6 +50,11 @@ function SummaryCard({ icon: Icon, label, value, sub }: { icon: any; label: stri
   );
 }
 
+// Small labelled heading used above each block inside the detail panel.
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{children}</div>;
+}
+
 export default function StatesPage() {
   const { data, loading } = useFetch(getStates, []);
   const [sel, setSel] = useState<string>("karnataka");
@@ -130,6 +135,8 @@ export default function StatesPage() {
   const chartData = analysis?.area ?? [];
   const fmtMW = (v: number) => `${Math.round(v).toLocaleString("en-IN")}`;
 
+  const tooltipStyle = { background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -149,10 +156,10 @@ export default function StatesPage() {
         <SummaryCard icon={CircleDashed} label="Deferred" value={summary.deferred ?? 0} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
-        {/* map / state list */}
-        <div className="space-y-5">
-          {loading && <div className="text-sm text-muted-foreground">Loading states…</div>}
+      {/* region selector — full-width strip so the detail below gets the room */}
+      <div className="bg-card border border-border rounded-xl p-5">
+        {loading && <div className="text-sm text-muted-foreground">Loading states…</div>}
+        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-5">
           {REGION_ORDER.filter((r) => byRegion[r]?.length).map((region) => (
             <div key={region}>
               <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
@@ -186,80 +193,112 @@ export default function StatesPage() {
               </div>
             </div>
           ))}
-          <div className="flex flex-wrap gap-4 text-[11px] text-muted-foreground pt-1">
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-500/40 border border-emerald-500/40" /> Direct scraper</span>
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-card border border-border" /> National fallback</span>
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded border border-dashed border-border" /> Deferred</span>
-            <span className="flex items-center gap-1.5"><Cpu className="w-3 h-3 text-emerald-400" /> model trained</span>
-            <span className="flex items-center gap-1.5"><span className="text-brand">◆</span> DISCOM-level</span>
-          </div>
         </div>
+        <div className="flex flex-wrap gap-4 text-[11px] text-muted-foreground mt-5 pt-4 border-t border-border">
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-500/40 border border-emerald-500/40" /> Direct scraper</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-card border border-border" /> National fallback</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded border border-dashed border-border" /> Deferred</span>
+          <span className="flex items-center gap-1.5"><Cpu className="w-3 h-3 text-emerald-400" /> model trained</span>
+          <span className="flex items-center gap-1.5"><span className="text-brand">◆</span> DISCOM-level</span>
+        </div>
+      </div>
 
-        {/* detail panel */}
-        <div className="bg-card border border-border rounded-xl p-5 lg:sticky lg:top-4 space-y-4">
-          {!selected ? (
-            <div className="text-sm text-muted-foreground">Select a state.</div>
-          ) : (
-            <>
+      {/* detail — full width, three-column interior so each block has room */}
+      {!selected ? (
+        <div className="bg-card border border-border rounded-xl p-8 text-center text-sm text-muted-foreground">
+          Select a state to see its data source, models and forecast.
+        </div>
+      ) : (
+        <motion.div
+          key={selCode}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="bg-card border border-border rounded-xl p-5 lg:p-6 space-y-6"
+        >
+          {/* header */}
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-xl font-semibold">{selected.name}</h2>
+                <span className={cn("text-[10px] font-mono px-2 py-0.5 rounded-full border", TIER_BADGE[selected.tier])}>
+                  {TIER_LABEL[selected.tier]}
+                </span>
+                {selected.discom_level && (
+                  <span className="text-[10px] text-brand border border-brand/40 bg-brand/10 rounded-full px-2 py-0.5">DISCOM-level</span>
+                )}
+              </div>
+              <div className="text-xs text-muted-foreground font-mono mt-1">{selected.region} regional grid</div>
+            </div>
+            <div className="flex items-center gap-2 text-right">
+              <div className="rounded-lg bg-muted/40 border border-border px-3 py-1.5">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Rows stored</div>
+                <div className="text-base font-semibold tabular-nums leading-tight">{selected.rows_stored.toLocaleString("en-IN")}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* ---- col 1: source + models ---- */}
+            <div className="space-y-4">
               <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-lg font-semibold">{selected.name}</h2>
-                  <span className={cn("text-[10px] font-mono px-2 py-0.5 rounded-full border", TIER_BADGE[selected.tier])}>
-                    {TIER_LABEL[selected.tier]}
-                  </span>
-                </div>
-                <div className="text-xs text-muted-foreground font-mono mt-0.5">{selected.region} regional grid</div>
+                <SectionLabel>Data source</SectionLabel>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm mt-2">
+                  <dt className="text-muted-foreground">Method</dt><dd className="font-mono text-xs self-center">{selected.method}</dd>
+                  <dt className="text-muted-foreground">Scraper</dt><dd className="font-mono text-xs self-center break-all">{selected.scraper ?? "—"}</dd>
+                  <dt className="text-muted-foreground">DISCOMs</dt><dd className="text-xs self-center">{selected.discoms.length ? selected.discoms.join(" · ") : "single utility"}</dd>
+                </dl>
               </div>
 
-              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
-                <dt className="text-muted-foreground">Method</dt><dd className="font-mono text-xs self-center">{selected.method}</dd>
-                <dt className="text-muted-foreground">Scraper</dt><dd className="font-mono text-xs self-center break-all">{selected.scraper ?? "—"}</dd>
-                <dt className="text-muted-foreground">DISCOMs</dt><dd className="text-xs self-center">{selected.discoms.length ? selected.discoms.join(" · ") : "single utility"}</dd>
-                <dt className="text-muted-foreground">Rows stored</dt><dd className="tabular-nums self-center">{selected.rows_stored.toLocaleString("en-IN")}</dd>
-              </dl>
-
-              {/* model cards — one per trained resolution */}
-              {models.length ? (
-                <div className="space-y-2">
-                  {models.length > 1 && (
-                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                      {models.length} models trained
+              <div>
+                <SectionLabel>{models.length > 1 ? `${models.length} models trained` : "Model"}</SectionLabel>
+                <div className="space-y-2 mt-2">
+                  {models.length ? (
+                    models.map((mdl, i) => <ModelCard key={mdl.resolution} m={mdl} delay={i * 0.05} />)
+                  ) : selected.has_data ? (
+                    <div className="text-xs text-muted-foreground bg-muted/30 border border-border rounded-lg p-3">
+                      Collecting data — no model trained yet. Run <span className="font-mono">train_state.py {selected.code}</span>.
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground bg-muted/30 border border-border rounded-lg p-3">
+                      No data collected yet{selected.tier === "deferred" ? " (source access-gated)." : selected.tier === "fallback" ? " — covered by the Grid-India PSP fallback once it runs." : "."}
                     </div>
                   )}
-                  {models.map((mdl, i) => (
-                    <ModelCard key={mdl.resolution} m={mdl} delay={i * 0.05} />
-                  ))}
                 </div>
-              ) : selected.has_data ? (
-                <div className="text-xs text-muted-foreground bg-muted/30 border border-border rounded-lg p-3">
-                  Collecting data — no model trained yet. Run <span className="font-mono">train_state.py {selected.code}</span>.
-                </div>
-              ) : (
-                <div className="text-xs text-muted-foreground bg-muted/30 border border-border rounded-lg p-3">
-                  No data collected yet{selected.tier === "deferred" ? " (source access-gated)." : selected.tier === "fallback" ? " — covered by the Grid-India PSP fallback once it runs." : "."}
+              </div>
+            </div>
+
+            {/* ---- col 2: forecast + headline stats ---- */}
+            <div className="space-y-4">
+              {analysis && (
+                <div>
+                  <SectionLabel>Last 14 days</SectionLabel>
+                  <div className="grid grid-cols-3 gap-2 mt-2">
+                    {([["Peak", `${fmtMW(analysis.peak)} MW`], ["Average", `${fmtMW(analysis.avg)} MW`], ["Load factor", `${analysis.loadFactor.toFixed(0)}%`]] as const).map(([l, v]) => (
+                      <div key={l} className="bg-muted/30 border border-border rounded-lg p-2.5">
+                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{l}</div>
+                        <div className="text-base font-semibold tabular-nums leading-tight mt-0.5">{v}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
-              {/* day-ahead forecast */}
-              {fcData && (
+              {fcData ? (
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      Day-ahead forecast{fcData.date ? ` · ${fcData.date}` : ""}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground font-mono">
-                      {fcData.model} · {fcData.res}
-                    </span>
+                    <SectionLabel>Day-ahead forecast{fcData.date ? ` · ${fcData.date}` : ""}</SectionLabel>
+                    <span className="text-[10px] text-muted-foreground font-mono">{fcData.model} · {fcData.res}</span>
                   </div>
                   {fcData.pts.length > 1 ? (
-                    <div className="h-40">
+                    <div className="h-52">
                       <ResponsiveContainer width="100%" height="100%">
                         <ComposedChart data={fcData.pts} margin={{ top: 4, right: 6, left: -18, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-border" vertical={false} />
                           <XAxis dataKey="t" tick={{ fontSize: 9 }} interval="preserveStartEnd" minTickGap={40} stroke="currentColor" className="text-muted-foreground" />
                           <YAxis tick={{ fontSize: 9 }} width={44} stroke="currentColor" className="text-muted-foreground" domain={fcData.domain} />
                           <Tooltip
-                            contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                            contentStyle={tooltipStyle}
                             formatter={(v: any, n: any) => [`${Number(v).toLocaleString("en-IN")} MW`, n === "pred" ? "forecast" : n]}
                           />
                           <Area stackId="ci" dataKey="base" stroke="none" fill="transparent" isAnimationActive={false} />
@@ -269,7 +308,7 @@ export default function StatesPage() {
                       </ResponsiveContainer>
                     </div>
                   ) : (
-                    <div className="bg-brand/10 border border-brand/30 rounded-lg p-3 flex items-baseline gap-2 flex-wrap">
+                    <div className="bg-brand/10 border border-brand/30 rounded-lg p-4 flex items-baseline gap-2 flex-wrap">
                       <span className="text-2xl font-semibold tabular-nums text-brand">{Math.round(fcData.pts[0].pred).toLocaleString("en-IN")}</span>
                       <span className="text-sm text-muted-foreground">MW predicted peak</span>
                       <span className="text-[10px] text-muted-foreground ml-auto">
@@ -278,28 +317,26 @@ export default function StatesPage() {
                     </div>
                   )}
                 </div>
+              ) : (
+                <div className="text-xs text-muted-foreground bg-muted/30 border border-border rounded-lg p-3">
+                  No day-ahead forecast — this grid has no served model yet.
+                </div>
               )}
+            </div>
 
-              {/* analysis (client-side from the series) */}
-              {analysis && (
+            {/* ---- col 3: load profile + recent demand ---- */}
+            <div className="space-y-4">
+              {analysis ? (
                 <>
-                  <div className="grid grid-cols-3 gap-2">
-                    {([["Peak", `${fmtMW(analysis.peak)} MW`], ["Average", `${fmtMW(analysis.avg)} MW`], ["Load factor", `${analysis.loadFactor.toFixed(0)}%`]] as const).map(([l, v]) => (
-                      <div key={l} className="bg-muted/30 border border-border rounded-lg p-2.5">
-                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{l}</div>
-                        <div className="text-base font-semibold tabular-nums leading-tight mt-0.5">{v}</div>
-                      </div>
-                    ))}
-                  </div>
                   <div>
-                    <span className="text-xs font-medium text-muted-foreground">Daily load profile — avg by hour</span>
-                    <div className="h-28 mt-1.5">
+                    <SectionLabel>Daily load profile — avg by hour</SectionLabel>
+                    <div className="h-36 mt-2">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={analysis.hourly} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                           <XAxis dataKey="h" tick={{ fontSize: 8 }} interval={2} stroke="currentColor" className="text-muted-foreground" />
                           <YAxis tick={{ fontSize: 8 }} width={42} stroke="currentColor" className="text-muted-foreground" domain={["auto", "auto"]} />
                           <Tooltip
-                            contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                            contentStyle={tooltipStyle}
                             formatter={(v: any) => [`${Number(v).toLocaleString("en-IN")} MW`, "avg"]}
                             labelFormatter={(l) => `${l}:00`}
                           />
@@ -308,46 +345,48 @@ export default function StatesPage() {
                       </ResponsiveContainer>
                     </div>
                   </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <SectionLabel>Recent demand</SectionLabel>
+                      {demand?.latest && <span className="text-[10px] text-muted-foreground font-mono">→ {fmtTime(demand.latest)}</span>}
+                    </div>
+                    <div className="h-36">
+                      {demandLoading ? (
+                        <div className="h-full flex items-center justify-center text-xs text-muted-foreground">Loading…</div>
+                      ) : chartData.length ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={chartData} margin={{ top: 4, right: 6, left: -18, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="demandFill" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="hsl(var(--chart-demand))" stopOpacity={0.4} />
+                                <stop offset="100%" stopColor="hsl(var(--chart-demand))" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-border" vertical={false} />
+                            <XAxis dataKey="t" tick={{ fontSize: 9 }} interval="preserveStartEnd" minTickGap={40} stroke="currentColor" className="text-muted-foreground" />
+                            <YAxis tick={{ fontSize: 9 }} width={44} stroke="currentColor" className="text-muted-foreground" domain={["auto", "auto"]} />
+                            <Tooltip
+                              contentStyle={tooltipStyle}
+                              formatter={(v: any) => [`${Number(v).toLocaleString("en-IN")} MW`, "demand"]}
+                            />
+                            <Area type="monotone" dataKey="mw" stroke="hsl(var(--chart-demand))" strokeWidth={1.5} fill="url(#demandFill)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-xs text-muted-foreground">No demand series stored yet.</div>
+                      )}
+                    </div>
+                  </div>
                 </>
+              ) : (
+                <div className="text-xs text-muted-foreground bg-muted/30 border border-border rounded-lg p-3 h-full flex items-center">
+                  No demand series stored for this grid yet.
+                </div>
               )}
-
-              {/* demand chart */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Recent demand</span>
-                  {demand?.latest && <span className="text-[10px] text-muted-foreground font-mono">→ {fmtTime(demand.latest)}</span>}
-                </div>
-                <div className="h-40">
-                  {demandLoading ? (
-                    <div className="h-full flex items-center justify-center text-xs text-muted-foreground">Loading…</div>
-                  ) : chartData.length ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartData} margin={{ top: 4, right: 6, left: -18, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="demandFill" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="hsl(var(--chart-demand))" stopOpacity={0.4} />
-                            <stop offset="100%" stopColor="hsl(var(--chart-demand))" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-border" vertical={false} />
-                        <XAxis dataKey="t" tick={{ fontSize: 9 }} interval="preserveStartEnd" minTickGap={40} stroke="currentColor" className="text-muted-foreground" />
-                        <YAxis tick={{ fontSize: 9 }} width={44} stroke="currentColor" className="text-muted-foreground" domain={["auto", "auto"]} />
-                        <Tooltip
-                          contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-                          formatter={(v: any) => [`${Number(v).toLocaleString("en-IN")} MW`, "demand"]}
-                        />
-                        <Area type="monotone" dataKey="mw" stroke="hsl(var(--chart-demand))" strokeWidth={1.5} fill="url(#demandFill)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="h-full flex items-center justify-center text-xs text-muted-foreground">No demand series stored yet.</div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }

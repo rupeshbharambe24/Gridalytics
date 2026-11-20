@@ -53,7 +53,7 @@ export default function LoginPage() {
         result = await register(email, password, fullName);
       }
       localStorage.setItem("gridalytics_token", result.access_token);
-      router.push("/");
+      router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     } finally {

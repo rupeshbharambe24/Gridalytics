@@ -19,7 +19,7 @@ const navSections: NavSection[] = [
   {
     heading: "Overview",
     items: [
-      { href: "/", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/states", label: "States", icon: Map },
     ],
   },
@@ -84,17 +84,19 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCo
 
   const sidebarContent = (
     <>
-      {/* Logo */}
+      {/* Logo — links back to the public landing page */}
       <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
-        <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-brand-gradient shadow-brand shrink-0">
-          <Zap className="w-5 h-5 text-white" strokeWidth={2.5} />
-        </div>
-        {!collapsed && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-w-0">
-            <h1 className="text-[15px] font-bold text-sidebar-foreground tracking-tight leading-none">Gridalytics</h1>
-            <p className="text-[10px] text-muted-foreground mt-1 truncate">India Grid Intelligence</p>
-          </motion.div>
-        )}
+        <Link href="/" className="flex items-center gap-3 min-w-0" title="Home">
+          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-brand-gradient shadow-brand shrink-0">
+            <Zap className="w-5 h-5 text-white" strokeWidth={2.5} />
+          </div>
+          {!collapsed && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-w-0">
+              <h1 className="text-[15px] font-bold text-sidebar-foreground tracking-tight leading-none">Gridalytics</h1>
+              <p className="text-[10px] text-muted-foreground mt-1 truncate">India Grid Intelligence</p>
+            </motion.div>
+          )}
+        </Link>
         {/* Mobile close */}
         <button
           onClick={() => setMobileOpen(false)}
