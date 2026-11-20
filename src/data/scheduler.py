@@ -342,9 +342,11 @@ def start_scheduler():
         name="Data Status Report",
     )
 
+    # Jobs added before start() are still pending and have no next_run_time yet
+    # (APScheduler 3.x raises AttributeError on it), so log the trigger instead.
     logger.info("Scheduler started with jobs:")
     for job in scheduler.get_jobs():
-        logger.info(f"  - {job.name}: next run at {job.next_run_time}")
+        logger.info(f"  - {job.name}: {job.trigger}")
 
     # Run scrapers immediately on startup
     scrape_demand_latest()
