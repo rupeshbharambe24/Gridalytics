@@ -21,6 +21,76 @@ function Github({ className }: { className?: string }) {
   );
 }
 
+// Decorative hero visual — a self-contained forecast card (needs no API) so the
+// landing reads as a product, not a wall of text. Pure SVG, theme-aware.
+const HERO_LINE = "M0,110 L39,120 L78,95 L117,70 L156,80 L195,60 L234,35 L273,45 L312,66";
+const HERO_BAND =
+  "M0,98 L39,108 L78,83 L117,58 L156,68 L195,48 L234,23 L273,33 L312,54 L312,78 L273,57 L234,47 L195,72 L156,92 L117,82 L78,107 L39,132 L0,122 Z";
+
+function HeroVisual() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
+      className="relative mx-auto w-full max-w-md lg:max-w-none"
+    >
+      <div className="absolute -inset-6 bg-brand/10 blur-3xl rounded-full" aria-hidden />
+      <div className="relative rounded-2xl border border-border bg-card/80 backdrop-blur-sm shadow-card overflow-hidden">
+        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border">
+          <div className="flex items-center gap-2.5">
+            <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand/10">
+              <TrendingUp className="w-4 h-4 text-brand" />
+            </span>
+            <div>
+              <div className="text-sm font-semibold leading-none">Delhi grid</div>
+              <div className="text-[11px] text-muted-foreground mt-1">Day-ahead · hourly</div>
+            </div>
+          </div>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-chart-good/40 bg-chart-good/10 px-2 py-0.5 text-[10px] font-medium text-chart-good">
+            <span className="w-1.5 h-1.5 rounded-full bg-chart-good animate-pulse" /> Live
+          </span>
+        </div>
+        <div className="px-3 pt-4 pb-1">
+          <svg viewBox="0 0 320 148" className="w-full h-auto" role="img" aria-label="Illustrative day-ahead demand forecast with prediction band">
+            <defs>
+              <linearGradient id="heroBand" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="hsl(var(--chart-forecast))" stopOpacity="0.28" />
+                <stop offset="100%" stopColor="hsl(var(--chart-forecast))" stopOpacity="0.02" />
+              </linearGradient>
+            </defs>
+            <g className="text-border" stroke="currentColor" strokeWidth="1" opacity="0.6">
+              <line x1="0" y1="34" x2="320" y2="34" />
+              <line x1="0" y1="74" x2="320" y2="74" />
+              <line x1="0" y1="114" x2="320" y2="114" />
+            </g>
+            <path d={HERO_BAND} fill="url(#heroBand)" />
+            <path d={HERO_LINE} fill="none" className="text-brand" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+            <circle cx="234" cy="35" r="3.5" className="text-brand" fill="currentColor" />
+            <circle cx="312" cy="66" r="3.5" className="text-brand" fill="currentColor" />
+          </svg>
+        </div>
+        <div className="grid grid-cols-3 divide-x divide-border border-t border-border">
+          {[
+            { k: "Forecast peak", v: "6,840 MW" },
+            { k: "Hourly MAPE", v: "1.31%" },
+            { k: "Coverage", v: "~92%" },
+          ].map((s) => (
+            <div key={s.k} className="px-3 py-3 text-center">
+              <div className="text-sm font-semibold tabular-nums">{s.v}</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">{s.k}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="absolute -right-3 -top-3 rounded-xl border border-border bg-card shadow-card px-3 py-2 hidden sm:block">
+        <div className="text-[10px] text-muted-foreground">States mapped</div>
+        <div className="text-sm font-semibold text-brand tabular-nums">36 / 36</div>
+      </div>
+    </motion.div>
+  );
+}
+
 // Headline metrics — the real, documented fleet numbers (docs/state_models.md,
 // leak-free CV in the data-integrity audit). Static so the landing loads fast
 // and renders correctly even when the API is not running.
@@ -123,10 +193,9 @@ export default function LandingPage() {
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-grid [mask-image:radial-gradient(ellipse_at_top,black,transparent_72%)]" aria-hidden />
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[640px] h-[640px] rounded-full bg-brand/10 blur-[120px]" aria-hidden />
-        <div className="relative max-w-6xl mx-auto px-4 lg:px-6 pt-20 pb-20 lg:pt-28 lg:pb-28">
+        <div className="relative max-w-6xl mx-auto px-4 lg:px-6 pt-16 pb-16 lg:pt-24 lg:pb-24 grid lg:grid-cols-[1.05fr_0.95fr] gap-10 lg:gap-14 items-center">
           <motion.div
             initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
-            className="max-w-3xl"
           >
             <span className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-3 py-1 text-xs font-medium text-brand">
               <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
@@ -167,6 +236,7 @@ export default function LandingPage() {
               <span className="flex items-center gap-1.5"><GitBranch className="w-4 h-4 text-chart-good" /> Open source · contributions welcome</span>
             </div>
           </motion.div>
+          <HeroVisual />
         </div>
       </section>
 
