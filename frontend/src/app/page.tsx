@@ -83,10 +83,6 @@ function HeroVisual() {
           ))}
         </div>
       </div>
-      <div className="absolute -right-3 -top-3 rounded-xl border border-border bg-card shadow-card px-3 py-2 hidden sm:block">
-        <div className="text-[10px] text-muted-foreground">States mapped</div>
-        <div className="text-sm font-semibold text-brand tabular-nums">36 / 36</div>
-      </div>
     </motion.div>
   );
 }

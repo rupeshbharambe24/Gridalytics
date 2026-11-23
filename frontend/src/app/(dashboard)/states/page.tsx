@@ -104,9 +104,11 @@ export default function StatesPage() {
     const lo = Math.min(...f.lower_bound_mw);
     const hi = Math.max(...f.upper_bound_mw);
     const pad = (hi - lo) * 0.1 || hi * 0.05;
+    const d0 = Math.max(0, Math.floor((lo - pad) / 500) * 500);
+    const d1 = Math.ceil((hi + pad) / 500) * 500;
     return {
       pts,
-      domain: [Math.max(0, lo - pad), hi + pad] as [number, number],
+      domain: [d0, d1] as [number, number],
       res: f.resolution,
       model: f.served_model,
       date: f.timestamps[0]?.slice(0, 10),
@@ -156,6 +158,8 @@ export default function StatesPage() {
   }, [demand]);
   const chartData = analysis?.area ?? [];
   const fmtMW = (v: number) => `${Math.round(v).toLocaleString("en-IN")}`;
+  // Compact axis labels (e.g. 18,332 -> "18k") so Y-ticks never clip the plot.
+  const kMW = (v: number) => (Math.abs(v) >= 1000 ? `${Math.round(v / 1000)}k` : `${Math.round(v)}`);
 
   const tooltipStyle = { background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 };
 
@@ -301,10 +305,10 @@ export default function StatesPage() {
                       fcData.pts.length > 1 ? (
                         <div className="h-64">
                           <ResponsiveContainer width="100%" height="100%">
-                            <ComposedChart data={fcData.pts} margin={{ top: 4, right: 8, left: -12, bottom: 0 }}>
+                            <ComposedChart data={fcData.pts} margin={{ top: 4, right: 8, left: 4, bottom: 0 }}>
                               <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-border" vertical={false} />
                               <XAxis dataKey="t" tick={{ fontSize: 10 }} interval="preserveStartEnd" minTickGap={48} stroke="currentColor" className="text-muted-foreground" />
-                              <YAxis tick={{ fontSize: 10 }} width={48} stroke="currentColor" className="text-muted-foreground" domain={fcData.domain} />
+                              <YAxis tick={{ fontSize: 10 }} width={46} tickFormatter={kMW} stroke="currentColor" className="text-muted-foreground" domain={fcData.domain} />
                               <Tooltip
                                 contentStyle={tooltipStyle}
                                 formatter={(v: any, n: any) => [`${Number(v).toLocaleString("en-IN")} MW`, n === "pred" ? "forecast" : n]}
@@ -343,7 +347,7 @@ export default function StatesPage() {
                           <div className="h-full flex items-center justify-center text-xs text-muted-foreground">Loading…</div>
                         ) : chartData.length ? (
                           <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={chartData} margin={{ top: 4, right: 6, left: -14, bottom: 0 }}>
+                            <AreaChart data={chartData} margin={{ top: 4, right: 6, left: 4, bottom: 0 }}>
                               <defs>
                                 <linearGradient id="demandFill" x1="0" y1="0" x2="0" y2="1">
                                   <stop offset="0%" stopColor="hsl(var(--chart-demand))" stopOpacity={0.4} />
@@ -352,7 +356,7 @@ export default function StatesPage() {
                               </defs>
                               <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-border" vertical={false} />
                               <XAxis dataKey="t" tick={{ fontSize: 9 }} interval="preserveStartEnd" minTickGap={40} stroke="currentColor" className="text-muted-foreground" />
-                              <YAxis tick={{ fontSize: 9 }} width={44} stroke="currentColor" className="text-muted-foreground" domain={["auto", "auto"]} />
+                              <YAxis tick={{ fontSize: 9 }} width={40} tickFormatter={kMW} stroke="currentColor" className="text-muted-foreground" domain={["auto", "auto"]} />
                               <Tooltip
                                 contentStyle={tooltipStyle}
                                 formatter={(v: any) => [`${Number(v).toLocaleString("en-IN")} MW`, "demand"]}
@@ -371,9 +375,9 @@ export default function StatesPage() {
                       <div className="h-40 mt-2">
                         {analysis ? (
                           <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={analysis.hourly} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+                            <BarChart data={analysis.hourly} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
                               <XAxis dataKey="h" tick={{ fontSize: 9 }} interval={2} stroke="currentColor" className="text-muted-foreground" />
-                              <YAxis tick={{ fontSize: 9 }} width={44} stroke="currentColor" className="text-muted-foreground" domain={["auto", "auto"]} />
+                              <YAxis tick={{ fontSize: 9 }} width={40} tickFormatter={kMW} stroke="currentColor" className="text-muted-foreground" domain={["auto", "auto"]} />
                               <Tooltip
                                 contentStyle={tooltipStyle}
                                 formatter={(v: any) => [`${Number(v).toLocaleString("en-IN")} MW`, "avg"]}
