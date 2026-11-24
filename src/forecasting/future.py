@@ -361,6 +361,28 @@ def forecast_future(
         all_lower.append(round(lo, 1))
         all_upper.append(round(hi, 1))
 
+    # ── corruption / collapse guard ──────────────────────────────────────
+    # The per-step clip above keeps a healthy forecast inside Delhi's physical
+    # envelope, but it also silently FLOORS a broken model's ~0 output to 500.
+    # That once stored a flat 500 MW day (actual ~4000) as if it were a real
+    # forecast — a corrupt XGBoost reload whose learned base_score was lost.
+    # A day whose peak sits below the recent observed demand floor, or that
+    # spends most of its steps pinned to the clip floor, is not a forecast; it
+    # is a dead model. Fail loudly so the caller records nothing rather than a
+    # plausible-looking lie.
+    recent = history.tail(max(1, 7 * len(timestamps)))
+    recent_floor = float(recent.min()) if not recent.empty else 500.0
+    n_floored = sum(1 for p in all_predictions if p <= 500.0)
+    day_peak = max(all_predictions) if all_predictions else 0.0
+    if day_peak < recent_floor or n_floored > 0.4 * max(1, len(all_predictions)):
+        raise ValueError(
+            f"{getattr(model, 'name', 'model')} produced a collapsed {resolution} "
+            f"forecast for {target_date}: peak={day_peak:.0f} MW, "
+            f"{n_floored}/{len(all_predictions)} steps at the floor, recent "
+            f"observed demand floor={recent_floor:.0f} MW — model likely corrupt; "
+            f"refusing to emit it."
+        )
+
     return {
         "timestamps": [str(t) for t in timestamps],
         "predicted_mw": all_predictions,
@@ -820,6 +842,21 @@ def forecast_state_future(
         preds.append(round(pred, 1))
         lows.append(round(lo, 1))
         highs.append(round(hi, 1))
+
+    # Corruption / collapse guard — mirror of the Delhi engine. A day whose peak
+    # falls below the state's own recent observed demand floor is a dead model
+    # (e.g. a corrupt XGBoost reload), not a forecast; fail loudly.
+    recent = extended.tail(max(1, 7 * len(timestamps)))
+    recent_floor = float(recent.min()) if not recent.empty else lo_clamp
+    day_peak = max(preds) if preds else 0.0
+    n_floored = sum(1 for p in preds if p <= lo_clamp + 1.0)
+    if day_peak < recent_floor or n_floored > 0.4 * max(1, len(preds)):
+        raise ValueError(
+            f"{getattr(model, 'name', 'model')} produced a collapsed {resolution} "
+            f"forecast for {state_code} on {target_date}: peak={day_peak:.0f} MW, "
+            f"recent observed floor={recent_floor:.0f} MW — model likely corrupt; "
+            f"refusing to emit it."
+        )
 
     return {
         "state": state_code, "resolution": resolution,

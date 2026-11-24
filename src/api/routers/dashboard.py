@@ -372,8 +372,17 @@ def get_accuracy_trend(
         rolling_7.append(round(sum(w7) / len(w7), 2))
         rolling_30.append(round(sum(w30) / len(w30), 2))
 
-    # Drift detection: is rolling MAPE increasing?
+    threshold = 5.0  # MAPE %% alert threshold
+
+    # Drift detection fires on EITHER a rising smoothed trend OR an absolute
+    # breach. The relative-trend check alone is blind to two real failures:
+    # a model that is *stably* bad (error never rises, just stays high) and a
+    # single catastrophic day that the 7-day window smooths below the trigger.
+    # The absolute check closes both gaps — a corrupt model once logged an 86%%
+    # day while this endpoint still reported "stable".
     drift_status = "stable"
+
+    # (1) relative trend — error accelerating week-over-week
     if len(rolling_7) >= 14:
         recent = np.mean(rolling_7[-7:])
         earlier = np.mean(rolling_7[-14:-7])
@@ -382,13 +391,23 @@ def get_accuracy_trend(
         if recent > earlier * 1.5:
             drift_status = "drift_detected"
 
+    # (2) absolute breach — the latest smoothed error, or a single day, is over
+    #     threshold regardless of trend. Escalates but never de-escalates.
+    recent_rolling = rolling_7[-1] if rolling_7 else 0.0
+    latest_daily = mapes[-1] if mapes else 0.0
+    if recent_rolling > threshold or latest_daily > 2 * threshold:
+        if drift_status == "stable":
+            drift_status = "warning"
+    if recent_rolling > 1.5 * threshold or latest_daily > 3 * threshold:
+        drift_status = "drift_detected"
+
     return {
         "dates": dates,
         "daily_mape": [round(m, 2) for m in mapes],
         "rolling_7d_mape": rolling_7,
         "rolling_30d_mape": rolling_30,
         "drift_status": drift_status,
-        "threshold": 5.0,  # MAPE threshold for alerting
+        "threshold": threshold,
     }
 
 

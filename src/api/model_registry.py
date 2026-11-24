@@ -80,7 +80,12 @@ def get_model(resolution: str, model_name: str | None = None):
         key = f"{resolution}_{model_name}"
         return _models.get(key)
 
-    for name in ["xgboost", "lightgbm"]:
+    # Prefer LightGBM: it is the reliably-serializable Delhi model. XGBoost is
+    # currently unusable in this environment (xgboost 2.1.4 × sklearn 1.9.1 both
+    # fails to save and reloads a corrupt model that predicts ~0 — see
+    # docs/model_serving.md); keep it reachable by explicit name for comparison,
+    # but never let it become the default served model by accident.
+    for name in ["lightgbm", "xgboost"]:
         key = f"{resolution}_{name}"
         if key in _models:
             return _models[key]

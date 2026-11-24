@@ -46,6 +46,12 @@ export default function AccuracyPage() {
   const errorDist = Object.entries(errorBuckets).map(([bucket, count]) => ({ bucket: bucket + " MW", count }));
 
   const driftStatus = trend?.drift_status || "stable";
+  const DRIFT_UI: Record<string, { label: string; color: string; border: string; icon: typeof CheckCircle2 }> = {
+    stable: { label: "Stable", color: "text-emerald-400", border: "border-emerald-500/30", icon: CheckCircle2 },
+    warning: { label: "Warning", color: "text-amber-400", border: "border-amber-500/30", icon: AlertTriangle },
+    drift_detected: { label: "Drift detected", color: "text-rose-400", border: "border-rose-500/30", icon: AlertTriangle },
+  };
+  const drift = DRIFT_UI[driftStatus] ?? DRIFT_UI.stable;
 
   return (
     <div className="space-y-6">
@@ -63,7 +69,7 @@ export default function AccuracyPage() {
           { label: "Avg MAE", value: summary.avg_mae ? `${Number(summary.avg_mae).toFixed(1)} MW` : "---", color: "text-emerald-400" },
           { label: "Days Tracked", value: summary.days_with_actuals || 0, color: "text-foreground" },
           { label: "Best Day", value: summary.best_day ? `${Number(summary.best_day[1]).toFixed(2)}%` : "---", color: "text-emerald-400" },
-          { label: "Drift Status", value: driftStatus, color: driftStatus === "stable" ? "text-emerald-400" : "text-amber-400", icon: driftStatus === "stable" ? CheckCircle2 : AlertTriangle },
+          { label: "Drift Status", value: drift.label, color: drift.color, icon: drift.icon },
         ].map((item, i) => (
           <motion.div
             key={i}
@@ -112,11 +118,8 @@ export default function AccuracyPage() {
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold">MAPE Trend (Drift Detection)</h3>
-            <Badge
-              variant="outline"
-              className={driftStatus === "stable" ? "text-emerald-400 border-emerald-500/30" : "text-amber-400 border-amber-500/30"}
-            >
-              {driftStatus}
+            <Badge variant="outline" className={`${drift.color} ${drift.border}`}>
+              {drift.label}
             </Badge>
           </div>
           <ResponsiveContainer width="100%" height={250}>
