@@ -48,6 +48,18 @@ Two silent-failure layers hid it:
   and regenerated with the served LightGBM model (Nov 23: pred 3969 vs actual
   4031, 0.93% MAPE).
 
+### State XGBoost models are fine
+Audited 2026-11-24: of the 24 state models, three serve XGBoost (all_india/15min,
+himachal_pradesh/15min, karnataka/hourly). All three load cleanly and forecast
+correctly — they were saved *with* the `_estimator_type` field by the state
+training path, so they are unaffected. The corruption is specific to the
+pre-shim Delhi artifact.
+
+The corrupt `models/hourly/xgboost/` artifact has been **removed** from the repo
+(it was unloadable and predicted ~0); `models/5min/xgboost/` was an incomplete
+leftover (no `meta.json`, never loaded). Regenerate them by retraining once the
+environment is fixed.
+
 ### How to revive XGBoost (optional, future)
 XGBoost is not required — LightGBM serves all Delhi resolutions accurately. To
 bring XGBoost back:
