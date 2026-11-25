@@ -20,7 +20,7 @@ jobs:
         run: |
           pip install pandas numpy sqlalchemy pydantic pydantic-settings python-dotenv \
             requests beautifulsoup4 httpx lightgbm xgboost scikit-learn \
-            fastapi uvicorn python-jose passlib holidays apscheduler \
+            fastapi uvicorn python-jose "passlib[bcrypt]" bcrypt holidays apscheduler \
             mlflow optuna pytest
 
       - name: Setup environment
